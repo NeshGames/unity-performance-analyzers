@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "upa": [
     {
       "id": "UPA0001",
@@ -132,6 +132,136 @@
       "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0013.md"
     },
     {
+      "id": "UPA0014",
+      "title": "Scene-search API call in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0014.md"
+    },
+    {
+      "id": "UPA0015",
+      "title": "Camera.main accessed in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Info",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0015.md"
+    },
+    {
+      "id": "UPA0016",
+      "title": "SendMessage / BroadcastMessage call",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0016.md"
+    },
+    {
+      "id": "UPA0017",
+      "title": "Array-returning GetComponents overload in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0017.md"
+    },
+    {
+      "id": "UPA0018",
+      "title": "Allocating array-returning Unity API in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0018.md"
+    },
+    {
+      "id": "UPA0019",
+      "title": "Boxed value yielded from coroutine",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0019.md"
+    },
+    {
+      "id": "UPA0020",
+      "title": "Lambda in WaitUntil / WaitWhile construction",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0020.md"
+    },
+    {
+      "id": "UPA0021",
+      "title": "magnitude or Distance compared where sqrMagnitude suffices",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0021.md"
+    },
+    {
+      "id": "UPA0022",
+      "title": "Enum.HasFlag in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0022.md"
+    },
+    {
+      "id": "UPA0023",
+      "title": "OnGUI declared in player code",
+      "category": "Performance",
+      "defaultSeverity": "Info",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0023.md"
+    },
+    {
+      "id": "UPA0024",
+      "title": "Resources.Load in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0024.md"
+    },
+    {
+      "id": "UPA0025",
+      "title": "Finalizer declared in runtime code",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0025.md"
+    },
+    {
+      "id": "UPA0026",
+      "title": "Value type boxed by inherited method call",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0026.md"
+    },
+    {
       "id": "UPA1000",
       "title": "Leaf class not sealed",
       "category": "Correctness",
@@ -200,6 +330,36 @@
       "hotPath": false,
       "condition": "R3",
       "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2021.md"
+    },
+    {
+      "id": "UPA2030",
+      "title": "Tween created in per-frame method",
+      "category": "Ecosystem",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": true,
+      "condition": "DOTween",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2030.md"
+    },
+    {
+      "id": "UPA2031",
+      "title": "Discarded infinite tween without SetLink",
+      "category": "Ecosystem",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "DOTween",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2031.md"
+    },
+    {
+      "id": "UPA2032",
+      "title": "String tween ID",
+      "category": "Ecosystem",
+      "defaultSeverity": "Info",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "DOTween",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2032.md"
     },
     {
       "id": "UPA3000",

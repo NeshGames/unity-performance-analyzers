@@ -16,7 +16,7 @@ assembly 引用的套件(UniTask、ZString、R3、DOTween)以及專案是否以 
 Package Manager > *Add package from git URL…*:
 
 ```
-https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.2.0
+https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.3.0
 ```
 
 analyzer 會自動套用到**專案內的每一個 assembly**——不需要任何 asmdef reference
