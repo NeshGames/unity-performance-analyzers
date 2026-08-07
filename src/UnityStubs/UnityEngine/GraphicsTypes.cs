@@ -1,11 +1,26 @@
+using System.Collections.Generic;
+
 namespace UnityEngine
 {
     public struct Color
     {
     }
 
+    public class Camera : Behaviour
+    {
+        public static Camera main => null!;
+        public static Camera[] allCameras => null!;
+        public static int allCamerasCount => 0;
+        public static int GetAllCameras(Camera[] cameras) => 0;
+    }
+
     public struct Vector4
     {
+        public float magnitude => 0f;
+        public float sqrMagnitude => 0f;
+
+        public static float Distance(Vector4 a, Vector4 b) => 0f;
+        public static Vector4 operator -(Vector4 a, Vector4 b) => default;
     }
 
     public class Material : Object
@@ -50,6 +65,8 @@ namespace UnityEngine
         public Material[] materials { get; set; } = null!;
         public Material sharedMaterial { get; set; } = null!;
         public Material[] sharedMaterials { get; set; } = null!;
+
+        public void GetSharedMaterials(List<Material> m) { }
     }
 
     public class SkinnedMeshRenderer : Renderer
@@ -62,8 +79,16 @@ namespace UnityEngine
         public Mesh sharedMesh { get; set; } = null!;
     }
 
+    public class AnimatorControllerParameter
+    {
+    }
+
     public class Animator : Behaviour
     {
+        public AnimatorControllerParameter[] parameters => null!;
+        public int parameterCount => 0;
+        public AnimatorControllerParameter GetParameter(int index) => null!;
+
         public static int StringToHash(string name) => 0;
         public void Play(string stateName) { }
         public void Play(int stateNameHash) { }

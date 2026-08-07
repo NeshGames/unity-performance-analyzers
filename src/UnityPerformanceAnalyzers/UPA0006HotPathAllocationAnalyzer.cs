@@ -8,8 +8,10 @@ namespace UnityPerformanceAnalyzers
 {
     /// <summary>
     /// UPA0006: Reports managed heap allocations on per-frame hot paths — object creations of
-    /// reference types, array creations, and boxing conversions. Delegate creations are left to
-    /// UPA0007 (capturing lambdas), strings to UPA2000, and allocations on throw paths are
+    /// reference types, array creations, boxing conversions, and value-type interpolation
+    /// holes (which box when the interpolation lowers to string.Format but never produce a
+    /// conversion in the operation tree). Delegate creations are left to UPA0007 (capturing
+    /// lambdas), string allocations to UPA2000, and allocations on throw paths are
     /// deliberately ignored (docs/rules/UPA0006.md).
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -50,7 +52,8 @@ namespace UnityPerformanceAnalyzers
                     opCtx => AnalyzeOperation(opCtx, hotPathDetector),
                     OperationKind.ObjectCreation,
                     OperationKind.ArrayCreation,
-                    OperationKind.Conversion);
+                    OperationKind.Conversion,
+                    OperationKind.Interpolation);
             });
         }
 
@@ -72,6 +75,9 @@ namespace UnityPerformanceAnalyzers
                     break;
                 case IConversionOperation conversion:
                     allocationDescription = DescribeBoxing(conversion);
+                    break;
+                case IInterpolationOperation interpolation:
+                    allocationDescription = DescribeInterpolationHoleBoxing(interpolation);
                     break;
                 default:
                     return;
@@ -129,6 +135,30 @@ namespace UnityPerformanceAnalyzers
             return operandType is null
                 ? "boxed value"
                 : $"boxed {operandType.ToDisplayString(s_typeDisplayFormat)}";
+        }
+
+        // A value-type interpolation hole boxes when the interpolation lowers to
+        // string.Format(string, object), but the operation tree keeps the hole at its original
+        // type with no conversion node — so the boxing is invisible to the Conversion action
+        // and must be reported here. The string allocation itself stays UPA2000's territory.
+        private static string? DescribeInterpolationHoleBoxing(IInterpolationOperation interpolation)
+        {
+            var expression = interpolation.Expression;
+
+            // An explicit boxing conversion inside the hole (e.g. $"{(object)x}") is already
+            // reported by the Conversion action — do not report it twice.
+            if (expression is IConversionOperation)
+            {
+                return null;
+            }
+
+            var type = expression.Type;
+            if (type is null || !type.IsValueType || type is ITypeParameterSymbol)
+            {
+                return null;
+            }
+
+            return $"boxed {type.ToDisplayString(s_typeDisplayFormat)}";
         }
 
         // `throw new Exception(...)` and allocations feeding directly into a throw are excluded:

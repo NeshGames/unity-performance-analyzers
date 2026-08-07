@@ -1,11 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- IDE-only code fixes. Intentionally empty in P1: UPA0005 ships without a code fix in v0.1
-      . The Roslyn Workspaces dependency is added together with the first fix. -->
+  <!-- IDE-only code fixes. Not shipped in the UPM package: Unity's compiler pipeline
+       consumes analyzers only, so fixes surface exclusively in IDEs that load this
+       assembly alongside the analyzer (Rider/VS with a NuGet or vsix distribution). -->
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same pinned Roslyn floor as the analyzer project (see Directory.Build.props). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(RoslynVersion)" PrivateAssets="all" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\UnityPerformanceAnalyzers\UnityPerformanceAnalyzers.csproj" />

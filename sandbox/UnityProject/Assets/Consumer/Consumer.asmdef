@@ -1,7 +1,9 @@
 {
     "name": "Consumer",
     "rootNamespace": "",
-    "references": [],
+    "references": [
+        "DOTween"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

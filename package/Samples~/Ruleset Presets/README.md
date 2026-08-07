@@ -13,8 +13,8 @@ here exist only to keep Rider / Visual Studio severities in sync with your rules
 |---|---|
 | `minimal` | Unity correctness rules (`UNT` group) as errors; UPA1001 keeps its default warning. Everything else off — a safe first install. |
 | `recommended` | + UPA performance rules as warnings. The everyday default. |
-| `strict` | Performance rules become errors; opinionated rules (UPA0005/0011/0012, UPA1000) start reporting. |
-| `cysharp-stack` | + ecosystem rules as errors (LINQ ban, UniTask/ZString/R3 adoption). For codebases committed to the Cysharp stack. |
+| `strict` | Performance rules become errors; opinionated rules (UPA0005/0011/0012/0020/0023/0024, UPA1000) start reporting. |
+| `cysharp-stack` | + ecosystem rules as errors (UniTask/ZString/R3 adoption). For codebases committed to the Cysharp stack. |
 
 ## Install
 
@@ -25,8 +25,8 @@ here exist only to keep Rider / Visual Studio severities in sync with your rules
 
 ## WebGL rules
 
-`webgl-addon.ruleset` grades UPA3000–UPA3003 (threading / sockets / sync file IO /
-Process) as warnings. To stack it on any base preset, copy it next to your
+`webgl-addon.ruleset` grades UPA3000–UPA3004 (threading / sockets / sync file IO /
+Process / blocking waits) as warnings. To stack it on any base preset, copy it next to your
 `Assets/Default.ruleset` and add inside the `<RuleSet>` element:
 
 ```xml
@@ -54,3 +54,6 @@ builds always use the built-in hot-path defaults.
 - `UNT####` severities only take effect where Microsoft.Unity.Analyzers is present
   (e.g. the copy bundled with Visual Studio Tools for Unity); the entries are inert
   otherwise.
+- UPA2030–UPA2032 run only in assemblies that reference DOTween; their preset
+  entries are inert otherwise. The same applies to the other conditional ecosystem
+  rules (UniTask / R3).

@@ -73,6 +73,54 @@ namespace UnityPerformanceAnalyzers
         internal const string UPA0013MessageFormat = nameof(UPA0013MessageFormat);
         internal const string UPA0013Description = nameof(UPA0013Description);
 
+        internal const string UPA0014Title = nameof(UPA0014Title);
+        internal const string UPA0014MessageFormat = nameof(UPA0014MessageFormat);
+        internal const string UPA0014Description = nameof(UPA0014Description);
+
+        internal const string UPA0015Title = nameof(UPA0015Title);
+        internal const string UPA0015MessageFormat = nameof(UPA0015MessageFormat);
+        internal const string UPA0015Description = nameof(UPA0015Description);
+
+        internal const string UPA0016Title = nameof(UPA0016Title);
+        internal const string UPA0016MessageFormat = nameof(UPA0016MessageFormat);
+        internal const string UPA0016Description = nameof(UPA0016Description);
+
+        internal const string UPA0018Title = nameof(UPA0018Title);
+        internal const string UPA0018MessageFormat = nameof(UPA0018MessageFormat);
+        internal const string UPA0018Description = nameof(UPA0018Description);
+
+        internal const string UPA0017Title = nameof(UPA0017Title);
+        internal const string UPA0017MessageFormat = nameof(UPA0017MessageFormat);
+        internal const string UPA0017Description = nameof(UPA0017Description);
+
+        internal const string UPA0019Title = nameof(UPA0019Title);
+        internal const string UPA0019MessageFormat = nameof(UPA0019MessageFormat);
+        internal const string UPA0019Description = nameof(UPA0019Description);
+
+        internal const string UPA0020Title = nameof(UPA0020Title);
+        internal const string UPA0020MessageFormat = nameof(UPA0020MessageFormat);
+        internal const string UPA0020Description = nameof(UPA0020Description);
+
+        internal const string UPA0021Title = nameof(UPA0021Title);
+        internal const string UPA0021MessageFormat = nameof(UPA0021MessageFormat);
+        internal const string UPA0021Description = nameof(UPA0021Description);
+
+        internal const string UPA0022Title = nameof(UPA0022Title);
+        internal const string UPA0022MessageFormat = nameof(UPA0022MessageFormat);
+        internal const string UPA0022Description = nameof(UPA0022Description);
+
+        internal const string UPA0023Title = nameof(UPA0023Title);
+        internal const string UPA0023MessageFormat = nameof(UPA0023MessageFormat);
+        internal const string UPA0023Description = nameof(UPA0023Description);
+
+        internal const string UPA0024Title = nameof(UPA0024Title);
+        internal const string UPA0024MessageFormat = nameof(UPA0024MessageFormat);
+        internal const string UPA0024Description = nameof(UPA0024Description);
+
+        internal const string UPA0025Title = nameof(UPA0025Title);
+        internal const string UPA0025MessageFormat = nameof(UPA0025MessageFormat);
+        internal const string UPA0025Description = nameof(UPA0025Description);
+
         internal const string UPA2010Title = nameof(UPA2010Title);
         internal const string UPA2010MessageFormat = nameof(UPA2010MessageFormat);
         internal const string UPA2010Description = nameof(UPA2010Description);
@@ -93,6 +141,25 @@ namespace UnityPerformanceAnalyzers
         internal const string UPA2021Title = nameof(UPA2021Title);
         internal const string UPA2021MessageFormat = nameof(UPA2021MessageFormat);
         internal const string UPA2021Description = nameof(UPA2021Description);
+
+        internal const string UPA0026Title = nameof(UPA0026Title);
+        internal const string UPA0026MessageFormat = nameof(UPA0026MessageFormat);
+        internal const string UPA0026Description = nameof(UPA0026Description);
+        internal const string UPA0026AdviceGetType = nameof(UPA0026AdviceGetType);
+        internal const string UPA0026AdviceEnum = nameof(UPA0026AdviceEnum);
+        internal const string UPA0026AdviceStruct = nameof(UPA0026AdviceStruct);
+
+        internal const string UPA2030Title = nameof(UPA2030Title);
+        internal const string UPA2030MessageFormat = nameof(UPA2030MessageFormat);
+        internal const string UPA2030Description = nameof(UPA2030Description);
+
+        internal const string UPA2031Title = nameof(UPA2031Title);
+        internal const string UPA2031MessageFormat = nameof(UPA2031MessageFormat);
+        internal const string UPA2031Description = nameof(UPA2031Description);
+
+        internal const string UPA2032Title = nameof(UPA2032Title);
+        internal const string UPA2032MessageFormat = nameof(UPA2032MessageFormat);
+        internal const string UPA2032Description = nameof(UPA2032Description);
 
         internal const string UPA3000Title = nameof(UPA3000Title);
         internal const string UPA3000MessageFormat = nameof(UPA3000MessageFormat);

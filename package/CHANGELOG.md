@@ -5,6 +5,43 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-08
+
+### Added
+
+- **Thirteen performance rules UPA0014–UPA0026**: scene-search APIs on hot paths
+  (UPA0014), `Camera.main` on hot paths (UPA0015, Info), `SendMessage`/`BroadcastMessage`
+  anywhere (UPA0016), array-returning `GetComponents` overloads (UPA0017), an
+  allocating array-returning API deny-list — `Input.touches`, `Animator.parameters`,
+  `Renderer.sharedMaterials`, `Camera.allCameras` (UPA0018), boxed coroutine yields
+  (UPA0019), lambdas in `WaitUntil`/`WaitWhile` construction (UPA0020, off by default),
+  `magnitude`/`Distance` threshold comparisons (UPA0021), `Enum.HasFlag` on hot paths
+  (UPA0022), `OnGUI` in player code (UPA0023, Info, off by default), `Resources.Load`
+  on hot paths (UPA0024, off by default), finalizers in runtime code (UPA0025), and
+  value types boxed by inherited `ToString`/`GetHashCode`/`Equals(object)`/`GetType`
+  calls (UPA0026).
+- **DOTween-conditional rules UPA2030–UPA2032** (active only when the project
+  references the `DOTween` assembly): tween creation in per-frame methods (UPA2030),
+  discarded infinite tweens without `SetLink` (UPA2031), and string tween IDs
+  (UPA2032, Info). All three are off by default; recommended and stricter presets
+  enable UPA2030/2031.
+- **First code fixes** (IDE-only): `yield return <boxed value>` → `yield return null`
+  (UPA0019), squared-threshold rewrite for `magnitude`/`Distance` comparisons against
+  numeric literals (UPA0021), and `x.HasFlag(y)` → `(x & y) == y` (UPA0022).
+
+### Changed
+
+- **UPA0006 now reports boxing in string interpolation holes** (`$"hp {hp}"` with a
+  value-type hole). The boxing happens when the compiler lowers the interpolation to
+  `string.Format` and was previously invisible to the rule; string-typed holes still
+  belong to UPA2000.
+- **UPA0023/UPA0025 skip editor assemblies by name** (`Assembly-CSharp-Editor` or a
+  `.Editor` suffix). Unity injects UnityEditor references into every editor-domain
+  compilation, so reference-based detection would disable these rules exactly where
+  they should run.
+- All presets gained entries for the sixteen new rules; `editor-relaxed.ruleset` now
+  also silences UPA3004 and the DOTween group.
+
 ## [0.2.0] - 2026-08-07
 
 ### Added

@@ -13,8 +13,8 @@ Ruleset 才是 Unity 真正讀取的通道:Unity 會把 `Assets/Default.ruleset`
 |---|---|
 | `minimal` | Unity 正確性規則(`UNT` 群組)設為 error;UPA1001 維持其預設 warning。其餘全部關閉——安全的首次安裝選擇。 |
 | `recommended` | 另加 UPA 效能規則設為 warning。日常使用的預設選擇。 |
-| `strict` | 效能規則升為 error;帶主觀立場的規則(UPA0005/0011/0012、UPA1000)開始回報。 |
-| `cysharp-stack` | 另加生態規則設為 error(LINQ 禁用、UniTask/ZString/R3 採用)。適用於決心採用 Cysharp 技術棧的程式碼庫。 |
+| `strict` | 效能規則升為 error;帶主觀立場的規則(UPA0005/0011/0012/0020/0023/0024、UPA1000)開始回報。 |
+| `cysharp-stack` | 另加生態規則設為 error(UniTask/ZString/R3 採用)。適用於決心採用 Cysharp 技術棧的程式碼庫。 |
 
 ## 安裝
 
@@ -25,8 +25,8 @@ Ruleset 才是 Unity 真正讀取的通道:Unity 會把 `Assets/Default.ruleset`
 
 ## WebGL 規則
 
-`webgl-addon.ruleset` 將 UPA3000–UPA3003(threading / sockets / 同步檔案 IO /
-Process)設為 warning。要疊加在任何基礎 preset 上,將它複製到你的
+`webgl-addon.ruleset` 將 UPA3000–UPA3004(threading / sockets / 同步檔案 IO /
+Process / 阻塞等待)設為 warning。要疊加在任何基礎 preset 上,將它複製到你的
 `Assets/Default.ruleset` 旁,並在 `<RuleSet>` 元素內加入:
 
 ```xml
@@ -53,3 +53,5 @@ Ruleset 無法以路徑限定範圍。把 `editor-relaxed.ruleset` 複製到每�
 
 - `UNT####` 嚴重度只在 Microsoft.Unity.Analyzers 存在之處生效
   (例如 Visual Studio Tools for Unity 隨附的版本);否則這些條目為惰性設定。
+- UPA2030–UPA2032 只在引用 DOTween 的 assembly 中執行;未引用時這些 preset 條目
+  為惰性設定。其他條件式生態規則(UniTask / R3)亦同。

@@ -213,5 +213,84 @@ class C : MonoBehaviour
     }
 }");
         }
+
+        // UPA0006 test case 12 — interpolation holes box without a conversion node
+        [Fact]
+        public Task ValueTypeInterpolationHole_InUpdate_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int hp;
+
+    void Update()
+    {
+        var label = $""hp {|UPA0006:{hp}|}"";
+        _ = label;
+    }
+}");
+        }
+
+        // UPA0006 test case 13 — string holes do not box; the string allocation is UPA2000's
+        [Fact]
+        public Task StringInterpolationHole_InUpdate_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    string playerName = string.Empty;
+
+    void Update()
+    {
+        var label = $""name {playerName}"";
+        _ = label;
+    }
+}");
+        }
+
+        // UPA0006 test case 14 — struct passed as an interface parameter boxes
+        [Fact]
+        public Task StructToInterfaceArgument_InUpdate_Triggers()
+        {
+            return VerifyAsync(@"
+using System;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    void Update()
+    {
+        Consume({|UPA0006:42|});
+    }
+
+    void Consume(IComparable value)
+    {
+        _ = value;
+    }
+}");
+        }
+
+        // UPA0006 test case 15 — Nullable<T> to object boxes
+        [Fact]
+        public Task NullableToObject_InUpdate_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int? maybe;
+
+    void Update()
+    {
+        object o = {|UPA0006:maybe|};
+        _ = o;
+    }
+}");
+        }
     }
 }

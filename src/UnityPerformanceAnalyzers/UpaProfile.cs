@@ -20,20 +20,44 @@ namespace UnityPerformanceAnalyzers
         internal const string UniTaskAssemblyName = "UniTask";
         internal const string ZStringAssemblyName = "ZString";
         internal const string R3AssemblyName = "R3";
+        // Free and Pro, with or without asmdef, all ship a DLL named exactly "DOTween".
+        internal const string DOTweenAssemblyName = "DOTween";
 
         internal const string WebGlDefine = "UPA_TARGET_WEBGL";
 
         public bool HasUniTask { get; }
         public bool HasZString { get; }
         public bool HasR3 { get; }
+        public bool HasDOTween { get; }
         public bool RequiresWebGL { get; }
 
-        private UpaProfile(bool hasUniTask, bool hasZString, bool hasR3, bool requiresWebGL)
+        private UpaProfile(bool hasUniTask, bool hasZString, bool hasR3, bool hasDOTween, bool requiresWebGL)
         {
             HasUniTask = hasUniTask;
             HasZString = hasZString;
             HasR3 = hasR3;
+            HasDOTween = hasDOTween;
             RequiresWebGL = requiresWebGL;
+        }
+
+        /// <summary>
+        /// True when the compilation is an editor assembly, detected by assembly name:
+        /// Unity's non-asmdef Editor folders compile into Assembly-CSharp-Editor, and asmdef
+        /// editor assemblies conventionally end in ".Editor". Checking for a UnityEditor
+        /// reference instead does not work: inside the Editor domain Unity injects UnityEditor
+        /// references into every compilation, player assemblies included, so that signal is
+        /// always true exactly where the player-code rules should run.
+        /// </summary>
+        public static bool IsEditorAssembly(Compilation compilation)
+        {
+            var name = compilation.AssemblyName;
+            if (name is null)
+            {
+                return false;
+            }
+
+            return string.Equals(name, "Assembly-CSharp-Editor", StringComparison.OrdinalIgnoreCase) ||
+                name.EndsWith(".Editor", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -47,6 +71,7 @@ namespace UnityPerformanceAnalyzers
             var hasUniTask = false;
             var hasZString = false;
             var hasR3 = false;
+            var hasDOTween = false;
 
             foreach (var identity in compilation.ReferencedAssemblyNames)
             {
@@ -62,6 +87,10 @@ namespace UnityPerformanceAnalyzers
                 {
                     hasR3 = true;
                 }
+                else if (string.Equals(identity.Name, DOTweenAssemblyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    hasDOTween = true;
+                }
             }
 
             var symbols = (compilation.SyntaxTrees.FirstOrDefault()?.Options as CSharpParseOptions)
@@ -69,7 +98,7 @@ namespace UnityPerformanceAnalyzers
                           ?? ImmutableHashSet<string>.Empty;
             var requiresWebGL = symbols.Contains(WebGlDefine);
 
-            return new UpaProfile(hasUniTask, hasZString, hasR3, requiresWebGL);
+            return new UpaProfile(hasUniTask, hasZString, hasR3, hasDOTween, requiresWebGL);
         }
     }
 }

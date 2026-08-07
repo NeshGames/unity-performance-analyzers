@@ -16,3 +16,13 @@ Microsoft.Unity.Analyzers is licensed under the MIT License:
 https://github.com/microsoft/Microsoft.Unity.Analyzers/blob/main/LICENSE.md
 
 Copyright (c) Microsoft Corporation.
+
+## Referenced libraries (not redistributed)
+
+Some rules in this package activate, or adapt their advice, based on whether the
+consuming project references certain third-party libraries — currently UniTask,
+ZString, and R3 (Cysharp), and DOTween (Demigiant). Detection is by assembly
+name only. This package does **not** include, redistribute, or derive from any
+code of these libraries; diagnostic messages and rule documentation merely
+mention them by name and may link to their official documentation. Each library
+remains governed by its own license in the consuming project.

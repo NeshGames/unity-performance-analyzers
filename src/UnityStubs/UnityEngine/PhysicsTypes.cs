@@ -1,7 +1,21 @@
 namespace UnityEngine
 {
+    public struct Vector2
+    {
+        public float magnitude => 0f;
+        public float sqrMagnitude => 0f;
+
+        public static float Distance(Vector2 a, Vector2 b) => 0f;
+        public static Vector2 operator -(Vector2 a, Vector2 b) => default;
+    }
+
     public struct Vector3
     {
+        public float magnitude => 0f;
+        public float sqrMagnitude => 0f;
+
+        public static float Distance(Vector3 a, Vector3 b) => 0f;
+        public static Vector3 operator -(Vector3 a, Vector3 b) => default;
     }
 
     public struct Ray

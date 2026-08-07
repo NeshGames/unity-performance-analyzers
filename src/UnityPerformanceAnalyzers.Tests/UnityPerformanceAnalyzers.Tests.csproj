@@ -9,8 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Generic testing package without a framework suffix (CLAUDE.md §1). -->
+    <!-- Generic testing packages without a framework suffix — the suffixed variants are obsolete. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing" Version="$(CodeAnalysisTestingVersion)" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.CodeFix.Testing" Version="$(CodeAnalysisTestingVersion)" />
     <!-- Pin the Roslyn assemblies the test host loads; the testing package floor is far older. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(RoslynVersion)" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
@@ -20,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\UnityPerformanceAnalyzers\UnityPerformanceAnalyzers.csproj" />
+    <ProjectReference Include="..\UnityPerformanceAnalyzers.CodeFixes\UnityPerformanceAnalyzers.CodeFixes.csproj" />
     <ProjectReference Include="..\UnityStubs\UnityStubs.csproj" />
   </ItemGroup>
 

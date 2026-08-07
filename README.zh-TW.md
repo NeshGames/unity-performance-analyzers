@@ -3,19 +3,20 @@
 > [English](README.md) | 繁體中文
 
 把 Unity 效能與正確性慣例變成編譯期檢查的 Roslyn analyzer 集合。規則會依每個
-assembly 引用的套件(UniTask、ZString、R3)以及專案是否以 WebGL 為目標**自動調整**。
+assembly 引用的套件(UniTask、ZString、R3、DOTween)以及專案是否以 WebGL 為目標
+**自動調整**。
 
 以 UPM package 形式發佈。支援 **Unity 2022.3 LTS ~ Unity 6**。
 
-> **狀態:pre-release。** 全部 24 條 v0.1 規則已實作,並在 Unity 2022.3 與 Unity 6
-> 的 sandbox 建置實測通過;v0.1.0 尚未打 tag。
+> **狀態:pre-1.0。** 全部 41 條規則已實作,並在 Unity 2022.3 與 Unity 6 的
+> sandbox 建置實測通過。rule ID 一經發佈即穩定,永不重用。
 
 ## 安裝
 
 Package Manager > *Add package from git URL…*:
 
 ```
-https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.1.0
+https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.2.0
 ```
 
 analyzer 會自動套用到**專案內的每一個 assembly**——不需要任何 asmdef reference
@@ -33,7 +34,7 @@ analyzer 會自動套用到**專案內的每一個 assembly**——不需要任�
 | `minimal` | Unity 正確性規則(`UNT` 群)設 error;UPA1001 維持預設 warning——最保守的起手式 |
 | `recommended` | + UPA 效能規則設 warning。日常預設 |
 | `strict` | 效能規則升為 error;表態性規則開始回報 |
-| `cysharp-stack` | + 生態規則設 error(禁 LINQ、UniTask/ZString/R3 採用) |
+| `cysharp-stack` | + 生態規則設 error(UniTask/ZString/R3 採用) |
 
 同一個 sample 還附:
 
@@ -101,6 +102,19 @@ upa_enum_switch_allow_default = true
 | [UPA0011](docs/rules/UPA0011.zh-TW.md) | 用 `SetActive` 切換 UI 可見性 *(預設關閉)* | |
 | [UPA0012](docs/rules/UPA0012.zh-TW.md) | TMP `text` 指派而非 `SetText` *(預設關閉)* | ✓ |
 | [UPA0013](docs/rules/UPA0013.zh-TW.md) | 逐幀方法內的 `System.Linq` 呼叫 *(預設關閉;原 UPA2001)* | ✓ |
+| [UPA0014](docs/rules/UPA0014.zh-TW.md) | 逐幀方法內的場景搜尋 API(`GameObject.Find`、`FindObjectOfType` 等) | ✓ |
+| [UPA0015](docs/rules/UPA0015.zh-TW.md) | 逐幀方法內存取 `Camera.main` *(Info)* | ✓ |
+| [UPA0016](docs/rules/UPA0016.zh-TW.md) | `SendMessage` / `SendMessageUpwards` / `BroadcastMessage` 呼叫 | |
+| [UPA0017](docs/rules/UPA0017.zh-TW.md) | 回傳陣列的 `GetComponents` 多載(改用 `List<T>` 多載) | ✓ |
+| [UPA0018](docs/rules/UPA0018.zh-TW.md) | 配置陣列的回傳型 API(`Input.touches`、`Animator.parameters`、`Renderer.sharedMaterials`、`Camera.allCameras`) | ✓ |
+| [UPA0019](docs/rules/UPA0019.zh-TW.md) | coroutine 內 yield 實值型別(裝箱;Unity 視同 `null`) | |
+| [UPA0020](docs/rules/UPA0020.zh-TW.md) | `WaitUntil` / `WaitWhile` 建構時傳入 lambda *(預設關閉)* | |
+| [UPA0021](docs/rules/UPA0021.zh-TW.md) | 可用 `sqrMagnitude` 取代的 `magnitude` / `Distance` 比較 | |
+| [UPA0022](docs/rules/UPA0022.zh-TW.md) | 逐幀方法內的 `Enum.HasFlag`(Unity Mono 上會裝箱) | ✓ |
+| [UPA0023](docs/rules/UPA0023.zh-TW.md) | player 程式碼中宣告 `OnGUI` *(Info,預設關閉)* | |
+| [UPA0024](docs/rules/UPA0024.zh-TW.md) | 逐幀方法內的 `Resources.Load` *(預設關閉)* | ✓ |
+| [UPA0025](docs/rules/UPA0025.zh-TW.md) | runtime 程式碼中宣告 finalizer | |
+| [UPA0026](docs/rules/UPA0026.zh-TW.md) | 實值型別呼叫繼承的 `ToString` / `GetHashCode` / `Equals(object)` / `GetType` 造成裝箱 | ✓ |
 
 ### 正確性
 
@@ -118,6 +132,9 @@ upa_enum_switch_allow_default = true
 | [UPA2011](docs/rules/UPA2011.zh-TW.md) | MonoBehaviour 上的 coroutine `IEnumerator` 方法 | 僅在引用 UniTask 時執行 |
 | [UPA2012](docs/rules/UPA2012.zh-TW.md) | `async void` / 被捨棄的 task 呼叫 | UniTask 切換建議句 |
 | [UPA2021](docs/rules/UPA2021.zh-TW.md) | 用 public `Action` event 表達可觀察狀態 | 僅在引用 R3 時執行 |
+| [UPA2030](docs/rules/UPA2030.zh-TW.md) | 逐幀方法內建立 tween | 僅在引用 DOTween 時執行 |
+| [UPA2031](docs/rules/UPA2031.zh-TW.md) | 被丟棄且無 `SetLink` 的無限 tween(`SetLoops(-1)`) | 僅在引用 DOTween 時執行 |
+| [UPA2032](docs/rules/UPA2032.zh-TW.md) | 字串 tween ID *(Info)* | 僅在引用 DOTween 時執行 |
 
 ### 平台(預設關閉;僅在定義 `UPA_TARGET_WEBGL` 時執行)
 
@@ -129,7 +146,7 @@ upa_enum_switch_allow_default = true
 | [UPA3003](docs/rules/UPA3003.zh-TW.md) | WebGL 不支援的 `System.Diagnostics.Process` |
 | [UPA3004](docs/rules/UPA3004.zh-TW.md) | 阻塞等待非同步作業(`WaitForCompletion`、`Task.Wait`、`.Result`、`GetAwaiter().GetResult()`)——單執行緒 WebGL 上直接死鎖 |
 
-套件偵測以引用的 assembly 名稱為準(`UniTask`、`ZString`、`R3`)——
+套件偵測以引用的 assembly 名稱為準(`UniTask`、`ZString`、`R3`、`DOTween`)——
 per-assembly、全自動、零設定。
 
 ## 調校與抑制

@@ -18,12 +18,28 @@
     <Rule Id="UPA0011" Action="Warning" />
     <Rule Id="UPA0012" Action="Warning" />
     <Rule Id="UPA0013" Action="None" />
+    <Rule Id="UPA0014" Action="Error" />
+    <Rule Id="UPA0015" Action="Warning" />
+    <Rule Id="UPA0016" Action="Error" />
+    <Rule Id="UPA0017" Action="Error" />
+    <Rule Id="UPA0018" Action="Error" />
+    <Rule Id="UPA0019" Action="Error" />
+    <Rule Id="UPA0020" Action="Warning" />
+    <Rule Id="UPA0021" Action="Error" />
+    <Rule Id="UPA0022" Action="Error" />
+    <Rule Id="UPA0023" Action="Info" />
+    <Rule Id="UPA0024" Action="Warning" />
+    <Rule Id="UPA0025" Action="Error" />
+    <Rule Id="UPA0026" Action="Error" />
     <Rule Id="UPA1000" Action="Warning" />
     <Rule Id="UPA2000" Action="None" />
     <Rule Id="UPA2010" Action="None" />
     <Rule Id="UPA2011" Action="None" />
     <Rule Id="UPA2012" Action="None" />
     <Rule Id="UPA2021" Action="None" />
+    <Rule Id="UPA2030" Action="Error" />
+    <Rule Id="UPA2031" Action="Error" />
+    <Rule Id="UPA2032" Action="Info" />
   </Rules>
   <Rules AnalyzerId="Microsoft.Unity.Analyzers" RuleNamespace="Microsoft.Unity.Analyzers">
     <Rule Id="UNT0006" Action="Error" />

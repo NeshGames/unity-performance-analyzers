@@ -4,19 +4,20 @@
 
 Roslyn analyzers that turn Unity performance and correctness conventions into
 compile-time checks. Rules adapt automatically to the packages each assembly references
-(UniTask, ZString, R3) and to whether the project targets WebGL.
+(UniTask, ZString, R3, DOTween) and to whether the project targets WebGL.
 
 Distributed as a UPM package. Supports **Unity 2022.3 LTS through Unity 6**.
 
-> **Status: pre-release.** All 24 v0.1 rules are implemented and verified against
-> Unity 2022.3 and Unity 6 sandbox builds; v0.1.0 has not been tagged yet.
+> **Status: pre-1.0.** All 41 rules are implemented and verified against
+> Unity 2022.3 and Unity 6 sandbox builds. Rule IDs are stable — once released,
+> an ID is never reused.
 
 ## Install
 
 Package Manager > *Add package from git URL…*:
 
 ```
-https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.1.0
+https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.2.0
 ```
 
 The analyzer applies to **every assembly in the project** automatically — no asmdef
@@ -36,7 +37,7 @@ preset to `Assets/Default.ruleset`:
 | `minimal` | Unity correctness rules (`UNT` group) as errors; UPA1001 stays at its default warning — a safe first install |
 | `recommended` | + UPA performance rules as warnings. The everyday default |
 | `strict` | Performance rules become errors; opinionated rules start reporting |
-| `cysharp-stack` | + ecosystem rules as errors (LINQ ban, UniTask/ZString/R3 adoption) |
+| `cysharp-stack` | + ecosystem rules as errors (UniTask/ZString/R3 adoption) |
 
 Extras in the same sample:
 
@@ -109,6 +110,19 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | [UPA0011](docs/rules/UPA0011.md) | `SetActive` used to toggle UI visibility *(off by default)* | |
 | [UPA0012](docs/rules/UPA0012.md) | TMP `text` assignment instead of `SetText` *(off by default)* | ✓ |
 | [UPA0013](docs/rules/UPA0013.md) | `System.Linq` calls in per-frame methods *(off by default; formerly UPA2001)* | ✓ |
+| [UPA0014](docs/rules/UPA0014.md) | Scene-search APIs (`GameObject.Find`, `FindObjectOfType`, …) in per-frame methods | ✓ |
+| [UPA0015](docs/rules/UPA0015.md) | `Camera.main` in per-frame methods *(Info)* | ✓ |
+| [UPA0016](docs/rules/UPA0016.md) | `SendMessage` / `SendMessageUpwards` / `BroadcastMessage` calls | |
+| [UPA0017](docs/rules/UPA0017.md) | Array-returning `GetComponents` overloads (use the `List<T>` overloads) | ✓ |
+| [UPA0018](docs/rules/UPA0018.md) | Allocating array-returning APIs (`Input.touches`, `Animator.parameters`, `Renderer.sharedMaterials`, `Camera.allCameras`) | ✓ |
+| [UPA0019](docs/rules/UPA0019.md) | Value types yielded from coroutines (boxing; Unity treats them as `null`) | |
+| [UPA0020](docs/rules/UPA0020.md) | Lambdas in `WaitUntil` / `WaitWhile` construction *(off by default)* | |
+| [UPA0021](docs/rules/UPA0021.md) | `magnitude` / `Distance` compared where `sqrMagnitude` suffices | |
+| [UPA0022](docs/rules/UPA0022.md) | `Enum.HasFlag` in per-frame methods (boxes on Unity's Mono) | ✓ |
+| [UPA0023](docs/rules/UPA0023.md) | `OnGUI` declared in player code *(Info, off by default)* | |
+| [UPA0024](docs/rules/UPA0024.md) | `Resources.Load` in per-frame methods *(off by default)* | ✓ |
+| [UPA0025](docs/rules/UPA0025.md) | Finalizers declared in runtime code | |
+| [UPA0026](docs/rules/UPA0026.md) | Value types boxed by inherited `ToString` / `GetHashCode` / `Equals(object)` / `GetType` calls | ✓ |
 
 ### Correctness
 
@@ -126,6 +140,9 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | [UPA2011](docs/rules/UPA2011.md) | Coroutine `IEnumerator` methods on MonoBehaviours | Runs only with UniTask referenced |
 | [UPA2012](docs/rules/UPA2012.md) | `async void` / discarded task calls | UniTask switches the advice |
 | [UPA2021](docs/rules/UPA2021.md) | Public `Action` events modelling observable state | Runs only with R3 referenced |
+| [UPA2030](docs/rules/UPA2030.md) | Tweens created in per-frame methods | Runs only with DOTween referenced |
+| [UPA2031](docs/rules/UPA2031.md) | Discarded infinite tweens (`SetLoops(-1)`) without `SetLink` | Runs only with DOTween referenced |
+| [UPA2032](docs/rules/UPA2032.md) | String tween IDs *(Info)* | Runs only with DOTween referenced |
 
 ### Platform (off by default; run only when `UPA_TARGET_WEBGL` is defined)
 
@@ -137,8 +154,8 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | [UPA3003](docs/rules/UPA3003.md) | `System.Diagnostics.Process` unsupported on WebGL |
 | [UPA3004](docs/rules/UPA3004.md) | Blocking waits on async operations (`WaitForCompletion`, `Task.Wait`, `.Result`, `GetAwaiter().GetResult()`) — deadlock on single-threaded WebGL |
 
-Package detection is by referenced assembly name (`UniTask`, `ZString`, `R3`) —
-per-assembly, automatic, zero configuration.
+Package detection is by referenced assembly name (`UniTask`, `ZString`, `R3`,
+`DOTween`) — per-assembly, automatic, zero configuration.
 
 ## Tuning and suppressing
 

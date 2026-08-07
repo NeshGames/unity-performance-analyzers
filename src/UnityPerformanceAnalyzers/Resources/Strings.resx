@@ -213,6 +213,159 @@
   <data name="UPA2021Description" xml:space="preserve">
     <value>A public event of the System.Action family is the idiomatic shape for state-change notification, but plain events offer no composition, no current-value semantics, and easy-to-leak manual unsubscription. R3's ReactiveProperty and Observable provide composable, disposable subscriptions with explicit ordering. This rule runs only in assemblies that reference R3; EventHandler-convention events, non-public events, custom delegate types, and plain Action fields are not reported.</value>
   </data>
+  <data name="UPA0014Title" xml:space="preserve">
+    <value>Scene-search API call in per-frame method</value>
+  </data>
+  <data name="UPA0014MessageFormat" xml:space="preserve">
+    <value>'{0}' searches the scene on every call and is not intended for per-frame use. Resolve the reference once in Awake or Start and cache it in a field.</value>
+  </data>
+  <data name="UPA0014Description" xml:space="preserve">
+    <value>GameObject.Find and the Object.FindObjectOfType/FindObjectsByType family walk the scene or all loaded objects on every call, and Unity's documentation warns against calling them every frame. Resolve the reference once in Awake or Start and cache it in a field, or restructure the code around direct references. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
+  </data>
+  <data name="UPA0015Title" xml:space="preserve">
+    <value>Camera.main accessed in per-frame method</value>
+  </data>
+  <data name="UPA0015MessageFormat" xml:space="preserve">
+    <value>'Camera.main' performs a lookup comparable to GetComponent on every access. Cache the camera in a field during Awake or Start.</value>
+  </data>
+  <data name="UPA0015Description" xml:space="preserve">
+    <value>Accessing Camera.main has a small CPU overhead comparable to calling GameObject.GetComponent. Unity 2020.2 and later cache the main-camera lookup internally, so the residual cost is small — this rule therefore reports at Info level. Where CPU performance matters, cache the camera in a field during Awake or Start. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
+  </data>
+  <data name="UPA0016Title" xml:space="preserve">
+    <value>SendMessage / BroadcastMessage call</value>
+  </data>
+  <data name="UPA0016MessageFormat" xml:space="preserve">
+    <value>'{0}' uses reflection-based message dispatch, which is orders of magnitude slower than a direct call. Call the method directly, or use an interface or UnityEvent.</value>
+  </data>
+  <data name="UPA0016Description" xml:space="preserve">
+    <value>SendMessage, SendMessageUpwards, and BroadcastMessage dispatch by reflection, which can be orders of magnitude slower than a direct method call and turns missing-method mistakes into silent runtime failures. Call the target method directly, or decouple the caller with an interface or a UnityEvent. This rule reports everywhere, not just on per-frame hot paths.</value>
+  </data>
+  <data name="UPA0018Title" xml:space="preserve">
+    <value>Allocating array-returning Unity API in per-frame method</value>
+  </data>
+  <data name="UPA0018MessageFormat" xml:space="preserve">
+    <value>'{0}' returns a newly allocated array on every access. Use {1} instead.</value>
+  </data>
+  <data name="UPA0018Description" xml:space="preserve">
+    <value>Unity APIs that return arrays create a new copy of the array on every access. This rule checks a closed deny-list with documented non-allocating counterparts: Input.touches (use touchCount with GetTouch), Animator.parameters (use parameterCount with GetParameter), Renderer.sharedMaterials (use GetSharedMaterials with a cached List), and Camera.allCameras (use GetAllCameras with a preallocated array). Physics queries and Mesh array properties are deliberately excluded — other rules own those cases. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
+  </data>
+  <data name="UPA0017Title" xml:space="preserve">
+    <value>Array-returning GetComponents overload in per-frame method</value>
+  </data>
+  <data name="UPA0017MessageFormat" xml:space="preserve">
+    <value>'{0}' allocates a new array on every call. Use the List&lt;T&gt; overload with a list cached in a field instead.</value>
+  </data>
+  <data name="UPA0017Description" xml:space="preserve">
+    <value>The array-returning GetComponents, GetComponentsInChildren, and GetComponentsInParent overloads allocate a fresh array on every call, like all Unity APIs that return arrays. The List&lt;T&gt; overloads fill a caller-provided list instead, avoiding the allocation when the list is cached in a field. There is no automatic fix — introducing the reusable list field is a type-level change. Only per-frame Unity messages and methods marked with a hot-path attribute are checked; the singular GetComponent lookups are UPA0001's territory.</value>
+  </data>
+  <data name="UPA0019Title" xml:space="preserve">
+    <value>Boxed value yielded from coroutine</value>
+  </data>
+  <data name="UPA0019MessageFormat" xml:space="preserve">
+    <value>Yielding '{0}' boxes the value on every resume, and Unity treats it the same as null. Yield null to wait one frame.</value>
+  </data>
+  <data name="UPA0019Description" xml:space="preserve">
+    <value>In a MonoBehaviour coroutine (a method returning the non-generic IEnumerator), yielding a value type boxes it on every resume, and Unity treats any boxed value that is not a YieldInstruction the same as null — a one-frame wait. Yielding null does not allocate. YieldInstruction and CustomYieldInstruction yields are normal usage, and IEnumerator methods on non-MonoBehaviour types are not reported because their yielded values may carry meaning.</value>
+  </data>
+  <data name="UPA0020Title" xml:space="preserve">
+    <value>Lambda in WaitUntil / WaitWhile construction</value>
+  </data>
+  <data name="UPA0020MessageFormat" xml:space="preserve">
+    <value>Constructing this {0} with a lambda allocates the delegate (and any closure) each time this code runs. Cache the yield instruction and its predicate in fields.</value>
+  </data>
+  <data name="UPA0020Description" xml:space="preserve">
+    <value>Constructing WaitUntil or WaitWhile with a lambda allocates the delegate and any captured closure on every construction; Unity's coroutine guidance recommends caching commonly reused yield instructions and avoiding lambdas in WaitUntil and WaitWhile. The rule performs no flow analysis, so a construction that provably runs once (for example in a field initializer) still reports — suppress locally or cache the predicate in a field. Disabled by default.</value>
+  </data>
+  <data name="UPA0021Title" xml:space="preserve">
+    <value>magnitude or Distance compared where sqrMagnitude suffices</value>
+  </data>
+  <data name="UPA0021MessageFormat" xml:space="preserve">
+    <value>Comparing '{0}' computes a square root. Compare sqrMagnitude against the squared threshold instead.</value>
+  </data>
+  <data name="UPA0021Description" xml:space="preserve">
+    <value>The magnitude property and the Vector Distance methods compute a square root. When the result is only compared against a threshold, comparing sqrMagnitude against the squared threshold is equivalent and much faster. Comparisons with a magnitude or Distance expression on both sides are not reported — rewriting those brings no gain. The code fix applies only when the other side is a plain numeric literal; other thresholds must be squared by hand.</value>
+  </data>
+  <data name="UPA0022Title" xml:space="preserve">
+    <value>Enum.HasFlag in per-frame method</value>
+  </data>
+  <data name="UPA0022MessageFormat" xml:space="preserve">
+    <value>'HasFlag' boxes its operands on Unity's Mono runtime. Use a bitwise check like '(x &amp; flag) == flag' instead.</value>
+  </data>
+  <data name="UPA0022Description" xml:space="preserve">
+    <value>Enum.HasFlag boxes both operands on Unity's Mono runtime and allocates on every call. The .NET 5+ intrinsic that removes this boxing does not apply to Unity's Mono, and IL2CPP behavior varies by version. Use an explicit bitwise check such as '(x &amp; flag) == flag'. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
+  </data>
+  <data name="UPA0023Title" xml:space="preserve">
+    <value>OnGUI declared in player code</value>
+  </data>
+  <data name="UPA0023MessageFormat" xml:space="preserve">
+    <value>'OnGUI' runs IMGUI every frame and is not intended for in-game interfaces. Use UI Toolkit or uGUI for player UI, or gate debug overlays behind a define.</value>
+  </data>
+  <data name="UPA0023Description" xml:space="preserve">
+    <value>OnGUI runs Unity's immediate-mode GUI system every frame, often multiple times per frame, and IMGUI is not generally intended for normal in-game user interfaces — its supported uses are debug displays, tooling, and editor extensions. Use UI Toolkit or uGUI for player UI, or gate debug overlays behind a define. Assemblies that reference UnityEditor are not checked. Info severity and disabled by default: development-time overlays are legitimate and common.</value>
+  </data>
+  <data name="UPA0024Title" xml:space="preserve">
+    <value>Resources.Load in per-frame method</value>
+  </data>
+  <data name="UPA0024MessageFormat" xml:space="preserve">
+    <value>'{0}' performs an asset lookup and load on every call. Load the asset once outside the hot path and cache the reference.</value>
+  </data>
+  <data name="UPA0024Description" xml:space="preserve">
+    <value>Resources.Load, LoadAll, and LoadAsync perform an asset lookup and load on every call, and Unity's guidance discourages relying on the Resources system in general; calling it per frame compounds the cost. Load the asset once outside the hot path and cache the reference. The rule is disabled by default and limited to per-frame hot paths — enable it in projects that still use Resources folders.</value>
+  </data>
+  <data name="UPA0025Title" xml:space="preserve">
+    <value>Finalizer declared in runtime code</value>
+  </data>
+  <data name="UPA0025MessageFormat" xml:space="preserve">
+    <value>Finalizers delay memory reclamation across garbage collections and run on the finalizer thread. Implement IDisposable and remove the finalizer.</value>
+  </data>
+  <data name="UPA0025Description" xml:space="preserve">
+    <value>Unity's programming best practices say not to use C# finalizers in runtime code: a finalizable object survives at least one extra garbage-collection cycle before its memory is reclaimed, the finalizer runs on a dedicated thread with no ordering guarantees, and the extra bookkeeping makes collection pauses less predictable. Implement IDisposable for deterministic cleanup and remove the finalizer. Assemblies that reference UnityEditor are not checked.</value>
+  </data>
+  <data name="UPA0026Title" xml:space="preserve">
+    <value>Value type boxed by inherited method call</value>
+  </data>
+  <data name="UPA0026MessageFormat" xml:space="preserve">
+    <value>'{0}' resolves to an implementation inherited from {1} and boxes this value-type receiver on every call. {2}</value>
+  </data>
+  <data name="UPA0026Description" xml:space="preserve">
+    <value>When a struct or enum calls ToString, GetHashCode, or Equals(object) without overriding it — or calls GetType(), which cannot be overridden — the runtime boxes the receiver to dispatch the inherited Object/ValueType/Enum implementation, allocating on every call; the inherited ValueType.Equals and GetHashCode additionally fall back to reflection for non-blittable structs. The optimizations in modern .NET that remove some of this boxing do not apply to Unity's Mono runtime. Override the member on the struct (implement IEquatable&lt;T&gt; for equality), use non-boxing alternatives for enums, or move the call off the hot path. Receivers whose type is a generic type parameter are not reported — whether they box depends on the instantiated type. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
+  </data>
+  <data name="UPA0026AdviceGetType" xml:space="preserve">
+    <value>The result is known at compile time — use typeof instead.</value>
+  </data>
+  <data name="UPA0026AdviceEnum" xml:space="preserve">
+    <value>Cache or precompute the result outside the hot path; for equality, compare with == instead.</value>
+  </data>
+  <data name="UPA0026AdviceStruct" xml:space="preserve">
+    <value>Override it on the struct (for Equals, also implement IEquatable&lt;T&gt;), or move the call off the hot path.</value>
+  </data>
+  <data name="UPA2030Title" xml:space="preserve">
+    <value>Tween created in per-frame method</value>
+  </data>
+  <data name="UPA2030MessageFormat" xml:space="preserve">
+    <value>'{0}' creates a new tween every frame, allocating and churning DOTween's active list. Create the tween once and reuse it with SetAutoKill(false) and Restart or ChangeEndValue.</value>
+  </data>
+  <data name="UPA2030Description" xml:space="preserve">
+    <value>Every tween-creating call (DOMove and the other shortcuts, DOTween.To, DOTween.Sequence) allocates a tween and registers it in DOTween's active list; doing this in a per-frame method churns both. DOTween's own API supports reuse: create the tween once, disable auto-kill with SetAutoKill(false), and drive it with Restart or ChangeEndValue. Configuration calls on an existing tween (SetLoops, SetEase, ...) are not reported — a fluent chain reports once, at its creation root. This rule runs only in assemblies that reference DOTween.</value>
+  </data>
+  <data name="UPA2031Title" xml:space="preserve">
+    <value>Discarded infinite tween without SetLink</value>
+  </data>
+  <data name="UPA2031MessageFormat" xml:space="preserve">
+    <value>This infinite tween is discarded and has no SetLink, so it can never be killed and outlives its target. Store the tween and kill it in OnDestroy, or add SetLink(gameObject).</value>
+  </data>
+  <data name="UPA2031Description" xml:space="preserve">
+    <value>DOTween's auto-kill fires when a tween completes, and a tween with SetLoops(-1) never completes. When such a tween is neither stored nor linked, no code path can kill it: it keeps running after its target is destroyed, which wastes work and surfaces as errors or leaks. Store the tween in a field and kill it in OnDestroy, or bind its lifetime with SetLink(gameObject). Chains whose result is assigned, passed on, or carrying a SetLink are not reported. This rule runs only in assemblies that reference DOTween.</value>
+  </data>
+  <data name="UPA2032Title" xml:space="preserve">
+    <value>String tween ID</value>
+  </data>
+  <data name="UPA2032MessageFormat" xml:space="preserve">
+    <value>String tween IDs are the slowest of the fast filter options. Prefer an int ID, or filter by the target reference.</value>
+  </data>
+  <data name="UPA2032Description" xml:space="preserve">
+    <value>DOTween's filtered operations (DOTween.Kill, Play, Pause, ...) are fastest when filtering by an ID, and DOTween's documentation notes that int IDs are faster than string IDs. This rule reports string arguments to SetId and to the static filtered operations. Info severity: the cost only matters when filtered operations run often. This rule runs only in assemblies that reference DOTween.</value>
+  </data>
   <data name="UPA3000Title" xml:space="preserve">
     <value>Threading API unsupported on WebGL</value>
   </data>

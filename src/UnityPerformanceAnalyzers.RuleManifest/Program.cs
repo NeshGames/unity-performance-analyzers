@@ -27,6 +27,9 @@ internal static class Program
         ["UPA2010"] = "UniTask",
         ["UPA2011"] = "UniTask",
         ["UPA2021"] = "R3",
+        ["UPA2030"] = "DOTween",
+        ["UPA2031"] = "DOTween",
+        ["UPA2032"] = "DOTween",
         ["UPA3000"] = "WebGL",
         ["UPA3001"] = "WebGL",
         ["UPA3002"] = "WebGL",
@@ -38,7 +41,8 @@ internal static class Program
     private static readonly HashSet<string> s_hotPathRules = new()
     {
         "UPA0001", "UPA0002", "UPA0004", "UPA0006", "UPA0007",
-        "UPA0009", "UPA0012", "UPA0013", "UPA2000",
+        "UPA0009", "UPA0012", "UPA0013", "UPA0014", "UPA0015",
+        "UPA0017", "UPA0018", "UPA0022", "UPA0024", "UPA0026", "UPA2000", "UPA2030",
     };
 
     /// <summary>Microsoft.Unity.Analyzers rules the presets manage alongside UPA rules.</summary>
