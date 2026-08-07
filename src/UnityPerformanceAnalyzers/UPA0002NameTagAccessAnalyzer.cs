@@ -1,0 +1,140 @@
+using System.Collections.Immutable;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
+
+namespace UnityPerformanceAnalyzers
+{
+    /// <summary>
+    /// UPA0002: Reports reads of <c>UnityEngine.Object.name</c>, <c>UnityEngine.GameObject.tag</c>,
+    /// and <c>UnityEngine.Component.tag</c> on per-frame hot paths. Both getters call into native
+    /// code and allocate a fresh string per access. String equality comparisons are deliberately
+    /// not reported — UNT0002 (Microsoft.Unity.Analyzers) owns that case.
+    /// </summary>
+    [DiagnosticAnalyzer(LanguageNames.CSharp)]
+    public sealed class UPA0002NameTagAccessAnalyzer : DiagnosticAnalyzer
+    {
+        /// <summary>The diagnostic ID reported by this analyzer.</summary>
+        public const string DiagnosticId = "UPA0002";
+
+        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+            DiagnosticId,
+            new LocalizableResourceString(Strings.UPA0002Title, Strings.ResourceManager, typeof(Strings)),
+            new LocalizableResourceString(Strings.UPA0002MessageFormat, Strings.ResourceManager, typeof(Strings)),
+            DiagnosticCategories.Performance,
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true,
+            description: new LocalizableResourceString(Strings.UPA0002Description, Strings.ResourceManager, typeof(Strings)),
+            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0002.md");
+
+        private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
+            ImmutableArray.Create(Rule);
+
+        /// <inheritdoc/>
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
+
+        /// <inheritdoc/>
+        public override void Initialize(AnalysisContext context)
+        {
+            context.EnableConcurrentExecution();
+            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
+            context.RegisterCompilationStartAction(ctx =>
+            {
+                var objectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Object");
+                var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
+                var componentType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Component");
+                if (objectType is null && gameObjectType is null && componentType is null)
+                {
+                    return;
+                }
+
+                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+
+                ctx.RegisterOperationAction(
+                    opCtx => AnalyzePropertyReference(opCtx, objectType, gameObjectType, componentType, hotPathDetector),
+                    OperationKind.PropertyReference);
+            });
+        }
+
+        private static void AnalyzePropertyReference(
+            OperationAnalysisContext context,
+            INamedTypeSymbol? objectType,
+            INamedTypeSymbol? gameObjectType,
+            INamedTypeSymbol? componentType,
+            HotPathDetector hotPathDetector)
+        {
+            var propertyReference = (IPropertyReferenceOperation)context.Operation;
+            var property = propertyReference.Property;
+            var containingType = property.ContainingType;
+
+            var isNameProperty = property.Name == "name" &&
+                SymbolEqualityComparer.Default.Equals(containingType, objectType);
+            var isTagProperty = property.Name == "tag" &&
+                (SymbolEqualityComparer.Default.Equals(containingType, gameObjectType) ||
+                 SymbolEqualityComparer.Default.Equals(containingType, componentType));
+
+            if (!isNameProperty && !isTagProperty)
+            {
+                return;
+            }
+
+            if (IsAssignmentTarget(propertyReference))
+            {
+                return;
+            }
+
+            if (IsStringEqualityOperand(propertyReference))
+            {
+                return;
+            }
+
+            var semanticModel = propertyReference.SemanticModel;
+            if (semanticModel is null ||
+                !hotPathDetector.IsInHotPath(propertyReference.Syntax, semanticModel, context.CancellationToken))
+            {
+                return;
+            }
+
+            context.ReportDiagnostic(UpaDiagnostics.Create(
+                Rule,
+                propertyReference.Syntax.GetLocation(),
+                property.Name));
+        }
+
+        private static bool IsAssignmentTarget(IPropertyReferenceOperation propertyReference)
+        {
+            return propertyReference.Parent is ISimpleAssignmentOperation assignment &&
+                ReferenceEquals(assignment.Target, propertyReference);
+        }
+
+        // A read that is an operand of == / != against a string is UNT0002's territory
+        // (docs/rules/UPA0002.md — deliberate division of labor).
+        private static bool IsStringEqualityOperand(IPropertyReferenceOperation propertyReference)
+        {
+            IOperation current = propertyReference;
+            var parent = current.Parent;
+            while (parent is IConversionOperation conversion)
+            {
+                current = conversion;
+                parent = conversion.Parent;
+            }
+
+            if (parent is IBinaryOperation binary &&
+                (binary.OperatorKind == BinaryOperatorKind.Equals ||
+                 binary.OperatorKind == BinaryOperatorKind.NotEquals))
+            {
+                var other = ReferenceEquals(binary.LeftOperand, current)
+                    ? binary.RightOperand
+                    : binary.LeftOperand;
+                while (other is IConversionOperation otherConversion)
+                {
+                    other = otherConversion.Operand;
+                }
+
+                return other.Type?.SpecialType == SpecialType.System_String;
+            }
+
+            return false;
+        }
+    }
+}

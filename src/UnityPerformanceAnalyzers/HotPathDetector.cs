@@ -1,0 +1,229 @@
+using System;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
+
+namespace UnityPerformanceAnalyzers
+{
+    /// <summary>
+    /// Shared infrastructure that decides whether a syntax node sits on a per-frame hot path
+    /// Only the enclosing method body is considered — no cross-method
+    /// analysis, deliberately trading missed reports for a low false-positive rate.
+    /// </summary>
+    internal sealed class HotPathDetector
+    {
+        internal const string MessagesOptionKey = "upa_hot_path_messages";
+        internal const string AttributesOptionKey = "upa_hot_path_attributes";
+        internal const string IncludeLambdasOptionKey = "upa_hot_path_include_lambdas";
+
+        private const string AttributeSuffix = "Attribute";
+
+        private static readonly ImmutableHashSet<string> s_defaultHotMessages = ImmutableHashSet.Create(
+            StringComparer.Ordinal,
+            "Update",
+            "FixedUpdate",
+            "LateUpdate",
+            "OnGUI",
+            "OnAnimatorMove",
+            "OnAnimatorIK",
+            "OnPreCull",
+            "OnPreRender",
+            "OnPostRender",
+            "OnRenderObject",
+            "OnWillRenderObject",
+            "OnRenderImage",
+            "OnTriggerStay",
+            "OnTriggerStay2D",
+            "OnCollisionStay",
+            "OnCollisionStay2D",
+            "OnParticleUpdateJobScheduled");
+
+        // Stored without the "Attribute" suffix; lookups normalize the same way.
+        private static readonly ImmutableHashSet<string> s_defaultHotAttributes = ImmutableHashSet.Create(
+            StringComparer.Ordinal,
+            "HotPath",
+            "PerformanceCritical");
+
+        private readonly INamedTypeSymbol? _monoBehaviourType;
+        private readonly ImmutableHashSet<string> _hotMessages;
+        private readonly ImmutableHashSet<string> _hotAttributes;
+        private readonly bool _includeLambdas;
+
+        private HotPathDetector(
+            INamedTypeSymbol? monoBehaviourType,
+            ImmutableHashSet<string> hotMessages,
+            ImmutableHashSet<string> hotAttributes,
+            bool includeLambdas)
+        {
+            _monoBehaviourType = monoBehaviourType;
+            _hotMessages = hotMessages;
+            _hotAttributes = hotAttributes;
+            _includeLambdas = includeLambdas;
+        }
+
+        /// <summary>
+        /// Resolves configuration once per compilation. Missing or unreadable options fall back
+        /// to the defaults; resolution never throws. Note that Unity does not pass .editorconfig
+        /// to the compiler, so these options take effect in IDE analysis only.
+        /// </summary>
+        public static HotPathDetector Create(Compilation compilation, AnalyzerOptions analyzerOptions)
+        {
+            var monoBehaviourType = compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
+
+            var firstTree = compilation.SyntaxTrees.FirstOrDefault();
+            var options = firstTree is null
+                ? null
+                : analyzerOptions.AnalyzerConfigOptionsProvider.GetOptions(firstTree);
+
+            var hotMessages = ParseNameSet(options, MessagesOptionKey, s_defaultHotMessages, stripAttributeSuffix: false);
+            var hotAttributes = ParseNameSet(options, AttributesOptionKey, s_defaultHotAttributes, stripAttributeSuffix: true);
+
+            var includeLambdas = true;
+            if (options is object &&
+                options.TryGetValue(IncludeLambdasOptionKey, out var rawIncludeLambdas) &&
+                bool.TryParse(rawIncludeLambdas.Trim(), out var parsedIncludeLambdas))
+            {
+                includeLambdas = parsedIncludeLambdas;
+            }
+
+            return new HotPathDetector(monoBehaviourType, hotMessages, hotAttributes, includeLambdas);
+        }
+
+        /// <summary>
+        /// True when the nearest enclosing method declaration is a hot-path method: either a
+        /// hot Unity message on a MonoBehaviour-derived type, or a method carrying a hot-path
+        /// attribute (matched by short name, no type resolution). Nodes inside lambdas or local
+        /// functions of such a method count as hot unless upa_hot_path_include_lambdas is false.
+        /// </summary>
+        public bool IsInHotPath(SyntaxNode node, SemanticModel semanticModel, CancellationToken cancellationToken)
+        {
+            var sawNestedFunction = false;
+            MethodDeclarationSyntax? method = null;
+
+            for (var current = node.Parent; current is object; current = current.Parent)
+            {
+                if (current is AnonymousFunctionExpressionSyntax || current is LocalFunctionStatementSyntax)
+                {
+                    sawNestedFunction = true;
+                }
+                else if (current is MethodDeclarationSyntax methodDeclaration)
+                {
+                    method = methodDeclaration;
+                    break;
+                }
+                else if (current is BaseTypeDeclarationSyntax)
+                {
+                    break;
+                }
+            }
+
+            if (method is null)
+            {
+                return false;
+            }
+
+            if (sawNestedFunction && !_includeLambdas)
+            {
+                return false;
+            }
+
+            if (HasHotPathAttribute(method))
+            {
+                return true;
+            }
+
+            if (!_hotMessages.Contains(method.Identifier.ValueText))
+            {
+                return false;
+            }
+
+            var methodSymbol = semanticModel.GetDeclaredSymbol(method, cancellationToken);
+            return methodSymbol is object && InheritsFromMonoBehaviour(methodSymbol.ContainingType);
+        }
+
+        private bool HasHotPathAttribute(MethodDeclarationSyntax method)
+        {
+            foreach (var attributeList in method.AttributeLists)
+            {
+                foreach (var attribute in attributeList.Attributes)
+                {
+                    if (_hotAttributes.Contains(StripAttributeSuffix(GetShortName(attribute.Name))))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private bool InheritsFromMonoBehaviour(INamedTypeSymbol? type)
+        {
+            if (_monoBehaviourType is null)
+            {
+                return false;
+            }
+
+            for (var current = type; current is object; current = current.BaseType)
+            {
+                if (SymbolEqualityComparer.Default.Equals(current, _monoBehaviourType))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static ImmutableHashSet<string> ParseNameSet(
+            AnalyzerConfigOptions? options,
+            string key,
+            ImmutableHashSet<string> defaults,
+            bool stripAttributeSuffix)
+        {
+            if (options is null || !options.TryGetValue(key, out var raw) || string.IsNullOrWhiteSpace(raw))
+            {
+                return defaults;
+            }
+
+            var builder = ImmutableHashSet.CreateBuilder(StringComparer.Ordinal);
+            foreach (var part in raw.Split(','))
+            {
+                var name = part.Trim();
+                if (name.Length == 0)
+                {
+                    continue;
+                }
+
+                builder.Add(stripAttributeSuffix ? StripAttributeSuffix(name) : name);
+            }
+
+            return builder.Count == 0 ? defaults : builder.ToImmutable();
+        }
+
+        private static string GetShortName(NameSyntax name)
+        {
+            switch (name)
+            {
+                case SimpleNameSyntax simple:
+                    return simple.Identifier.ValueText;
+                case QualifiedNameSyntax qualified:
+                    return qualified.Right.Identifier.ValueText;
+                case AliasQualifiedNameSyntax aliasQualified:
+                    return aliasQualified.Name.Identifier.ValueText;
+                default:
+                    return name.ToString();
+            }
+        }
+
+        private static string StripAttributeSuffix(string name)
+        {
+            return name.Length > AttributeSuffix.Length && name.EndsWith(AttributeSuffix, StringComparison.Ordinal)
+                ? name.Substring(0, name.Length - AttributeSuffix.Length)
+                : name;
+        }
+    }
+}

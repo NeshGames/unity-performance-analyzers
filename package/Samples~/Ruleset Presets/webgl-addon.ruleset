@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- unity-performance-analyzers add-on: WebGL unsupported-API rules.
+     Stack this on top of any base preset by adding, inside your Assets/Default.ruleset:
+       <Include Path="webgl-addon.ruleset" Action="Default" />
+     (place this file next to it; the path is relative to the including ruleset)
+
+     These rules only run when the compilation defines UPA_TARGET_WEBGL - add it in
+     Project Settings > Player > Scripting Define Symbols for every build target so the
+     rules stay active during day-to-day (non-WebGL) development too. -->
+<RuleSet Name="UPA webgl-addon" ToolsVersion="10.0">
+  <Rules AnalyzerId="UnityPerformanceAnalyzers" RuleNamespace="UnityPerformanceAnalyzers">
+    <Rule Id="UPA3000" Action="Warning" />
+    <Rule Id="UPA3001" Action="Warning" />
+    <Rule Id="UPA3002" Action="Warning" />
+    <Rule Id="UPA3003" Action="Warning" />
+  </Rules>
+</RuleSet>

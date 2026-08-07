@@ -1,0 +1,22 @@
+# .NET
+bin/
+obj/
+artifacts/
+TestResults/
+*.user
+.vs/
+.idea/
+
+# Analyzer DLL is placed into the package by the release workflow (git add -f)
+package/Analyzers/*.dll
+
+# Unity sandbox project (generated state)
+sandbox/UnityProject/[Ll]ibrary/
+sandbox/UnityProject/[Tt]emp/
+sandbox/UnityProject/[Oo]bj/
+sandbox/UnityProject/[Ll]ogs/
+sandbox/UnityProject/[Uu]serSettings/
+sandbox/UnityProject/ProjectSettings/*
+!sandbox/UnityProject/ProjectSettings/ProjectVersion.txt
+sandbox/UnityProject/Packages/packages-lock.json
+sandbox/*.log

@@ -1,0 +1,56 @@
+# Severity Presets
+
+> English | [繁體中文](README.zh-TW.md)
+
+Rulesets are the channel Unity actually reads: Unity passes `Assets/Default.ruleset`
+(and per-asmdef-folder rulesets) to the C# compiler, while `.editorconfig` files are
+**not** passed at all (verified on 2022.3 and Unity 6). The `.editorconfig` variants
+here exist only to keep Rider / Visual Studio severities in sync with your ruleset.
+
+## Picking a preset
+
+| Preset | Intent |
+|---|---|
+| `minimal` | Unity correctness rules (`UNT` group) as errors; UPA1001 keeps its default warning. Everything else off — a safe first install. |
+| `recommended` | + UPA performance rules as warnings. The everyday default. |
+| `strict` | Performance rules become errors; opinionated rules (UPA0005/0011/0012, UPA1000) start reporting. |
+| `cysharp-stack` | + ecosystem rules as errors (LINQ ban, UniTask/ZString/R3 adoption). For codebases committed to the Cysharp stack. |
+
+## Install
+
+1. Import this sample from the Package Manager window.
+2. Copy the chosen preset into your project as `Assets/Default.ruleset`.
+3. Optional per-assembly override: place a `Default.ruleset` inside any asmdef folder —
+   it replaces the project-wide file for that assembly only.
+
+## WebGL rules
+
+`webgl-addon.ruleset` grades UPA3000–UPA3003 (threading / sockets / sync file IO /
+Process) as warnings. To stack it on any base preset, copy it next to your
+`Assets/Default.ruleset` and add inside the `<RuleSet>` element:
+
+```xml
+<Include Path="webgl-addon.ruleset" Action="Default" />
+```
+
+Then add `UPA_TARGET_WEBGL` to **Project Settings > Player > Scripting Define Symbols**
+for every build target — the rules stay active during day-to-day development instead of
+only when the active build target is WebGL.
+
+## Editor tooling
+
+Rulesets cannot scope by path. Copy `editor-relaxed.ruleset` into each Editor asmdef
+folder and rename it `Default.ruleset`: performance rules go quiet there while `UNT`
+correctness rules stay at error.
+
+## IDE parity (`.editorconfig` variants)
+
+Copy the matching `.editorconfig` to your project root (merge with an existing one).
+It also carries the `upa_hot_path_*` options — those are honored by IDEs only; Unity
+builds always use the built-in hot-path defaults.
+
+## Notes
+
+- `UNT####` severities only take effect where Microsoft.Unity.Analyzers is present
+  (e.g. the copy bundled with Visual Studio Tools for Unity); the entries are inert
+  otherwise.

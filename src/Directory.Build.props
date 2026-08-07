@@ -1,0 +1,33 @@
+<Project>
+
+  <!-- Single source of truth for the version. The release workflow syncs
+       package/package.json from here; never edit that version by hand. -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Authors>NeshGames</Authors>
+    <Company>NeshGames</Company>
+    <Copyright>Copyright (c) 2026 NeshGames</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/NeshGames/unity-performance-analyzers</RepositoryUrl>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Roslyn is pinned to 3.8.0 deliberately. An analyzer built against a Roslyn newer
+       than the host compiler fails with CS8032 and silently stops running (a warning,
+       not an error). 3.8.0 is a conservative floor verified to load on Unity 2022.3
+       (Roslyn 4.3.1) and Unity 6 (4.10). Do not upgrade just because NuGet offers one. -->
+  <PropertyGroup>
+    <RoslynVersion>3.8.0</RoslynVersion>
+    <RoslynAnalyzersVersion>3.3.4</RoslynAnalyzersVersion>
+    <CodeAnalysisTestingVersion>1.1.2</CodeAnalysisTestingVersion>
+  </PropertyGroup>
+
+</Project>

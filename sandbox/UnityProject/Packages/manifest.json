@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "com.neshgames.unity-performance-analyzers": "file:../../../package",
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask"
+  }
+}

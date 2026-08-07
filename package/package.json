@@ -1,0 +1,27 @@
+{
+  "name": "com.neshgames.unity-performance-analyzers",
+  "version": "0.1.0",
+  "displayName": "Unity Performance Analyzers",
+  "description": "Roslyn analyzers that enforce Unity performance and correctness conventions at compile time. Rules adapt automatically to the packages your assembly references (UniTask, ZString, R3) and to whether your project targets WebGL.",
+  "unity": "2022.3",
+  "documentationUrl": "https://github.com/NeshGames/unity-performance-analyzers",
+  "changelogUrl": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/package/CHANGELOG.md",
+  "licensesUrl": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/LICENSE.md",
+  "keywords": ["roslyn", "analyzer", "performance", "code-quality", "editor"],
+  "author": {
+    "name": "NeshGames",
+    "url": "https://github.com/NeshGames"
+  },
+  "samples": [
+    {
+      "displayName": "Ruleset Presets",
+      "description": "minimal / recommended / strict / cysharp-stack / webgl-addon severity presets. Copy the one you want to Assets/Default.ruleset; .editorconfig variants included for IDE parity.",
+      "path": "Samples~/Ruleset Presets"
+    },
+    {
+      "displayName": "Smoke Test",
+      "description": "A script that intentionally violates several rules, to verify the analyzers are loaded and configured. Delete after verifying.",
+      "path": "Samples~/Smoke Test"
+    }
+  ]
+}

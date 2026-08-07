@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- unity-performance-analyzers: relaxed ruleset for Editor tooling assemblies.
+     Rulesets have no path scoping, so editor code gets its own file instead:
+     copy this into each Editor asmdef folder and rename it Default.ruleset -
+     it then overrides the project-wide Assets/Default.ruleset for that assembly.
+
+     Performance pressure is irrelevant in editor tooling, so all UPA performance
+     and ecosystem rules are off; UNT correctness rules stay at Error. -->
+<RuleSet Name="UPA editor-relaxed" ToolsVersion="10.0">
+  <Rules AnalyzerId="UnityPerformanceAnalyzers" RuleNamespace="UnityPerformanceAnalyzers">
+    <Rule Id="UPA0001" Action="None" />
+    <Rule Id="UPA0002" Action="None" />
+    <Rule Id="UPA0003" Action="None" />
+    <Rule Id="UPA0004" Action="None" />
+    <Rule Id="UPA0005" Action="None" />
+    <Rule Id="UPA0006" Action="None" />
+    <Rule Id="UPA0007" Action="None" />
+    <Rule Id="UPA0008" Action="None" />
+    <Rule Id="UPA0009" Action="None" />
+    <Rule Id="UPA0010" Action="None" />
+    <Rule Id="UPA0011" Action="None" />
+    <Rule Id="UPA0012" Action="None" />
+    <Rule Id="UPA1000" Action="None" />
+    <Rule Id="UPA2000" Action="None" />
+    <Rule Id="UPA2001" Action="None" />
+    <Rule Id="UPA2010" Action="None" />
+    <Rule Id="UPA2011" Action="None" />
+    <Rule Id="UPA2012" Action="None" />
+    <Rule Id="UPA2021" Action="None" />
+    <Rule Id="UPA3000" Action="None" />
+    <Rule Id="UPA3001" Action="None" />
+    <Rule Id="UPA3002" Action="None" />
+    <Rule Id="UPA3003" Action="None" />
+  </Rules>
+  <Rules AnalyzerId="Microsoft.Unity.Analyzers" RuleNamespace="Microsoft.Unity.Analyzers">
+    <Rule Id="UNT0006" Action="Error" />
+    <Rule Id="UNT0007" Action="Error" />
+    <Rule Id="UNT0008" Action="Error" />
+    <Rule Id="UNT0010" Action="Error" />
+    <Rule Id="UNT0011" Action="Error" />
+    <Rule Id="UNT0015" Action="Error" />
+    <Rule Id="UNT0023" Action="Error" />
+    <Rule Id="UNT0029" Action="Error" />
+    <Rule Id="UNT0030" Action="Error" />
+    <Rule Id="UNT0033" Action="Error" />
+    <Rule Id="UNT0043" Action="Error" />
+  </Rules>
+</RuleSet>

@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="UPA0001Title" xml:space="preserve">
+    <value>Component lookup in per-frame method</value>
+  </data>
+  <data name="UPA0001MessageFormat" xml:space="preserve">
+    <value>'{0}' performs a native component lookup on every call. Cache the result in a field during Awake or Start.</value>
+  </data>
+  <data name="UPA0001Description" xml:space="preserve">
+    <value>GetComponent and its related lookups cross the managed-native boundary and search the object's component list on every invocation. Inside methods that Unity runs every frame this cost repeats needlessly; resolve the component once in Awake or Start, store it in a field, and use the field on the hot path.</value>
+  </data>
+  <data name="UPA0002Title" xml:space="preserve">
+    <value>Object name or tag accessed in per-frame method</value>
+  </data>
+  <data name="UPA0002MessageFormat" xml:space="preserve">
+    <value>Reading '{0}' calls into native code and allocates a string on every access. Use CompareTag for comparisons, or cache the value.</value>
+  </data>
+  <data name="UPA0002Description" xml:space="preserve">
+    <value>The name and tag property getters call into Unity's native engine code and return a newly allocated managed string on every access. Inside methods that run every frame this produces avoidable garbage each frame. Use CompareTag for tag comparisons, or read the value once outside the hot path and cache it.</value>
+  </data>
+  <data name="UPA0003Title" xml:space="preserve">
+    <value>String-based shader or animator property access</value>
+  </data>
+  <data name="UPA0003MessageFormat" xml:space="preserve">
+    <value>'{0}' resolves the string "{1}" to an ID on every call. Cache it with Shader.PropertyToID / Animator.StringToHash in a static class.</value>
+  </data>
+  <data name="UPA0003Description" xml:space="preserve">
+    <value>Material, MaterialPropertyBlock, Shader, and Animator expose string-based overloads that hash the property or state name to an integer ID on every call. The integer overloads skip that conversion entirely. Resolving each name once with Shader.PropertyToID or Animator.StringToHash and keeping the IDs in a static class removes the repeated conversion and centralizes property names in one place.</value>
+  </data>
+  <data name="UPA0004Title" xml:space="preserve">
+    <value>Instantiating accessor used in per-frame method</value>
+  </data>
+  <data name="UPA0004MessageFormat" xml:space="preserve">
+    <value>'{0}' returns an instantiated copy that must be destroyed manually, and each access is a native call. Cache it in a field and release it in OnDestroy.</value>
+  </data>
+  <data name="UPA0004Description" xml:space="preserve">
+    <value>Renderer.material and MeshFilter.mesh duplicate the shared asset on first access and cache the copy; the caller owns that copy and must destroy it manually or it leaks. Every subsequent access is still a native property call, and Renderer.materials additionally returns a newly allocated array on each access. Cache the instance in a field outside the hot path and release it in OnDestroy, or use the shared* accessors when mutation of the shared asset is intended.</value>
+  </data>
+  <data name="UPA0006Title" xml:space="preserve">
+    <value>Reference type allocated in per-frame method</value>
+  </data>
+  <data name="UPA0006MessageFormat" xml:space="preserve">
+    <value>Allocating '{0}' on a per-frame path creates garbage every frame. Hoist the allocation out of the hot path, or reuse a cached or pooled instance.</value>
+  </data>
+  <data name="UPA0006Description" xml:space="preserve">
+    <value>Unity's garbage collector is non-generational: collection cost scales with the whole managed heap, and per-frame allocations steadily grow the garbage it must scan, surfacing as periodic frame spikes. This rule reports managed heap allocations on per-frame hot paths: object creations of reference types, array creations, and boxing conversions of value types. Hoist the allocation out of the hot path, reuse a cached or pooled instance, or use generic overloads to avoid boxing.</value>
+  </data>
+  <data name="UPA0007Title" xml:space="preserve">
+    <value>Capturing lambda in per-frame method</value>
+  </data>
+  <data name="UPA0007MessageFormat" xml:space="preserve">
+    <value>This lambda captures state and allocates a delegate and closure each time the enclosing code runs. Cache the delegate in a field, or rewrite it to avoid capturing.</value>
+  </data>
+  <data name="UPA0007Description" xml:space="preserve">
+    <value>A lambda or anonymous method that captures local variables, parameters, or this must allocate a closure object and a fresh delegate every time the enclosing code executes. On per-frame hot paths that garbage accumulates each frame. Lambdas that capture nothing are cached by the compiler and cost nothing after the first call, so they are not reported. Cache the delegate in a field during initialization, or restructure the lambda so it captures nothing.</value>
+  </data>
+  <data name="UPA0008Title" xml:space="preserve">
+    <value>stackalloc inside a loop</value>
+  </data>
+  <data name="UPA0008MessageFormat" xml:space="preserve">
+    <value>'stackalloc' inside a loop reserves new stack memory on every iteration, and it is only reclaimed when the method returns. Hoist the buffer out of the loop and reuse it.</value>
+  </data>
+  <data name="UPA0008Description" xml:space="preserve">
+    <value>Memory reserved with stackalloc is released when the enclosing method returns, not when the current loop iteration or block ends. A stackalloc inside a loop therefore reserves a new region on every iteration while all previous regions stay live, which can overflow the stack. Hoist the buffer out of the loop and reuse it across iterations. A stackalloc at the top of a local function or lambda called from a loop is fine: that memory is reclaimed when the local function returns.</value>
+  </data>
+  <data name="UPA0009Title" xml:space="preserve">
+    <value>List Count not hoisted out of for loop</value>
+  </data>
+  <data name="UPA0009MessageFormat" xml:space="preserve">
+    <value>'{0}.Count' is re-read on every iteration of this loop. Hoist it into a local before the loop when the size does not change while iterating.</value>
+  </data>
+  <data name="UPA0009Description" xml:space="preserve">
+    <value>Reading List&lt;T&gt;.Count in a for-loop condition performs a property access on every iteration. When the list size does not change inside the loop, hoisting the count into a local before the loop removes that repeated read. Arrays are different: keep comparing against array.Length directly, because the JIT recognizes that form and eliminates bounds checks.</value>
+  </data>
+  <data name="UPA0010Title" xml:space="preserve">
+    <value>Raycast without explicit maxDistance or layerMask</value>
+  </data>
+  <data name="UPA0010MessageFormat" xml:space="preserve">
+    <value>'{0}' without an explicit maxDistance and layerMask queries the entire scene across all layers. Pass both arguments to bound the query.</value>
+  </data>
+  <data name="UPA0010Description" xml:space="preserve">
+    <value>Physics.Raycast overloads that omit maxDistance query to infinity, and overloads that omit layerMask test every layer, including triggers and layers that were never meant to be hit. Both defaults make the query cost scale with the whole scene and are a common source of hard-to-debug false hits. Pass an explicit distance and mask; when hitting all layers really is intended, say so explicitly with ~0.</value>
+  </data>
+  <data name="UPA0011Title" xml:space="preserve">
+    <value>SetActive used to toggle UI visibility</value>
+  </data>
+  <data name="UPA0011MessageFormat" xml:space="preserve">
+    <value>Toggling '{0}' through SetActive deactivates the whole GameObject and forces canvas rebuild work when it is reactivated. Toggle the component's enabled property or drive a CanvasGroup's alpha instead.</value>
+  </data>
+  <data name="UPA0011Description" xml:space="preserve">
+    <value>Calling SetActive(false) on a UI element's GameObject deactivates the entire object; reactivating it runs OnEnable and forces the canvas to rebuild the element's geometry. For plain visibility toggling of a single UI graphic, disabling the component (enabled = false) or driving a CanvasGroup's alpha achieves the same visual result at a much lower reactivation cost. Only receivers statically typed as UI components are reported; toggling whole panels via SetActive is often intentional and is not.</value>
+  </data>
+  <data name="UPA0012Title" xml:space="preserve">
+    <value>TextMeshPro text assignment instead of SetText</value>
+  </data>
+  <data name="UPA0012MessageFormat" xml:space="preserve">
+    <value>Assigning '{0}.text' on a per-frame path stores a new string and dirties the text every frame. Use SetText with format arguments to write into the internal buffer instead.</value>
+  </data>
+  <data name="UPA0012Description" xml:space="preserve">
+    <value>Every assignment to a TextMeshPro text property stores the string and marks the text as dirty, triggering mesh regeneration. The common per-frame pattern also builds a fresh string first (value.ToString() or concatenation), allocating on every frame. The SetText overloads format numeric arguments directly into the component's internal buffer, avoiding the intermediate string allocation entirely.</value>
+  </data>
+  <data name="UPA1000Title" xml:space="preserve">
+    <value>Leaf class not sealed</value>
+  </data>
+  <data name="UPA1000MessageFormat" xml:space="preserve">
+    <value>'{0}' has no derived types in this compilation and can be sealed. Sealed classes enable devirtualization in the JIT and IL2CPP.</value>
+  </data>
+  <data name="UPA1000Description" xml:space="preserve">
+    <value>When a class is sealed, the runtime and the IL2CPP compiler can replace virtual dispatch on it with direct calls and enable further inlining, because no derived type can exist. For a concrete class with no derived types, adding sealed is a zero-semantic-cost improvement that also states design intent. Classes that declare their own virtual members are not reported: sealing them would be a compile error, and an unused extension point may be intentional. The analysis is scoped to one compilation; public types could in principle be derived from other assemblies.</value>
+  </data>
+  <data name="UPA0005Title" xml:space="preserve">
+    <value>Direct UnityEngine.Debug logging call</value>
+  </data>
+  <data name="UPA0005MessageFormat" xml:space="preserve">
+    <value>'{0}' is called directly. Route logging through a wrapper marked with [Conditional] so calls and their arguments are removed from release builds.</value>
+  </data>
+  <data name="UPA0005Description" xml:space="preserve">
+    <value>UnityEngine.Debug logging methods remain in release builds, and their argument expressions are still evaluated and allocated on every call. Routing log calls through a wrapper method marked with [System.Diagnostics.Conditional] lets the compiler remove the calls together with their argument expressions when the conditional symbol is not defined.</value>
+  </data>
+  <data name="UPA1001Title" xml:space="preserve">
+    <value>Non-exhaustive enum switch</value>
+  </data>
+  <data name="UPA1001MessageFormat" xml:space="preserve">
+    <value>Switch over '{0}' does not handle: {1}. Add the missing cases, or handle them deliberately in the default arm.</value>
+  </data>
+  <data name="UPA1001Description" xml:space="preserve">
+    <value>Adding an enum member without updating every switch over that enum is a common source of silent misbehavior: state machines skip the new state, item or damage types fall through unhandled. The compiler checks exhaustiveness only for switch expressions without a discard arm; this rule also covers switch statements, and can optionally keep reporting missing members even when a default arm exists. Flags enums and switches with when guards or non-constant patterns are not analyzed, and members sharing a value count as covered together.</value>
+  </data>
+  <data name="UPA2000Title" xml:space="preserve">
+    <value>String concatenation in per-frame method</value>
+  </data>
+  <data name="UPA2000MessageFormat" xml:space="preserve">
+    <value>String building on a per-frame path allocates a new string every frame. {0}</value>
+  </data>
+  <data name="UPA2000Description" xml:space="preserve">
+    <value>String concatenation, += appends, and string interpolation each allocate a new string on every execution. Inside methods that Unity runs every frame this produces avoidable garbage each frame. Cache strings that do not change, build changing ones with a reusable StringBuilder outside the hot path, or use ZString to format without intermediate string allocations when it is available.</value>
+  </data>
+  <data name="UPA2000AdviceDefault" xml:space="preserve">
+    <value>Cache the string, or build it with a reusable StringBuilder outside the hot path.</value>
+  </data>
+  <data name="UPA2000AdviceZString" xml:space="preserve">
+    <value>Use ZString to format without intermediate string allocations.</value>
+  </data>
+  <data name="UPA2001Title" xml:space="preserve">
+    <value>System.Linq usage</value>
+  </data>
+  <data name="UPA2001MessageFormat" xml:space="preserve">
+    <value>'{0}' allocates enumerators and often intermediate collections. Use a loop or a non-allocating alternative on performance-sensitive paths.</value>
+  </data>
+  <data name="UPA2001Description" xml:space="preserve">
+    <value>LINQ operators allocate enumerator objects, delegate instances, and often intermediate collections on every evaluation. That cost is acceptable in general .NET code but conflicts with the low-allocation discipline of performance-sensitive Unity projects. This opinionated rule reports every call to a System.Linq.Enumerable or System.Linq.Queryable extension method, including query syntax; it is disabled by default and intended to be enabled by projects that ban LINQ as a stack choice.</value>
+  </data>
+  <data name="UPA2010Title" xml:space="preserve">
+    <value>User-authored async method returns Task</value>
+  </data>
+  <data name="UPA2010MessageFormat" xml:space="preserve">
+    <value>Async method '{0}' returns Task, which allocates on every invocation. With UniTask referenced, return UniTask instead to avoid the allocations.</value>
+  </data>
+  <data name="UPA2010Description" xml:space="preserve">
+    <value>Every invocation of an async method that returns Task or Task&lt;T&gt; allocates the Task object, and awaits that yield allocate state-machine boxes. UniTask provides allocation-free equivalents designed for Unity's player loop. This rule runs only in assemblies that reference UniTask and reports user-authored async method declarations returning Task; overrides, interface implementations, and async lambdas are excluded because their signatures cannot be changed unilaterally.</value>
+  </data>
+  <data name="UPA2011Title" xml:space="preserve">
+    <value>Coroutine IEnumerator Unity message or method</value>
+  </data>
+  <data name="UPA2011MessageFormat" xml:space="preserve">
+    <value>Coroutine '{0}' allocates its enumerator state machine each time it starts, and each StartCoroutine call allocates a Coroutine handle. Consider an async alternative, or a plain method when no yielding is needed.</value>
+  </data>
+  <data name="UPA2011Description" xml:space="preserve">
+    <value>A coroutine method allocates its compiler-generated enumerator state machine on every start, and each StartCoroutine call additionally allocates a Coroutine handle object; yielded values that are value types are boxed. Async alternatives can avoid these repeated allocations, and logic that never yields can be a plain method. Methods returning IEnumerator&lt;T&gt; are treated as data iteration and not reported.</value>
+  </data>
+  <data name="UPA2012Title" xml:space="preserve">
+    <value>Async void or unawaited fire-and-forget</value>
+  </data>
+  <data name="UPA2012MessageFormatAsyncVoid" xml:space="preserve">
+    <value>'{0}' is async void: exceptions escape every caller and completion cannot be observed. {1}</value>
+  </data>
+  <data name="UPA2012MessageFormatFireAndForget" xml:space="preserve">
+    <value>The result of '{0}' is discarded, so its exceptions are silently lost. {1}</value>
+  </data>
+  <data name="UPA2012Description" xml:space="preserve">
+    <value>Exceptions thrown by an async void method cannot be caught by any caller and its completion cannot be observed; a Task or UniTask whose result is discarded at the call site silently swallows its exceptions the same way. Both are debugging black holes. Return an awaitable type and observe it at the call sites, or make fire-and-forget explicit — with UniTask, return UniTaskVoid and call Forget. Event-handler-signature async void methods and explicit discard assignments are excluded as established conventions.</value>
+  </data>
+  <data name="UPA2012AdviceAsyncVoidDefault" xml:space="preserve">
+    <value>Return Task instead, and await or store it at the call sites.</value>
+  </data>
+  <data name="UPA2012AdviceAsyncVoidUniTask" xml:space="preserve">
+    <value>Return UniTaskVoid and call Forget, or return UniTask.</value>
+  </data>
+  <data name="UPA2012AdviceFireAndForgetDefault" xml:space="preserve">
+    <value>Await it, or store the task and observe its completion.</value>
+  </data>
+  <data name="UPA2012AdviceFireAndForgetUniTask" xml:space="preserve">
+    <value>Await it, or make fire-and-forget explicit with Forget.</value>
+  </data>
+  <data name="UPA2021Title" xml:space="preserve">
+    <value>Public Action event used for observable state</value>
+  </data>
+  <data name="UPA2021MessageFormat" xml:space="preserve">
+    <value>Public event '{0}' models observable state with a plain Action. With R3 referenced, expose a ReactiveProperty or Observable for composable, disposable subscriptions instead.</value>
+  </data>
+  <data name="UPA2021Description" xml:space="preserve">
+    <value>A public event of the System.Action family is the idiomatic shape for state-change notification, but plain events offer no composition, no current-value semantics, and easy-to-leak manual unsubscription. R3's ReactiveProperty and Observable provide composable, disposable subscriptions with explicit ordering. This rule runs only in assemblies that reference R3; EventHandler-convention events, non-public events, custom delegate types, and plain Action fields are not reported.</value>
+  </data>
+  <data name="UPA3000Title" xml:space="preserve">
+    <value>Threading API unsupported on WebGL</value>
+  </data>
+  <data name="UPA3000MessageFormat" xml:space="preserve">
+    <value>'{0}' requires threads, which Unity WebGL builds do not support. Use async/await on the main thread, coroutines, or the Job System.</value>
+  </data>
+  <data name="UPA3000Description" xml:space="preserve">
+    <value>Unity WebGL builds run on a single thread: thread creation, thread-pool scheduling, and blocking synchronization primitives either throw or hang at runtime. Task.Run and TaskFactory.StartNew schedule onto the thread pool, and Task.Delay relies on timer machinery known not to complete on WebGL. Plain async/await on the main thread, coroutines, lock, Interlocked, and CancellationToken remain usable. This rule runs only in compilations that define UPA_TARGET_WEBGL.</value>
+  </data>
+  <data name="UPA3001Title" xml:space="preserve">
+    <value>Sockets API unsupported on WebGL</value>
+  </data>
+  <data name="UPA3001MessageFormat" xml:space="preserve">
+    <value>'{0}' uses sockets, which Unity WebGL builds do not support. Use UnityWebRequest or a WebSocket solution instead.</value>
+  </data>
+  <data name="UPA3001Description" xml:space="preserve">
+    <value>Browsers do not expose raw socket access, so System.Net.Sockets types fail at runtime in Unity WebGL builds. Use UnityWebRequest for HTTP traffic or a WebSocket-based solution for persistent connections. This rule runs only in compilations that define UPA_TARGET_WEBGL.</value>
+  </data>
+  <data name="UPA3002Title" xml:space="preserve">
+    <value>Synchronous file IO unsupported on WebGL</value>
+  </data>
+  <data name="UPA3002MessageFormat" xml:space="preserve">
+    <value>'{0}' performs synchronous file IO, which Unity WebGL builds do not support. Persist data with PlayerPrefs or asynchronous storage APIs instead.</value>
+  </data>
+  <data name="UPA3002Description" xml:space="preserve">
+    <value>Unity WebGL builds have no real file system: File and Directory static methods and FileStream construction fail or silently misbehave against the browser's virtual file system. Persist data with PlayerPrefs or asynchronous storage APIs. Path operations are pure string manipulation and MemoryStream is in-memory, so both remain usable. This rule runs only in compilations that define UPA_TARGET_WEBGL.</value>
+  </data>
+  <data name="UPA3003Title" xml:space="preserve">
+    <value>Process API unsupported on WebGL</value>
+  </data>
+  <data name="UPA3003MessageFormat" xml:space="preserve">
+    <value>'{0}' launches processes, which Unity WebGL builds do not support. Remove or platform-gate this code.</value>
+  </data>
+  <data name="UPA3003Description" xml:space="preserve">
+    <value>Browsers cannot launch or inspect operating-system processes, so System.Diagnostics.Process fails at runtime in Unity WebGL builds. Remove the usage or gate it behind a platform define for the targets that support it. This rule runs only in compilations that define UPA_TARGET_WEBGL.</value>
+  </data>
+</root>

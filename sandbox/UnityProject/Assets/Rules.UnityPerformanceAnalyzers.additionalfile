@@ -1,0 +1,3 @@
+# Verifies the Filename.[Analyzer Name].additionalfile convention: this file must reach
+# csc as /additionalfile: for every assembly. The content itself is not consumed yet.
+requiresWebGL: false

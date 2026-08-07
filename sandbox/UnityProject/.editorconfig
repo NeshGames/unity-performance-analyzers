@@ -1,0 +1,6 @@
+root = true
+
+# Unity does not pass this file to csc (no -analyzerconfig: in the rsp files) — severity
+# for Unity builds comes from the rulesets. Kept because IDEs still honor it.
+[*.cs]
+dotnet_diagnostic.UPA0005.severity = warning

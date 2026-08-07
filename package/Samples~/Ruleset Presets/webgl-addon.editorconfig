@@ -1,0 +1,7 @@
+# unity-performance-analyzers add-on: WebGL unsupported-API rules (IDE parity variant).
+# Append these lines to your project .editorconfig [*.cs] section.
+# Unity builds use webgl-addon.ruleset instead; the rules need UPA_TARGET_WEBGL defined.
+dotnet_diagnostic.UPA3000.severity = warning
+dotnet_diagnostic.UPA3001.severity = warning
+dotnet_diagnostic.UPA3002.severity = warning
+dotnet_diagnostic.UPA3003.severity = warning

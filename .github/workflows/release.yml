@@ -1,0 +1,102 @@
+name: Release
+
+# OpenUPM resolves the package from the git tag, so the tag itself must already
+# contain the analyzer DLL and a package.json whose version matches the tag exactly
+# (CLAUDE.md §2.3). A tag-triggered workflow cannot inject files into an existing
+# tag, so releasing works the other way around: run this workflow manually (after
+# REL approval) and it creates the release commit, the tag, and the GitHub Release.
+# The version's single source is <Version> in src/Directory.Build.props; the
+# package.json version is written here and must never be edited by hand.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Read version from Directory.Build.props
+        id: version
+        run: |
+          VERSION=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' src/Directory.Build.props)
+          test -n "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$VERSION"
+
+      # Versions are never recycled (CLAUDE.md §2.4 applies to tags as a whole).
+      - name: Refuse to re-release an existing tag
+        run: |
+          if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.version }}" | grep -q .; then
+            echo "::error::Tag v${{ steps.version.outputs.version }} already exists"; exit 1
+          fi
+
+      - name: Build
+        run: dotnet build UnityPerformanceAnalyzers.sln -c Release
+
+      - name: Test
+        run: >
+          dotnet test UnityPerformanceAnalyzers.sln -c Release --no-build
+          --filter "Category!=RequiresUnity"
+          --logger "console;verbosity=minimal"
+
+      - name: Sync package.json version
+        run: |
+          jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' package/package.json > package/package.json.tmp
+          mv package/package.json.tmp package/package.json
+
+      - name: Place analyzer DLL into the package
+        run: cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
+
+      - name: Commit, tag, push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package/package.json
+          git add -f package/Analyzers/UnityPerformanceAnalyzers.dll
+          git commit -m "Release v${{ steps.version.outputs.version }}"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin main "v${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "v${{ steps.version.outputs.version }}"
+          --title "v${{ steps.version.outputs.version }}"
+          --notes "See package/CHANGELOG.md. Install via UPM:
+          https://github.com/${{ github.repository }}.git?path=/package#v${{ steps.version.outputs.version }}"
+          src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll
+
+  # Safety net for tags pushed by hand: the tag content must be internally consistent.
+  validate-tag:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag matches package.json version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(jq -r '.version' package/package.json)
+          echo "tag=$TAG package.json=$PKG"
+          test "$TAG" = "$PKG"
+
+      - name: Analyzer DLL is present in the package
+        run: test -f "package/Analyzers/UnityPerformanceAnalyzers.dll"
