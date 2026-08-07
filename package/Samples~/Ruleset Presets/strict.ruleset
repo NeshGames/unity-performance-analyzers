@@ -2,7 +2,9 @@
 <!-- unity-performance-analyzers preset: strict
      Copy this file to Assets/Default.ruleset (project-wide).
      A Default.ruleset inside an asmdef folder overrides it for that assembly.
-     To add the WebGL rules: <Include Path="webgl-addon.ruleset" Action="Default" /> -->
+     To add the WebGL rules: <Include Path="webgl-addon.ruleset" Action="Default" />
+     GENERATED FILE - do not edit. Severities live in PresetTable.cs;
+     regenerate via the RuleManifest presets mode (see that file's header). -->
 <RuleSet Name="UPA strict" ToolsVersion="10.0">
   <Rules AnalyzerId="UnityPerformanceAnalyzers" RuleNamespace="UnityPerformanceAnalyzers">
     <Rule Id="UPA0001" Action="Error" />
@@ -69,4 +71,3 @@
     <Rule Id="UNT0042" Action="Error" />
   </Rules>
 </RuleSet>
-

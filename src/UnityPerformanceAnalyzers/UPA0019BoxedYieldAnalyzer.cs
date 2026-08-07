@@ -13,20 +13,16 @@ namespace UnityPerformanceAnalyzers
     /// non-MonoBehaviour types are not reported — there the yielded values carry meaning.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0019BoxedYieldAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0019BoxedYieldAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0019";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0019Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0019MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0019Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0019.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -35,23 +31,18 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var monoBehaviourType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
+            var enumeratorType = ctx.Compilation.GetTypeByMetadataName("System.Collections.IEnumerator");
+            if (monoBehaviourType is null || enumeratorType is null)
             {
-                var monoBehaviourType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
-                var enumeratorType = ctx.Compilation.GetTypeByMetadataName("System.Collections.IEnumerator");
-                if (monoBehaviourType is null || enumeratorType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeYieldReturn(opCtx, monoBehaviourType, enumeratorType),
-                    OperationKind.YieldReturn);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeYieldReturn(opCtx, monoBehaviourType, enumeratorType),
+                OperationKind.YieldReturn);
         }
 
         private static void AnalyzeYieldReturn(
@@ -65,7 +56,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (!InheritsFrom(context.ContainingSymbol.ContainingType, monoBehaviourType))
+            if (!TypeHierarchy.DerivesFrom(context.ContainingSymbol.ContainingType, monoBehaviourType))
             {
                 return;
             }
@@ -85,17 +76,5 @@ namespace UnityPerformanceAnalyzers
                 operandSyntax.ToString()));
         }
 
-        private static bool InheritsFrom(INamedTypeSymbol? type, INamedTypeSymbol baseType)
-        {
-            for (var current = type; current is object; current = current.BaseType)
-            {
-                if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 }

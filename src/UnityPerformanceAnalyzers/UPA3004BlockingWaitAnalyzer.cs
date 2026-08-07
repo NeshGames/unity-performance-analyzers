@@ -17,21 +17,18 @@ namespace UnityPerformanceAnalyzers
     /// listed; completed-task Result access still reports (no flow analysis) and is meant
     /// to be suppressed locally (docs/rules/UPA3004.md).
     /// </summary>
+    [ConditionalRule("WebGL")]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA3004BlockingWaitAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA3004BlockingWaitAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA3004";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA3004Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA3004MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Platform,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA3004Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3004.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -50,29 +47,24 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            if (!profile.RequiresWebGL)
             {
-                var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
-                if (!profile.RequiresWebGL)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var bannedMembers = BannedMembers.Create(ctx.Compilation);
-                if (bannedMembers.IsEmpty)
-                {
-                    return;
-                }
+            var bannedMembers = BannedMembers.Create(ctx.Compilation);
+            if (bannedMembers.IsEmpty)
+            {
+                return;
+            }
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeOperation(opCtx, bannedMembers),
-                    OperationKind.Invocation,
-                    OperationKind.PropertyReference);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeOperation(opCtx, bannedMembers),
+                OperationKind.Invocation,
+                OperationKind.PropertyReference);
         }
 
         private static void AnalyzeOperation(OperationAnalysisContext context, BannedMembers bannedMembers)

@@ -13,21 +13,18 @@ namespace UnityPerformanceAnalyzers
     /// than staying silent. Overrides, interface implementations, and async lambdas are
     /// excluded: their signatures cannot be changed unilaterally (docs/rules/UPA2010.md).
     /// </summary>
+    [ConditionalRule("UniTask")]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA2010AsyncTaskReturnAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA2010AsyncTaskReturnAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA2010";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA2010Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA2010MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Ecosystem,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA2010Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2010.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -36,30 +33,25 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            if (!profile.HasUniTask)
             {
-                var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
-                if (!profile.HasUniTask)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var taskType = ctx.Compilation.GetTypeByMetadataName("System.Threading.Tasks.Task");
-                var taskOfTType = ctx.Compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1");
-                if (taskType is null && taskOfTType is null)
-                {
-                    return;
-                }
+            var taskType = ctx.Compilation.GetTypeByMetadataName("System.Threading.Tasks.Task");
+            var taskOfTType = ctx.Compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1");
+            if (taskType is null && taskOfTType is null)
+            {
+                return;
+            }
 
-                ctx.RegisterSyntaxNodeAction(
-                    nodeCtx => AnalyzeDeclaration(nodeCtx, taskType, taskOfTType),
-                    SyntaxKind.MethodDeclaration,
-                    SyntaxKind.LocalFunctionStatement);
-            });
+            ctx.RegisterSyntaxNodeAction(
+                nodeCtx => AnalyzeDeclaration(nodeCtx, taskType, taskOfTType),
+                SyntaxKind.MethodDeclaration,
+                SyntaxKind.LocalFunctionStatement);
         }
 
         private static void AnalyzeDeclaration(

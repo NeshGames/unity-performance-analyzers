@@ -12,21 +12,18 @@ namespace UnityPerformanceAnalyzers
     /// the scene or all loaded objects; the reference should be resolved once in
     /// <c>Awake</c>/<c>Start</c> and cached in a field.
     /// </summary>
+    [HotPathRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0014SceneSearchAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0014SceneSearchAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0014";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0014Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0014MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0014Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0014.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -50,25 +47,20 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
+            var objectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Object");
+            if (gameObjectType is null && objectType is null)
             {
-                var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
-                var objectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Object");
-                if (gameObjectType is null && objectType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(opCtx, gameObjectType, objectType, hotPathDetector),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(opCtx, gameObjectType, objectType, hotPathDetector),
+                OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(
@@ -91,9 +83,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var semanticModel = invocation.SemanticModel;
-            if (semanticModel is null ||
-                !hotPathDetector.IsInHotPath(invocation.Syntax, semanticModel, context.CancellationToken))
+            if (hotPathDetector.IsOutsideHotPath(invocation, context.CancellationToken))
             {
                 return;
             }

@@ -11,21 +11,18 @@ namespace UnityPerformanceAnalyzers
     /// and a fresh delegate every time the enclosing code runs; capture-free lambdas are cached
     /// by the compiler and are not reported.
     /// </summary>
+    [HotPathRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0007CapturingLambdaAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0007CapturingLambdaAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0007";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0007Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0007MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0007Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0007.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -34,18 +31,13 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
-            {
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeAnonymousFunction(opCtx, hotPathDetector),
-                    OperationKind.AnonymousFunction);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeAnonymousFunction(opCtx, hotPathDetector),
+                OperationKind.AnonymousFunction);
         }
 
         private static void AnalyzeAnonymousFunction(OperationAnalysisContext context, HotPathDetector hotPathDetector)
@@ -60,9 +52,7 @@ namespace UnityPerformanceAnalyzers
             // The allocation happens where the lambda expression is evaluated, so the lambda
             // node itself must sit on a hot path (its own body being "inside a lambda" is
             // irrelevant here — upa_hot_path_include_lambdas governs nodes inside bodies).
-            var semanticModel = lambda.SemanticModel;
-            if (semanticModel is null ||
-                !hotPathDetector.IsInHotPath(lambda.Syntax, semanticModel, context.CancellationToken))
+            if (hotPathDetector.IsOutsideHotPath(lambda, context.CancellationToken))
             {
                 return;
             }

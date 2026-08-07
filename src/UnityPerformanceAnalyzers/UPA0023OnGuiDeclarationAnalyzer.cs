@@ -14,20 +14,16 @@ namespace UnityPerformanceAnalyzers
     /// legitimate and common.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0023OnGuiDeclarationAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0023OnGuiDeclarationAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0023";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0023Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0023MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Info,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA0023Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0023.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -36,27 +32,22 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            if (UpaProfile.IsEditorAssembly(ctx.Compilation))
             {
-                if (UpaProfile.IsEditorAssembly(ctx.Compilation))
-                {
-                    return;
-                }
+                return;
+            }
 
-                var monoBehaviourType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
-                if (monoBehaviourType is null)
-                {
-                    return;
-                }
+            var monoBehaviourType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
+            if (monoBehaviourType is null)
+            {
+                return;
+            }
 
-                ctx.RegisterSymbolAction(
-                    symbolCtx => AnalyzeMethod(symbolCtx, monoBehaviourType),
-                    SymbolKind.Method);
-            });
+            ctx.RegisterSymbolAction(
+                symbolCtx => AnalyzeMethod(symbolCtx, monoBehaviourType),
+                SymbolKind.Method);
         }
 
         private static void AnalyzeMethod(SymbolAnalysisContext context, INamedTypeSymbol monoBehaviourType)
@@ -72,7 +63,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (!InheritsFrom(method.ContainingType, monoBehaviourType))
+            if (!TypeHierarchy.DerivesFrom(method.ContainingType, monoBehaviourType))
             {
                 return;
             }
@@ -84,17 +75,5 @@ namespace UnityPerformanceAnalyzers
             }
         }
 
-        private static bool InheritsFrom(INamedTypeSymbol? type, INamedTypeSymbol baseType)
-        {
-            for (var current = type; current is object; current = current.BaseType)
-            {
-                if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 }

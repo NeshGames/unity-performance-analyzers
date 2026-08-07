@@ -11,21 +11,18 @@ namespace UnityPerformanceAnalyzers
     /// intrinsic that removes the boxing does not apply. An explicit bitwise check such as
     /// <c>(x &amp; flag) == flag</c> is allocation-free.
     /// </summary>
+    [HotPathRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0022HasFlagAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0022HasFlagAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0022";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0022Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0022MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0022Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0022.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -34,19 +31,14 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
-            {
-                var enumType = ctx.Compilation.GetSpecialType(SpecialType.System_Enum);
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var enumType = ctx.Compilation.GetSpecialType(SpecialType.System_Enum);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(opCtx, enumType, hotPathDetector),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(opCtx, enumType, hotPathDetector),
+                OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(
@@ -63,9 +55,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var semanticModel = invocation.SemanticModel;
-            if (semanticModel is null ||
-                !hotPathDetector.IsInHotPath(invocation.Syntax, semanticModel, context.CancellationToken))
+            if (hotPathDetector.IsOutsideHotPath(invocation, context.CancellationToken))
             {
                 return;
             }

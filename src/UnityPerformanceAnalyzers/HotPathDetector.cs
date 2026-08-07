@@ -91,6 +91,18 @@ namespace UnityPerformanceAnalyzers
         }
 
         /// <summary>
+        /// The standard per-operation guard: true when the operation should not report
+        /// because it has no semantic model or sits outside every hot path. Wraps
+        /// <see cref="IsInHotPath"/> so the seventeen hot-path rules share one guard.
+        /// </summary>
+        public bool IsOutsideHotPath(IOperation operation, CancellationToken cancellationToken)
+        {
+            var semanticModel = operation.SemanticModel;
+            return semanticModel is null ||
+                !IsInHotPath(operation.Syntax, semanticModel, cancellationToken);
+        }
+
+        /// <summary>
         /// True when the nearest enclosing method declaration is a hot-path method: either a
         /// hot Unity message on a MonoBehaviour-derived type, or a method carrying a hot-path
         /// attribute (matched by short name, no type resolution). Nodes inside lambdas or local
@@ -139,7 +151,7 @@ namespace UnityPerformanceAnalyzers
             }
 
             var methodSymbol = semanticModel.GetDeclaredSymbol(method, cancellationToken);
-            return methodSymbol is object && InheritsFromMonoBehaviour(methodSymbol.ContainingType);
+            return methodSymbol is object && TypeHierarchy.DerivesFrom(methodSymbol.ContainingType, _monoBehaviourType);
         }
 
         private bool HasHotPathAttribute(MethodDeclarationSyntax method)
@@ -152,24 +164,6 @@ namespace UnityPerformanceAnalyzers
                     {
                         return true;
                     }
-                }
-            }
-
-            return false;
-        }
-
-        private bool InheritsFromMonoBehaviour(INamedTypeSymbol? type)
-        {
-            if (_monoBehaviourType is null)
-            {
-                return false;
-            }
-
-            for (var current = type; current is object; current = current.BaseType)
-            {
-                if (SymbolEqualityComparer.Default.Equals(current, _monoBehaviourType))
-                {
-                    return true;
                 }
             }
 

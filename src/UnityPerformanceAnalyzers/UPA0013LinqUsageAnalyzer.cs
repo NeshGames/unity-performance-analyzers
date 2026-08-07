@@ -13,21 +13,18 @@ namespace UnityPerformanceAnalyzers
     /// are excluded by declaring-type comparison. An opinionated, off-by-default rule for
     /// low-allocation codebases (docs/rules/UPA0013.md).
     /// </summary>
+    [HotPathRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0013LinqUsageAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0013LinqUsageAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0013";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0013Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0013MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA0013Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0013.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -36,25 +33,20 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var enumerableType = ctx.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
+            var queryableType = ctx.Compilation.GetTypeByMetadataName("System.Linq.Queryable");
+            if (enumerableType is null && queryableType is null)
             {
-                var enumerableType = ctx.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
-                var queryableType = ctx.Compilation.GetTypeByMetadataName("System.Linq.Queryable");
-                if (enumerableType is null && queryableType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(opCtx, enumerableType, queryableType, hotPathDetector),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(opCtx, enumerableType, queryableType, hotPathDetector),
+                OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(
@@ -75,9 +67,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var semanticModel = invocation.SemanticModel;
-            if (semanticModel is null ||
-                !hotPathDetector.IsInHotPath(invocation.Syntax, semanticModel, context.CancellationToken))
+            if (hotPathDetector.IsOutsideHotPath(invocation, context.CancellationToken))
             {
                 return;
             }

@@ -15,8 +15,9 @@ namespace UnityPerformanceAnalyzers
     /// UPA3001 System.Net.Sockets, UPA3002 synchronous file IO (Path and MemoryStream stay
     /// allowed), UPA3003 System.Diagnostics.Process.
     /// </summary>
+    [ConditionalRule("WebGL")]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA3000WebGlUnsupportedApiAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA3000WebGlUnsupportedApiAnalyzer : UpaAnalyzer
     {
         /// <summary>The threading diagnostic ID reported by this analyzer.</summary>
         public const string ThreadingDiagnosticId = "UPA3000";
@@ -30,45 +31,29 @@ namespace UnityPerformanceAnalyzers
         /// <summary>The process diagnostic ID reported by this analyzer.</summary>
         public const string ProcessDiagnosticId = "UPA3003";
 
-        private static readonly DiagnosticDescriptor s_threadingRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor s_threadingRule = UpaDescriptor.Create(
             ThreadingDiagnosticId,
-            new LocalizableResourceString(Strings.UPA3000Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA3000MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Platform,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA3000Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3000.md");
+            isEnabledByDefault: false);
 
-        private static readonly DiagnosticDescriptor s_socketsRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor s_socketsRule = UpaDescriptor.Create(
             SocketsDiagnosticId,
-            new LocalizableResourceString(Strings.UPA3001Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA3001MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Platform,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA3001Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3001.md");
+            isEnabledByDefault: false);
 
-        private static readonly DiagnosticDescriptor s_fileIoRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor s_fileIoRule = UpaDescriptor.Create(
             FileIoDiagnosticId,
-            new LocalizableResourceString(Strings.UPA3002Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA3002MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Platform,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA3002Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3002.md");
+            isEnabledByDefault: false);
 
-        private static readonly DiagnosticDescriptor s_processRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor s_processRule = UpaDescriptor.Create(
             ProcessDiagnosticId,
-            new LocalizableResourceString(Strings.UPA3003Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA3003MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Platform,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA3003Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3003.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(s_threadingRule, s_socketsRule, s_fileIoRule, s_processRule);
@@ -77,27 +62,22 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            if (!profile.RequiresWebGL)
             {
-                var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
-                if (!profile.RequiresWebGL)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var bannedApis = BannedApis.Create(ctx.Compilation);
+            var bannedApis = BannedApis.Create(ctx.Compilation);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeOperation(opCtx, bannedApis),
-                    OperationKind.Invocation,
-                    OperationKind.ObjectCreation,
-                    OperationKind.PropertyReference,
-                    OperationKind.FieldReference);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeOperation(opCtx, bannedApis),
+                OperationKind.Invocation,
+                OperationKind.ObjectCreation,
+                OperationKind.PropertyReference,
+                OperationKind.FieldReference);
         }
 
         private static void AnalyzeOperation(OperationAnalysisContext context, BannedApis bannedApis)

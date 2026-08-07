@@ -13,20 +13,16 @@ namespace UnityPerformanceAnalyzers
     /// thread. Deterministic cleanup belongs in IDisposable.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0025FinalizerAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0025FinalizerAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0025";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0025Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0025MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0025Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0025.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -35,19 +31,14 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            if (UpaProfile.IsEditorAssembly(ctx.Compilation))
             {
-                if (UpaProfile.IsEditorAssembly(ctx.Compilation))
-                {
-                    return;
-                }
+                return;
+            }
 
-                ctx.RegisterSymbolAction(AnalyzeMethod, SymbolKind.Method);
-            });
+            ctx.RegisterSymbolAction(AnalyzeMethod, SymbolKind.Method);
         }
 
         private static void AnalyzeMethod(SymbolAnalysisContext context)

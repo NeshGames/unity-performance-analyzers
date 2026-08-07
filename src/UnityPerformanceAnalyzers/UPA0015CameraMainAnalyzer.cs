@@ -10,21 +10,18 @@ namespace UnityPerformanceAnalyzers
     /// a lookup comparable to <c>GetComponent</c>. Unity 2020.2+ caches the result internally,
     /// so the residual cost is small — the rule reports at Info level.
     /// </summary>
+    [HotPathRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0015CameraMainAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0015CameraMainAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0015";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0015Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0015MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Info,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0015Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0015.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -33,24 +30,19 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var cameraType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Camera");
+            if (cameraType is null)
             {
-                var cameraType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Camera");
-                if (cameraType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzePropertyReference(opCtx, cameraType, hotPathDetector),
-                    OperationKind.PropertyReference);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzePropertyReference(opCtx, cameraType, hotPathDetector),
+                OperationKind.PropertyReference);
         }
 
         private static void AnalyzePropertyReference(
@@ -67,9 +59,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var semanticModel = propertyReference.SemanticModel;
-            if (semanticModel is null ||
-                !hotPathDetector.IsInHotPath(propertyReference.Syntax, semanticModel, context.CancellationToken))
+            if (hotPathDetector.IsOutsideHotPath(propertyReference, context.CancellationToken))
             {
                 return;
             }

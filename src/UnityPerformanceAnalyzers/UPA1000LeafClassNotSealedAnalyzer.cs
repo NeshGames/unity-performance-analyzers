@@ -14,21 +14,16 @@ namespace UnityPerformanceAnalyzers
     /// external derivation of public types is a documented limitation.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA1000LeafClassNotSealedAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA1000LeafClassNotSealedAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA1000";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA1000Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA1000MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Correctness,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA1000Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA1000.md",
-            customTags: "CompilationEnd");
+            isEnabledByDefault: false, customTags: "CompilationEnd");
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -37,34 +32,29 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            // Per-compilation, thread-safe collections — analyzers run concurrently,
+            // so shared mutable state must never be static.
+            var candidates = new ConcurrentDictionary<INamedTypeSymbol, Location>(SymbolEqualityComparer.Default);
+            var derivedFromTypes = new ConcurrentDictionary<INamedTypeSymbol, byte>(SymbolEqualityComparer.Default);
+
+            ctx.RegisterSymbolAction(
+                symbolCtx => CollectType(symbolCtx, candidates, derivedFromTypes),
+                SymbolKind.NamedType);
+
+            ctx.RegisterCompilationEndAction(endCtx =>
             {
-                // Per-compilation, thread-safe collections — analyzers run concurrently,
-                // so shared mutable state must never be static.
-                var candidates = new ConcurrentDictionary<INamedTypeSymbol, Location>(SymbolEqualityComparer.Default);
-                var derivedFromTypes = new ConcurrentDictionary<INamedTypeSymbol, byte>(SymbolEqualityComparer.Default);
-
-                ctx.RegisterSymbolAction(
-                    symbolCtx => CollectType(symbolCtx, candidates, derivedFromTypes),
-                    SymbolKind.NamedType);
-
-                ctx.RegisterCompilationEndAction(endCtx =>
+                foreach (var candidate in candidates)
                 {
-                    foreach (var candidate in candidates)
+                    if (!derivedFromTypes.ContainsKey(candidate.Key.OriginalDefinition))
                     {
-                        if (!derivedFromTypes.ContainsKey(candidate.Key.OriginalDefinition))
-                        {
-                            endCtx.ReportDiagnostic(UpaDiagnostics.Create(
-                                Rule,
-                                candidate.Value,
-                                candidate.Key.Name));
-                        }
+                        endCtx.ReportDiagnostic(UpaDiagnostics.Create(
+                            Rule,
+                            candidate.Value,
+                            candidate.Key.Name));
                     }
-                });
+                }
             });
         }
 

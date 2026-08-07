@@ -12,21 +12,18 @@ namespace UnityPerformanceAnalyzers
     /// (<c>materials</c> additionally allocates a new array per access). The <c>shared*</c>
     /// accessors are not reported.
     /// </summary>
+    [HotPathRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0004InstantiatingAccessorAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0004InstantiatingAccessorAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0004";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0004Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0004MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0004Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0004.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -35,25 +32,20 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var rendererType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Renderer");
+            var meshFilterType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MeshFilter");
+            if (rendererType is null && meshFilterType is null)
             {
-                var rendererType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Renderer");
-                var meshFilterType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MeshFilter");
-                if (rendererType is null && meshFilterType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzePropertyReference(opCtx, rendererType, meshFilterType, hotPathDetector),
-                    OperationKind.PropertyReference);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzePropertyReference(opCtx, rendererType, meshFilterType, hotPathDetector),
+                OperationKind.PropertyReference);
         }
 
         private static void AnalyzePropertyReference(
@@ -85,9 +77,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var semanticModel = propertyReference.SemanticModel;
-            if (semanticModel is null ||
-                !hotPathDetector.IsInHotPath(propertyReference.Syntax, semanticModel, context.CancellationToken))
+            if (hotPathDetector.IsOutsideHotPath(propertyReference, context.CancellationToken))
             {
                 return;
             }

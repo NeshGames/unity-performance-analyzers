@@ -15,21 +15,18 @@ namespace UnityPerformanceAnalyzers
     /// reports over false positives. Arrays are excluded: <c>i &lt; array.Length</c> is the form
     /// the JIT uses to eliminate bounds checks.
     /// </summary>
+    [HotPathRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0009ListCountInForLoopAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0009ListCountInForLoopAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0009";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0009Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0009MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA0009Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0009.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -50,24 +47,19 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var listType = ctx.Compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
+            if (listType is null)
             {
-                var listType = ctx.Compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
-                if (listType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterSyntaxNodeAction(
-                    nodeCtx => AnalyzeForStatement(nodeCtx, listType, hotPathDetector),
-                    SyntaxKind.ForStatement);
-            });
+            ctx.RegisterSyntaxNodeAction(
+                nodeCtx => AnalyzeForStatement(nodeCtx, listType, hotPathDetector),
+                SyntaxKind.ForStatement);
         }
 
         private static void AnalyzeForStatement(

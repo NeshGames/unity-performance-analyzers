@@ -16,7 +16,7 @@ namespace UnityPerformanceAnalyzers
     /// stored/passed results, .Forget(), and `_ =` discards are excluded (docs/rules/UPA2012.md).
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA2012FireAndForgetAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA2012FireAndForgetAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA2012";
@@ -24,29 +24,19 @@ namespace UnityPerformanceAnalyzers
         private const string HelpLinkUri =
             "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2012.md";
 
-        // RS1032 objects to a format string ending in a placeholder; here the final
-        // sentence (the advice, itself period-terminated) arrives as a localized argument.
-#pragma warning disable RS1032
-        private static readonly DiagnosticDescriptor s_asyncVoidRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor s_asyncVoidRule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA2012Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA2012MessageFormatAsyncVoid, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Ecosystem,
             DiagnosticSeverity.Warning,
             isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA2012Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: HelpLinkUri);
+            messageFormatKey: Strings.UPA2012MessageFormatAsyncVoid);
 
-        private static readonly DiagnosticDescriptor s_fireAndForgetRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor s_fireAndForgetRule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA2012Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA2012MessageFormatFireAndForget, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Ecosystem,
             DiagnosticSeverity.Warning,
             isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA2012Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: HelpLinkUri);
-#pragma warning restore RS1032
+            messageFormatKey: Strings.UPA2012MessageFormatFireAndForget);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(s_asyncVoidRule, s_fireAndForgetRule);
@@ -67,29 +57,24 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            var adviceAsyncVoid = profile.HasUniTask ? s_adviceAsyncVoidUniTask : s_adviceAsyncVoidDefault;
+            var adviceFireAndForget = profile.HasUniTask ? s_adviceFireAndForgetUniTask : s_adviceFireAndForgetDefault;
+
+            var eventArgsType = ctx.Compilation.GetTypeByMetadataName("System.EventArgs");
+            ctx.RegisterSyntaxNodeAction(
+                nodeCtx => AnalyzeAsyncVoid(nodeCtx, eventArgsType, adviceAsyncVoid),
+                SyntaxKind.MethodDeclaration);
+
+            var taskLikeTypes = GetTaskLikeTypes(ctx.Compilation);
+            if (!taskLikeTypes.IsEmpty)
             {
-                var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
-                var adviceAsyncVoid = profile.HasUniTask ? s_adviceAsyncVoidUniTask : s_adviceAsyncVoidDefault;
-                var adviceFireAndForget = profile.HasUniTask ? s_adviceFireAndForgetUniTask : s_adviceFireAndForgetDefault;
-
-                var eventArgsType = ctx.Compilation.GetTypeByMetadataName("System.EventArgs");
-                ctx.RegisterSyntaxNodeAction(
-                    nodeCtx => AnalyzeAsyncVoid(nodeCtx, eventArgsType, adviceAsyncVoid),
-                    SyntaxKind.MethodDeclaration);
-
-                var taskLikeTypes = GetTaskLikeTypes(ctx.Compilation);
-                if (!taskLikeTypes.IsEmpty)
-                {
-                    ctx.RegisterOperationAction(
-                        opCtx => AnalyzeInvocation(opCtx, taskLikeTypes, adviceFireAndForget),
-                        OperationKind.Invocation);
-                }
-            });
+                ctx.RegisterOperationAction(
+                    opCtx => AnalyzeInvocation(opCtx, taskLikeTypes, adviceFireAndForget),
+                    OperationKind.Invocation);
+            }
         }
 
         private static ImmutableArray<INamedTypeSymbol> GetTaskLikeTypes(Compilation compilation)
@@ -150,15 +135,7 @@ namespace UnityPerformanceAnalyzers
                 return false;
             }
 
-            for (var current = method.Parameters[1].Type as INamedTypeSymbol; current is object; current = current.BaseType)
-            {
-                if (SymbolEqualityComparer.Default.Equals(current, eventArgsType))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return TypeHierarchy.DerivesFrom(method.Parameters[1].Type, eventArgsType);
         }
 
         private static void AnalyzeInvocation(

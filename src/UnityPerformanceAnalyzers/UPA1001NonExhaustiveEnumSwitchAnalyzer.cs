@@ -16,7 +16,7 @@ namespace UnityPerformanceAnalyzers
     /// (docs/rules/UPA1001.md).
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA1001NonExhaustiveEnumSwitchAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA1001NonExhaustiveEnumSwitchAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA1001";
@@ -25,15 +25,11 @@ namespace UnityPerformanceAnalyzers
 
         private const int MaxListedMembers = 5;
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA1001Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA1001MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Correctness,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA1001Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA1001.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -42,20 +38,15 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
-            {
-                var flagsAttributeType = ctx.Compilation.GetTypeByMetadataName("System.FlagsAttribute");
-                var allowDefault = ReadAllowDefaultOption(ctx.Compilation, ctx.Options);
+            var flagsAttributeType = ctx.Compilation.GetTypeByMetadataName("System.FlagsAttribute");
+            var allowDefault = ReadAllowDefaultOption(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeSwitch(opCtx, flagsAttributeType, allowDefault),
-                    OperationKind.Switch,
-                    OperationKind.SwitchExpression);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeSwitch(opCtx, flagsAttributeType, allowDefault),
+                OperationKind.Switch,
+                OperationKind.SwitchExpression);
         }
 
         // Same resolution pattern as HotPathDetector: once per compilation, layered through

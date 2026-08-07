@@ -1,11 +1,8 @@
-# unity-performance-analyzers preset: minimal (IDE parity variant)
-# Unity itself does not read .editorconfig (verified 2022.3/6000.5) - use the
-# .ruleset of the same name for Unity builds. This file keeps Rider/VS in sync
-# and carries the IDE-only hot-path options.
+# unity-performance-analyzers: relaxed severities for Editor tooling (IDE parity variant).
+# For Unity builds use editor-relaxed.ruleset in the Editor asmdef folder instead.
+# Merge into the .editorconfig scope that covers your editor assemblies.
 # GENERATED FILE - do not edit. Severities live in PresetTable.cs;
 # regenerate via the RuleManifest presets mode (see that file's header).
-root = true
-
 [*.cs]
 dotnet_diagnostic.UPA0001.severity = none
 dotnet_diagnostic.UPA0002.severity = none
@@ -42,6 +39,11 @@ dotnet_diagnostic.UPA2021.severity = none
 dotnet_diagnostic.UPA2030.severity = none
 dotnet_diagnostic.UPA2031.severity = none
 dotnet_diagnostic.UPA2032.severity = none
+dotnet_diagnostic.UPA3000.severity = none
+dotnet_diagnostic.UPA3001.severity = none
+dotnet_diagnostic.UPA3002.severity = none
+dotnet_diagnostic.UPA3003.severity = none
+dotnet_diagnostic.UPA3004.severity = none
 dotnet_diagnostic.UNT0006.severity = error
 dotnet_diagnostic.UNT0007.severity = error
 dotnet_diagnostic.UNT0008.severity = error
@@ -53,28 +55,3 @@ dotnet_diagnostic.UNT0029.severity = error
 dotnet_diagnostic.UNT0030.severity = error
 dotnet_diagnostic.UNT0033.severity = error
 dotnet_diagnostic.UNT0043.severity = error
-dotnet_diagnostic.UNT0001.severity = none
-dotnet_diagnostic.UNT0002.severity = none
-dotnet_diagnostic.UNT0017.severity = none
-dotnet_diagnostic.UNT0018.severity = none
-dotnet_diagnostic.UNT0019.severity = none
-dotnet_diagnostic.UNT0022.severity = none
-dotnet_diagnostic.UNT0024.severity = none
-dotnet_diagnostic.UNT0026.severity = none
-dotnet_diagnostic.UNT0028.severity = none
-dotnet_diagnostic.UNT0032.severity = none
-dotnet_diagnostic.UNT0036.severity = none
-dotnet_diagnostic.UNT0037.severity = none
-dotnet_diagnostic.UNT0041.severity = none
-dotnet_diagnostic.UNT0042.severity = none
-
-# Hot-path classification (IDE only; Unity builds use the built-in defaults)
-# upa_hot_path_messages = Update,FixedUpdate,LateUpdate
-# upa_hot_path_attributes = HotPath,PerfCritical
-# upa_hot_path_include_lambdas = true
-
-# Editor tooling: relax performance pressure (IDE side; for Unity builds place
-# editor-relaxed.ruleset as Default.ruleset in your Editor asmdef folders)
-[**/Editor/**/*.cs]
-dotnet_analyzer_diagnostic.category-Performance.severity = suggestion
-dotnet_diagnostic.UPA0005.severity = none

@@ -13,21 +13,18 @@ namespace UnityPerformanceAnalyzers
     /// options; int IDs (or filtering by target reference) are faster. Info severity.
     /// Registered only when the compilation references the DOTween assembly.
     /// </summary>
+    [ConditionalRule("DOTween")]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA2032StringTweenIdAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA2032StringTweenIdAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA2032";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA2032Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA2032MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Ecosystem,
             DiagnosticSeverity.Info,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA2032Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2032.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -49,29 +46,24 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            if (!profile.HasDOTween)
             {
-                var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
-                if (!profile.HasDOTween)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var tweenType = ctx.Compilation.GetTypeByMetadataName("DG.Tweening.Tween");
-                var doTweenType = ctx.Compilation.GetTypeByMetadataName("DG.Tweening.DOTween");
-                if (tweenType is null && doTweenType is null)
-                {
-                    return;
-                }
+            var tweenType = ctx.Compilation.GetTypeByMetadataName("DG.Tweening.Tween");
+            var doTweenType = ctx.Compilation.GetTypeByMetadataName("DG.Tweening.DOTween");
+            if (tweenType is null && doTweenType is null)
+            {
+                return;
+            }
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(opCtx, tweenType, doTweenType),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(opCtx, tweenType, doTweenType),
+                OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(
@@ -84,7 +76,7 @@ namespace UnityPerformanceAnalyzers
 
             var isSetId = method.Name == "SetId" &&
                 tweenType is object &&
-                ReturnsTween(method.ReturnType, tweenType);
+                TypeHierarchy.DerivesFrom(method.ReturnType, tweenType);
             var isFilteredOperation = s_filteredOperationNames.Contains(method.Name) &&
                 doTweenType is object &&
                 SymbolEqualityComparer.Default.Equals(method.ContainingType, doTweenType);
@@ -131,30 +123,5 @@ namespace UnityPerformanceAnalyzers
             return false;
         }
 
-        private static bool ReturnsTween(ITypeSymbol? type, INamedTypeSymbol tweenType)
-        {
-            if (type is ITypeParameterSymbol typeParameter)
-            {
-                foreach (var constraint in typeParameter.ConstraintTypes)
-                {
-                    if (ReturnsTween(constraint, tweenType))
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            for (var current = type; current is object; current = current.BaseType)
-            {
-                if (SymbolEqualityComparer.Default.Equals(current.OriginalDefinition, tweenType))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 }

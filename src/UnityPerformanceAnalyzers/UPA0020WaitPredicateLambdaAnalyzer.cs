@@ -13,20 +13,16 @@ namespace UnityPerformanceAnalyzers
     /// construction that provably runs once still reports — disabled by default.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0020WaitPredicateLambdaAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0020WaitPredicateLambdaAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0020";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0020Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0020MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA0020Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0020.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -35,23 +31,18 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var waitUntilType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.WaitUntil");
+            var waitWhileType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.WaitWhile");
+            if (waitUntilType is null && waitWhileType is null)
             {
-                var waitUntilType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.WaitUntil");
-                var waitWhileType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.WaitWhile");
-                if (waitUntilType is null && waitWhileType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeObjectCreation(opCtx, waitUntilType, waitWhileType),
-                    OperationKind.ObjectCreation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeObjectCreation(opCtx, waitUntilType, waitWhileType),
+                OperationKind.ObjectCreation);
         }
 
         private static void AnalyzeObjectCreation(

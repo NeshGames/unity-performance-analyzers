@@ -12,22 +12,18 @@ namespace UnityPerformanceAnalyzers
     /// letting the compiler strip the calls and their argument expressions from release builds.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0005DirectDebugLoggingAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0005DirectDebugLoggingAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0005";
 
         internal const string WrapperTypesOptionKey = "upa_log_wrapper_types";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0005Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0005MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA0005Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0005.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -48,25 +44,20 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var debugType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Debug");
+            if (debugType is null)
             {
-                var debugType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Debug");
-                if (debugType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var conditionalAttributeType =
-                    ctx.Compilation.GetTypeByMetadataName("System.Diagnostics.ConditionalAttribute");
+            var conditionalAttributeType =
+                ctx.Compilation.GetTypeByMetadataName("System.Diagnostics.ConditionalAttribute");
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(opCtx, debugType, conditionalAttributeType),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(opCtx, debugType, conditionalAttributeType),
+                OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(

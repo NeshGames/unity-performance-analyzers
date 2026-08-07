@@ -15,21 +15,18 @@ namespace UnityPerformanceAnalyzers
     /// call sites are deliberately not reported to avoid duplicate diagnostics per coroutine.
     /// IEnumerator&lt;T&gt; methods are typical data iteration and excluded (docs/rules/UPA2011.md).
     /// </summary>
+    [ConditionalRule("UniTask")]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA2011CoroutineAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA2011CoroutineAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA2011";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA2011Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA2011MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Ecosystem,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA2011Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2011.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -38,29 +35,24 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            if (!profile.HasUniTask)
             {
-                var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
-                if (!profile.HasUniTask)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var monoBehaviourType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
-                var enumeratorType = ctx.Compilation.GetTypeByMetadataName("System.Collections.IEnumerator");
-                if (monoBehaviourType is null || enumeratorType is null)
-                {
-                    return;
-                }
+            var monoBehaviourType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
+            var enumeratorType = ctx.Compilation.GetTypeByMetadataName("System.Collections.IEnumerator");
+            if (monoBehaviourType is null || enumeratorType is null)
+            {
+                return;
+            }
 
-                ctx.RegisterSyntaxNodeAction(
-                    nodeCtx => AnalyzeMethod(nodeCtx, monoBehaviourType, enumeratorType),
-                    SyntaxKind.MethodDeclaration);
-            });
+            ctx.RegisterSyntaxNodeAction(
+                nodeCtx => AnalyzeMethod(nodeCtx, monoBehaviourType, enumeratorType),
+                SyntaxKind.MethodDeclaration);
         }
 
         private static void AnalyzeMethod(
@@ -81,7 +73,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (!InheritsFrom(method.ContainingType, monoBehaviourType))
+            if (!TypeHierarchy.DerivesFrom(method.ContainingType, monoBehaviourType))
             {
                 return;
             }
@@ -92,17 +84,5 @@ namespace UnityPerformanceAnalyzers
                 method.Name));
         }
 
-        private static bool InheritsFrom(INamedTypeSymbol? type, INamedTypeSymbol baseType)
-        {
-            for (var current = type; current is object; current = current.BaseType)
-            {
-                if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 }

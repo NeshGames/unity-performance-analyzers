@@ -14,21 +14,19 @@ namespace UnityPerformanceAnalyzers
     /// reported — a fluent chain reports once, at its creation root. Registered only when the
     /// compilation references the DOTween assembly.
     /// </summary>
+    [HotPathRule]
+    [ConditionalRule("DOTween")]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA2030TweenCreationAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA2030TweenCreationAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA2030";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA2030Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA2030MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Ecosystem,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA2030Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2030.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -37,30 +35,25 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            if (!profile.HasDOTween)
             {
-                var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
-                if (!profile.HasDOTween)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var tweenType = ctx.Compilation.GetTypeByMetadataName("DG.Tweening.Tween");
-                if (tweenType is null)
-                {
-                    return;
-                }
+            var tweenType = ctx.Compilation.GetTypeByMetadataName("DG.Tweening.Tween");
+            if (tweenType is null)
+            {
+                return;
+            }
 
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(opCtx, tweenType, hotPathDetector),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(opCtx, tweenType, hotPathDetector),
+                OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(
@@ -71,7 +64,7 @@ namespace UnityPerformanceAnalyzers
             var invocation = (IInvocationOperation)context.Operation;
             var method = invocation.TargetMethod;
 
-            if (!DerivesFromTween(method.ReturnType, tweenType))
+            if (!TypeHierarchy.DerivesFrom(method.ReturnType, tweenType))
             {
                 return;
             }
@@ -81,9 +74,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var semanticModel = invocation.SemanticModel;
-            if (semanticModel is null ||
-                !hotPathDetector.IsInHotPath(invocation.Syntax, semanticModel, context.CancellationToken))
+            if (hotPathDetector.IsOutsideHotPath(invocation, context.CancellationToken))
             {
                 return;
             }
@@ -106,43 +97,16 @@ namespace UnityPerformanceAnalyzers
         {
             if (invocation.Instance is object)
             {
-                return DerivesFromTween(invocation.Instance.Type, tweenType);
+                return TypeHierarchy.DerivesFrom(invocation.Instance.Type, tweenType);
             }
 
             if (method.IsExtensionMethod && invocation.Arguments.Length > 0)
             {
-                return DerivesFromTween(invocation.Arguments[0].Value.Type, tweenType);
+                return TypeHierarchy.DerivesFrom(invocation.Arguments[0].Value.Type, tweenType);
             }
 
             return false;
         }
 
-        private static bool DerivesFromTween(ITypeSymbol? type, INamedTypeSymbol tweenType)
-        {
-            for (var current = type; current is object; current = current.BaseType)
-            {
-                if (SymbolEqualityComparer.Default.Equals(current.OriginalDefinition, tweenType))
-                {
-                    return true;
-                }
-
-                // Generic tween cores constrain T : Tween; a type parameter return
-                // (e.g. SetLoops<T>) resolves through its constraints.
-                if (current is ITypeParameterSymbol typeParameter)
-                {
-                    foreach (var constraint in typeParameter.ConstraintTypes)
-                    {
-                        if (DerivesFromTween(constraint, tweenType))
-                        {
-                            return true;
-                        }
-                    }
-
-                    return false;
-                }
-            }
-
-            return false;
-        }
     }
 }

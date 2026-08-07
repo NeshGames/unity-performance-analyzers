@@ -13,20 +13,16 @@ namespace UnityPerformanceAnalyzers
     /// whole scene across all layers — a performance and correctness hazard.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0010UnboundedRaycastAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0010UnboundedRaycastAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0010";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0010Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0010MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0010Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0010.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -41,22 +37,17 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var physicsType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Physics");
+            if (physicsType is null)
             {
-                var physicsType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Physics");
-                if (physicsType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(opCtx, physicsType),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(opCtx, physicsType),
+                OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(OperationAnalysisContext context, INamedTypeSymbol physicsType)

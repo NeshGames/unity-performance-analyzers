@@ -11,21 +11,18 @@ namespace UnityPerformanceAnalyzers
     /// code and allocate a fresh string per access. String equality comparisons are deliberately
     /// not reported — UNT0002 (Microsoft.Unity.Analyzers) owns that case.
     /// </summary>
+    [HotPathRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0002NameTagAccessAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0002NameTagAccessAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0002";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0002Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0002MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0002Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0002.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -34,26 +31,21 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var objectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Object");
+            var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
+            var componentType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Component");
+            if (objectType is null && gameObjectType is null && componentType is null)
             {
-                var objectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Object");
-                var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
-                var componentType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Component");
-                if (objectType is null && gameObjectType is null && componentType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzePropertyReference(opCtx, objectType, gameObjectType, componentType, hotPathDetector),
-                    OperationKind.PropertyReference);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzePropertyReference(opCtx, objectType, gameObjectType, componentType, hotPathDetector),
+                OperationKind.PropertyReference);
         }
 
         private static void AnalyzePropertyReference(
@@ -88,9 +80,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var semanticModel = propertyReference.SemanticModel;
-            if (semanticModel is null ||
-                !hotPathDetector.IsInHotPath(propertyReference.Syntax, semanticModel, context.CancellationToken))
+            if (hotPathDetector.IsOutsideHotPath(propertyReference, context.CancellationToken))
             {
                 return;
             }

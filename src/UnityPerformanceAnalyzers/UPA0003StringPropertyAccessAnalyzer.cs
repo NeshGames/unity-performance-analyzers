@@ -17,22 +17,18 @@ namespace UnityPerformanceAnalyzers
     /// <c>upa_shader_property_hot_path_only = true</c>.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0003StringPropertyAccessAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0003StringPropertyAccessAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0003";
 
         internal const string HotPathOnlyOptionKey = "upa_shader_property_hot_path_only";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0003Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0003MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0003Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0003.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -41,29 +37,24 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var materialType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Material");
+            var propertyBlockType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MaterialPropertyBlock");
+            var shaderType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Shader");
+            var animatorType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Animator");
+            if (materialType is null && propertyBlockType is null && shaderType is null && animatorType is null)
             {
-                var materialType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Material");
-                var propertyBlockType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MaterialPropertyBlock");
-                var shaderType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Shader");
-                var animatorType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Animator");
-                if (materialType is null && propertyBlockType is null && shaderType is null && animatorType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var hotPathOnly = ResolveHotPathOnlyOption(ctx.Compilation, ctx.Options);
-                var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathOnly = ResolveHotPathOnlyOption(ctx.Compilation, ctx.Options);
+            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(
-                        opCtx, materialType, propertyBlockType, shaderType, animatorType, hotPathOnly, hotPathDetector),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(
+                    opCtx, materialType, propertyBlockType, shaderType, animatorType, hotPathOnly, hotPathDetector),
+                OperationKind.Invocation);
         }
 
         private static bool ResolveHotPathOnlyOption(Compilation compilation, AnalyzerOptions analyzerOptions)

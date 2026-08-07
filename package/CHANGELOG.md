@@ -5,6 +5,27 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-08
+
+Internal architecture release: rule behavior, severities, and diagnostic messages are
+unchanged from 0.3.0.
+
+### Added
+
+- `editor-relaxed.editorconfig` — the IDE-parity twin the ruleset always had.
+
+### Changed
+
+- All severity presets (and the sandbox verification ruleset) are now generated from a
+  single severity table and carry a "generated file" header; CI regenerates them and
+  fails on drift, so presets can no longer rot by hand-editing.
+- Rule metadata (hot-path scope, ecosystem/WebGL activation conditions) is declared as
+  attributes on the analyzers themselves and read by reflection when the rule catalog
+  (`Editor/rules.json`) is generated.
+- Analyzer internals share one Initialize skeleton, one base-type walk, and one
+  descriptor factory; release notes and string resources are guarded by bidirectional
+  consistency tests.
+
 ## [0.3.0] - 2026-08-08
 
 ### Added

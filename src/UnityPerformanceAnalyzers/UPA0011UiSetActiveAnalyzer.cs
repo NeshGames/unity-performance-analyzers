@@ -13,20 +13,16 @@ namespace UnityPerformanceAnalyzers
     /// reported. Each UI branch registers only when its type exists in the compilation.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0011UiSetActiveAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0011UiSetActiveAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0011";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0011Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0011MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA0011Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0011.md");
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -35,24 +31,19 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
+            var graphicType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.UI.Graphic");
+            var tmpTextType = ctx.Compilation.GetTypeByMetadataName("TMPro.TMP_Text");
+            if (gameObjectType is null || (graphicType is null && tmpTextType is null))
             {
-                var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
-                var graphicType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.UI.Graphic");
-                var tmpTextType = ctx.Compilation.GetTypeByMetadataName("TMPro.TMP_Text");
-                if (gameObjectType is null || (graphicType is null && tmpTextType is null))
-                {
-                    return;
-                }
+                return;
+            }
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(opCtx, gameObjectType, graphicType, tmpTextType),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(opCtx, gameObjectType, graphicType, tmpTextType),
+                OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(
@@ -80,7 +71,7 @@ namespace UnityPerformanceAnalyzers
 
             var uiComponentType = gameObjectAccess.Instance?.Type;
             if (uiComponentType is null ||
-                (!InheritsFrom(uiComponentType, graphicType) && !InheritsFrom(uiComponentType, tmpTextType)))
+                (!TypeHierarchy.DerivesFrom(uiComponentType, graphicType) && !TypeHierarchy.DerivesFrom(uiComponentType, tmpTextType)))
             {
                 return;
             }
@@ -91,22 +82,5 @@ namespace UnityPerformanceAnalyzers
                 uiComponentType.Name));
         }
 
-        private static bool InheritsFrom(ITypeSymbol type, INamedTypeSymbol? baseType)
-        {
-            if (baseType is null)
-            {
-                return false;
-            }
-
-            for (var current = type; current is object; current = current.BaseType)
-            {
-                if (SymbolEqualityComparer.Default.Equals(current, baseType))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
     }
 }

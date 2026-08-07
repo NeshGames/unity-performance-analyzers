@@ -13,20 +13,16 @@ namespace UnityPerformanceAnalyzers
     /// rewrite brings no gain there.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0021MagnitudeComparisonAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0021MagnitudeComparisonAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0021";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0021Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0021MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0021Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0021.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -35,28 +31,23 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
-            {
-                var vectorTypes = ImmutableArray.CreateRange(
-                    new[]
-                    {
-                        ctx.Compilation.GetTypeByMetadataName("UnityEngine.Vector2"),
-                        ctx.Compilation.GetTypeByMetadataName("UnityEngine.Vector3"),
-                        ctx.Compilation.GetTypeByMetadataName("UnityEngine.Vector4"),
-                    });
-                if (vectorTypes[0] is null && vectorTypes[1] is null && vectorTypes[2] is null)
+            var vectorTypes = ImmutableArray.CreateRange(
+                new[]
                 {
-                    return;
-                }
+                    ctx.Compilation.GetTypeByMetadataName("UnityEngine.Vector2"),
+                    ctx.Compilation.GetTypeByMetadataName("UnityEngine.Vector3"),
+                    ctx.Compilation.GetTypeByMetadataName("UnityEngine.Vector4"),
+                });
+            if (vectorTypes[0] is null && vectorTypes[1] is null && vectorTypes[2] is null)
+            {
+                return;
+            }
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeComparison(opCtx, vectorTypes),
-                    OperationKind.BinaryOperator);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeComparison(opCtx, vectorTypes),
+                OperationKind.BinaryOperator);
         }
 
         private static void AnalyzeComparison(

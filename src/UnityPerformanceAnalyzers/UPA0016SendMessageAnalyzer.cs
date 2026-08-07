@@ -13,20 +13,16 @@ namespace UnityPerformanceAnalyzers
     /// so this rule reports everywhere, not just on hot paths.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA0016SendMessageAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0016SendMessageAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0016";
 
-        private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA0016Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA0016MessageFormat, Strings.ResourceManager, typeof(Strings)),
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true,
-            description: new LocalizableResourceString(Strings.UPA0016Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0016.md");
+            isEnabledByDefault: true);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
@@ -41,23 +37,18 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        public override void Initialize(AnalysisContext context)
+        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            context.EnableConcurrentExecution();
-            context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(ctx =>
+            var componentType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Component");
+            var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
+            if (componentType is null && gameObjectType is null)
             {
-                var componentType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Component");
-                var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
-                if (componentType is null && gameObjectType is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                ctx.RegisterOperationAction(
-                    opCtx => AnalyzeInvocation(opCtx, componentType, gameObjectType),
-                    OperationKind.Invocation);
-            });
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeInvocation(opCtx, componentType, gameObjectType),
+                OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(

@@ -4,6 +4,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.CodeAnalysis.Diagnostics;
+using UnityPerformanceAnalyzers;
 
 namespace UnityPerformanceAnalyzers.RuleManifest;
 
@@ -17,46 +18,10 @@ namespace UnityPerformanceAnalyzers.RuleManifest;
 /// </summary>
 internal static class Program
 {
-    // Both curated tables below must track the rule set: entries here for IDs the assembly
-    // does not export fail the run (see the check in Main), and new rules must be added
-    // when they land.
-
-    /// <summary>Rules registered only when the named dependency is present.</summary>
-    private static readonly Dictionary<string, string> s_conditions = new()
-    {
-        ["UPA2010"] = "UniTask",
-        ["UPA2011"] = "UniTask",
-        ["UPA2021"] = "R3",
-        ["UPA2030"] = "DOTween",
-        ["UPA2031"] = "DOTween",
-        ["UPA2032"] = "DOTween",
-        ["UPA3000"] = "WebGL",
-        ["UPA3001"] = "WebGL",
-        ["UPA3002"] = "WebGL",
-        ["UPA3003"] = "WebGL",
-        ["UPA3004"] = "WebGL",
-    };
-
-    /// <summary>Rules that report on per-frame hot paths only.</summary>
-    private static readonly HashSet<string> s_hotPathRules = new()
-    {
-        "UPA0001", "UPA0002", "UPA0004", "UPA0006", "UPA0007",
-        "UPA0009", "UPA0012", "UPA0013", "UPA0014", "UPA0015",
-        "UPA0017", "UPA0018", "UPA0022", "UPA0024", "UPA0026", "UPA2000", "UPA2030",
-    };
-
-    /// <summary>Microsoft.Unity.Analyzers rules the presets manage alongside UPA rules.</summary>
-    private static readonly string[] s_untCorrectness =
-    {
-        "UNT0006", "UNT0007", "UNT0008", "UNT0010", "UNT0011",
-        "UNT0015", "UNT0023", "UNT0029", "UNT0030", "UNT0033", "UNT0043",
-    };
-
-    private static readonly string[] s_untPerformance =
-    {
-        "UNT0001", "UNT0002", "UNT0017", "UNT0018", "UNT0019", "UNT0022", "UNT0024",
-        "UNT0026", "UNT0028", "UNT0032", "UNT0036", "UNT0037", "UNT0041", "UNT0042",
-    };
+    // Rule metadata (hot-path scope, activation condition) travels with the analyzers as
+    // [HotPathRule]/[ConditionalRule] attributes and is read by reflection below — there
+    // is no curated ID table left to drift. UNT groups come from PresetTable, the same
+    // source the preset files are generated from.
 
     private static readonly OptionRow[] s_options =
     {
@@ -86,9 +51,16 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        if (args.Length == 2 && args[0] == "--presets")
+        {
+            var files = PresetEmitter.WriteAll(args[1]);
+            Console.WriteLine($"Wrote {files.Count} preset files under {Path.GetFullPath(args[1])}");
+            return 0;
+        }
+
         if (args.Length != 1)
         {
-            Console.Error.WriteLine("Usage: RuleManifest <output-path>");
+            Console.Error.WriteLine("Usage: RuleManifest <output-path> | RuleManifest --presets <repo-root>");
             return 1;
         }
 
@@ -101,6 +73,9 @@ internal static class Program
             {
                 continue;
             }
+
+            var isHotPath = type.GetCustomAttribute<HotPathRuleAttribute>() is not null;
+            var condition = type.GetCustomAttribute<ConditionalRuleAttribute>()?.Condition;
 
             var analyzer = (DiagnosticAnalyzer)Activator.CreateInstance(type)!;
             foreach (var descriptor in analyzer.SupportedDiagnostics)
@@ -117,22 +92,10 @@ internal static class Program
                     descriptor.Category,
                     descriptor.DefaultSeverity.ToString(),
                     descriptor.IsEnabledByDefault,
-                    s_hotPathRules.Contains(descriptor.Id),
-                    s_conditions.TryGetValue(descriptor.Id, out var condition) ? condition : null,
+                    isHotPath,
+                    condition,
                     descriptor.HelpLinkUri);
             }
-        }
-
-        var unknownConditionIds = s_conditions.Keys.Concat(s_hotPathRules)
-            .Where(id => !rules.ContainsKey(id))
-            .Distinct()
-            .ToList();
-        if (unknownConditionIds.Count > 0)
-        {
-            // Curated tables referencing IDs the assembly no longer exports means this tool
-            // is out of date with the rule set — fail loudly rather than ship a wrong catalog.
-            Console.Error.WriteLine($"Curated metadata references unknown rule IDs: {string.Join(", ", unknownConditionIds)}");
-            return 1;
         }
 
         var version = analyzerAssembly
@@ -144,7 +107,7 @@ internal static class Program
         var manifest = new Manifest(
             version,
             rules.Values.ToArray(),
-            new UntGroups(s_untCorrectness, s_untPerformance),
+            new UntGroups(PresetTable.UntCorrectness, PresetTable.UntPerformance),
             s_options);
 
         var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions

@@ -26,3 +26,10 @@ jobs:
           dotnet test UnityPerformanceAnalyzers.sln -c Release --no-build
           --filter "Category!=RequiresUnity"
           --logger "console;verbosity=minimal"
+
+      # Preset files are generated from PresetTable.cs; a hand edit or a stale
+      # regeneration shows up as a diff here and fails the build.
+      - name: Preset drift check
+        run: |
+          dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- --presets .
+          git diff --exit-code -- "package/Samples~/Ruleset Presets" sandbox/UnityProject/Assets/Default.ruleset

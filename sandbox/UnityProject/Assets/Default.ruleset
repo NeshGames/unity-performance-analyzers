@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- unity-performance-analyzers preset: recommended
-     Copy this file to Assets/Default.ruleset (project-wide).
-     A Default.ruleset inside an asmdef folder overrides it for that assembly.
-     To add the WebGL rules: <Include Path="webgl-addon.ruleset" Action="Default" /> -->
-<RuleSet Name="UPA recommended" ToolsVersion="10.0">
+<!-- Sandbox verification profile: the recommended preset with several rules that
+     default to Info or off forced to Warning, so every hit is visible in the
+     compiler output during sandbox verification runs.
+     GENERATED FILE - do not edit. Severities live in PresetTable.cs;
+     regenerate via the RuleManifest presets mode (see that file's header). -->
+<RuleSet Name="UPA sandbox-verification" ToolsVersion="10.0">
   <Rules AnalyzerId="UnityPerformanceAnalyzers" RuleNamespace="UnityPerformanceAnalyzers">
     <Rule Id="UPA0001" Action="Warning" />
     <Rule Id="UPA0002" Action="Warning" />
@@ -18,8 +19,6 @@
     <Rule Id="UPA0011" Action="None" />
     <Rule Id="UPA0012" Action="None" />
     <Rule Id="UPA0013" Action="None" />
-    <!-- v0.3 rules forced to Warning for sandbox verification (several default to
-         Info or disabled; Warning makes every hit visible in the compiler output). -->
     <Rule Id="UPA0014" Action="Warning" />
     <Rule Id="UPA0015" Action="Warning" />
     <Rule Id="UPA0016" Action="Warning" />
@@ -72,5 +71,3 @@
   </Rules>
   <Include Path="webgl-addon.ruleset" Action="Default" />
 </RuleSet>
-
-
