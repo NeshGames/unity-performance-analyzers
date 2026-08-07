@@ -153,13 +153,13 @@
   <data name="UPA2000AdviceZString" xml:space="preserve">
     <value>Use ZString to format without intermediate string allocations.</value>
   </data>
-  <data name="UPA2001Title" xml:space="preserve">
+  <data name="UPA0013Title" xml:space="preserve">
     <value>System.Linq usage</value>
   </data>
-  <data name="UPA2001MessageFormat" xml:space="preserve">
+  <data name="UPA0013MessageFormat" xml:space="preserve">
     <value>'{0}' allocates enumerators and often intermediate collections. Use a loop or a non-allocating alternative on performance-sensitive paths.</value>
   </data>
-  <data name="UPA2001Description" xml:space="preserve">
+  <data name="UPA0013Description" xml:space="preserve">
     <value>LINQ operators allocate enumerator objects, delegate instances, and often intermediate collections on every evaluation. That cost is acceptable in general .NET code but conflicts with the low-allocation discipline of performance-sensitive Unity projects. This opinionated rule reports every call to a System.Linq.Enumerable or System.Linq.Queryable extension method, including query syntax; it is disabled by default and intended to be enabled by projects that ban LINQ as a stack choice.</value>
   </data>
   <data name="UPA2010Title" xml:space="preserve">
@@ -175,10 +175,10 @@
     <value>Coroutine IEnumerator Unity message or method</value>
   </data>
   <data name="UPA2011MessageFormat" xml:space="preserve">
-    <value>Coroutine '{0}' allocates its enumerator state machine each time it starts, and each StartCoroutine call allocates a Coroutine handle. Consider an async alternative, or a plain method when no yielding is needed.</value>
+    <value>Coroutine '{0}' allocates its enumerator state machine each time it starts, and each StartCoroutine call allocates a Coroutine handle. Convert it to an async UniTask or UniTaskVoid method instead.</value>
   </data>
   <data name="UPA2011Description" xml:space="preserve">
-    <value>A coroutine method allocates its compiler-generated enumerator state machine on every start, and each StartCoroutine call additionally allocates a Coroutine handle object; yielded values that are value types are boxed. Async alternatives can avoid these repeated allocations, and logic that never yields can be a plain method. Methods returning IEnumerator&lt;T&gt; are treated as data iteration and not reported.</value>
+    <value>A coroutine method allocates its compiler-generated enumerator state machine on every start, and each StartCoroutine call additionally allocates a Coroutine handle object; yielded values that are value types are boxed. Async UniTask methods avoid these repeated allocations, and logic that never yields can be a plain method. This rule runs only when the assembly references UniTask, so the suggested rewrite is always available. Methods returning IEnumerator&lt;T&gt; are treated as data iteration and not reported.</value>
   </data>
   <data name="UPA2012Title" xml:space="preserve">
     <value>Async void or unawaited fire-and-forget</value>
@@ -248,5 +248,14 @@
   </data>
   <data name="UPA3003Description" xml:space="preserve">
     <value>Browsers cannot launch or inspect operating-system processes, so System.Diagnostics.Process fails at runtime in Unity WebGL builds. Remove the usage or gate it behind a platform define for the targets that support it. This rule runs only in compilations that define UPA_TARGET_WEBGL.</value>
+  </data>
+  <data name="UPA3004Title" xml:space="preserve">
+    <value>Blocking wait on asynchronous operation</value>
+  </data>
+  <data name="UPA3004MessageFormat" xml:space="preserve">
+    <value>'{0}' blocks the main thread until an asynchronous operation completes, which deadlocks single-threaded Unity WebGL players. Await the operation instead of waiting synchronously.</value>
+  </data>
+  <data name="UPA3004Description" xml:space="preserve">
+    <value>Unity WebGL players run on a single thread: when the main thread blocks waiting for an asynchronous operation, the continuation that would complete the operation can never run, so the application freezes rather than slows down. This applies to AsyncOperationHandle.WaitForCompletion, Task.Wait, Task.WaitAll, Task.WaitAny, Task&lt;TResult&gt;.Result and the GetAwaiter().GetResult() idiom, patterns that often appear to work on desktop platforms where a thread pool exists. Await the operation instead. This rule runs only in compilations that define UPA_TARGET_WEBGL.</value>
   </data>
 </root>

@@ -1,0 +1,312 @@
+{
+  "version": "0.2.0",
+  "upa": [
+    {
+      "id": "UPA0001",
+      "title": "Component lookup in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0001.md"
+    },
+    {
+      "id": "UPA0002",
+      "title": "Object name or tag accessed in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0002.md"
+    },
+    {
+      "id": "UPA0003",
+      "title": "String-based shader or animator property access",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0003.md"
+    },
+    {
+      "id": "UPA0004",
+      "title": "Instantiating accessor used in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0004.md"
+    },
+    {
+      "id": "UPA0005",
+      "title": "Direct UnityEngine.Debug logging call",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0005.md"
+    },
+    {
+      "id": "UPA0006",
+      "title": "Reference type allocated in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0006.md"
+    },
+    {
+      "id": "UPA0007",
+      "title": "Capturing lambda in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0007.md"
+    },
+    {
+      "id": "UPA0008",
+      "title": "stackalloc inside a loop",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0008.md"
+    },
+    {
+      "id": "UPA0009",
+      "title": "List Count not hoisted out of for loop",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0009.md"
+    },
+    {
+      "id": "UPA0010",
+      "title": "Raycast without explicit maxDistance or layerMask",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0010.md"
+    },
+    {
+      "id": "UPA0011",
+      "title": "SetActive used to toggle UI visibility",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0011.md"
+    },
+    {
+      "id": "UPA0012",
+      "title": "TextMeshPro text assignment instead of SetText",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0012.md"
+    },
+    {
+      "id": "UPA0013",
+      "title": "System.Linq usage",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0013.md"
+    },
+    {
+      "id": "UPA1000",
+      "title": "Leaf class not sealed",
+      "category": "Correctness",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA1000.md"
+    },
+    {
+      "id": "UPA1001",
+      "title": "Non-exhaustive enum switch",
+      "category": "Correctness",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA1001.md"
+    },
+    {
+      "id": "UPA2000",
+      "title": "String concatenation in per-frame method",
+      "category": "Ecosystem",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2000.md"
+    },
+    {
+      "id": "UPA2010",
+      "title": "User-authored async method returns Task",
+      "category": "Ecosystem",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "UniTask",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2010.md"
+    },
+    {
+      "id": "UPA2011",
+      "title": "Coroutine IEnumerator Unity message or method",
+      "category": "Ecosystem",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "UniTask",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2011.md"
+    },
+    {
+      "id": "UPA2012",
+      "title": "Async void or unawaited fire-and-forget",
+      "category": "Ecosystem",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2012.md"
+    },
+    {
+      "id": "UPA2021",
+      "title": "Public Action event used for observable state",
+      "category": "Ecosystem",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "R3",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2021.md"
+    },
+    {
+      "id": "UPA3000",
+      "title": "Threading API unsupported on WebGL",
+      "category": "Platform",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "WebGL",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3000.md"
+    },
+    {
+      "id": "UPA3001",
+      "title": "Sockets API unsupported on WebGL",
+      "category": "Platform",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "WebGL",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3001.md"
+    },
+    {
+      "id": "UPA3002",
+      "title": "Synchronous file IO unsupported on WebGL",
+      "category": "Platform",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "WebGL",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3002.md"
+    },
+    {
+      "id": "UPA3003",
+      "title": "Process API unsupported on WebGL",
+      "category": "Platform",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "WebGL",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3003.md"
+    },
+    {
+      "id": "UPA3004",
+      "title": "Blocking wait on asynchronous operation",
+      "category": "Platform",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": false,
+      "hotPath": false,
+      "condition": "WebGL",
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA3004.md"
+    }
+  ],
+  "unt": {
+    "correctness": [
+      "UNT0006",
+      "UNT0007",
+      "UNT0008",
+      "UNT0010",
+      "UNT0011",
+      "UNT0015",
+      "UNT0023",
+      "UNT0029",
+      "UNT0030",
+      "UNT0033",
+      "UNT0043"
+    ],
+    "performance": [
+      "UNT0001",
+      "UNT0002",
+      "UNT0017",
+      "UNT0018",
+      "UNT0019",
+      "UNT0022",
+      "UNT0024",
+      "UNT0026",
+      "UNT0028",
+      "UNT0032",
+      "UNT0036",
+      "UNT0037",
+      "UNT0041",
+      "UNT0042"
+    ]
+  },
+  "options": [
+    {
+      "key": "upa_hot_path_messages",
+      "type": "list",
+      "default": "Update,FixedUpdate,LateUpdate,OnGUI,OnAnimatorMove,OnAnimatorIK,OnPreCull,OnPreRender,OnPostRender,OnRenderObject,OnWillRenderObject,OnRenderImage,OnTriggerStay,OnTriggerStay2D,OnCollisionStay,OnCollisionStay2D,OnParticleUpdateJobScheduled",
+      "description": "Unity messages treated as per-frame hot paths. Replaces the default set."
+    },
+    {
+      "key": "upa_hot_path_attributes",
+      "type": "list",
+      "default": "HotPath,PerformanceCritical",
+      "description": "Attribute short names that mark any method as a hot path ('Attribute' suffix optional)."
+    },
+    {
+      "key": "upa_hot_path_include_lambdas",
+      "type": "bool",
+      "default": "true",
+      "description": "Treat lambdas and local functions declared inside a hot-path method as hot."
+    },
+    {
+      "key": "upa_enum_switch_allow_default",
+      "type": "bool",
+      "default": "true",
+      "description": "For UPA1001, a default branch (or discard arm) counts as exhaustive."
+    }
+  ]
+}

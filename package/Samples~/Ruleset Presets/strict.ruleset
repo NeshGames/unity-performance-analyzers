@@ -17,9 +17,9 @@
     <Rule Id="UPA0010" Action="Error" />
     <Rule Id="UPA0011" Action="Warning" />
     <Rule Id="UPA0012" Action="Warning" />
+    <Rule Id="UPA0013" Action="None" />
     <Rule Id="UPA1000" Action="Warning" />
     <Rule Id="UPA2000" Action="None" />
-    <Rule Id="UPA2001" Action="None" />
     <Rule Id="UPA2010" Action="None" />
     <Rule Id="UPA2011" Action="None" />
     <Rule Id="UPA2012" Action="None" />

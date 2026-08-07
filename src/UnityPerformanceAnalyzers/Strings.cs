@@ -69,9 +69,9 @@ namespace UnityPerformanceAnalyzers
         internal const string UPA2000AdviceDefault = nameof(UPA2000AdviceDefault);
         internal const string UPA2000AdviceZString = nameof(UPA2000AdviceZString);
 
-        internal const string UPA2001Title = nameof(UPA2001Title);
-        internal const string UPA2001MessageFormat = nameof(UPA2001MessageFormat);
-        internal const string UPA2001Description = nameof(UPA2001Description);
+        internal const string UPA0013Title = nameof(UPA0013Title);
+        internal const string UPA0013MessageFormat = nameof(UPA0013MessageFormat);
+        internal const string UPA0013Description = nameof(UPA0013Description);
 
         internal const string UPA2010Title = nameof(UPA2010Title);
         internal const string UPA2010MessageFormat = nameof(UPA2010MessageFormat);
@@ -109,5 +109,9 @@ namespace UnityPerformanceAnalyzers
         internal const string UPA3003Title = nameof(UPA3003Title);
         internal const string UPA3003MessageFormat = nameof(UPA3003MessageFormat);
         internal const string UPA3003Description = nameof(UPA3003Description);
+
+        internal const string UPA3004Title = nameof(UPA3004Title);
+        internal const string UPA3004MessageFormat = nameof(UPA3004MessageFormat);
+        internal const string UPA3004Description = nameof(UPA3004Description);
     }
 }

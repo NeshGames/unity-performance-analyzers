@@ -26,6 +26,8 @@ namespace UnityPerformanceAnalyzers.Tests
             {
                 MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(UnityEngine.MonoBehaviour).Assembly.Location),
+                // UPA2011 registers only when UniTask is referenced.
+                TestMetadataReferences.EmptyAssembly(UpaProfile.UniTaskAssemblyName),
             };
 
             var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);

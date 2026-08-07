@@ -43,8 +43,8 @@ namespace UnityPerformanceAnalyzers
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterCompilationStartAction(ctx =>
             {
-                // Per-compilation, thread-safe collections (analyzers run concurrently;
-                // static mutable state is forbidden — CLAUDE.md 3.2).
+                // Per-compilation, thread-safe collections — analyzers run concurrently,
+                // so shared mutable state must never be static.
                 var candidates = new ConcurrentDictionary<INamedTypeSymbol, Location>(SymbolEqualityComparer.Default);
                 var derivedFromTypes = new ConcurrentDictionary<INamedTypeSymbol, byte>(SymbolEqualityComparer.Default);
 

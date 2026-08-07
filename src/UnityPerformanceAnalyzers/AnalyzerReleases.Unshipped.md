@@ -17,10 +17,10 @@ UPA0009 | Performance | Disabled | List Count not hoisted out of for loop
 UPA0010 | Performance | Warning | Raycast without explicit maxDistance or layerMask
 UPA0011 | Performance | Disabled | SetActive used to toggle UI visibility
 UPA0012 | Performance | Disabled | TextMeshPro text assignment instead of SetText
+UPA0013 | Performance | Disabled | System.Linq usage in per-frame method
 UPA1000 | Correctness | Disabled | Leaf class not sealed
 UPA1001 | Correctness | Warning | Non-exhaustive enum switch
 UPA2000 | Ecosystem | Disabled | String concatenation in per-frame method
-UPA2001 | Ecosystem | Disabled | System.Linq usage
 UPA2010 | Ecosystem | Disabled | User-authored async method returns Task
 UPA2011 | Ecosystem | Disabled | Coroutine IEnumerator Unity message or method
 UPA2012 | Ecosystem | Disabled | Async void or unawaited fire-and-forget
@@ -29,3 +29,4 @@ UPA3000 | Platform | Disabled | Threading API unsupported on WebGL
 UPA3001 | Platform | Disabled | Sockets API unsupported on WebGL
 UPA3002 | Platform | Disabled | Synchronous file IO unsupported on WebGL
 UPA3003 | Platform | Disabled | Process API unsupported on WebGL
+UPA3004 | Platform | Disabled | Blocking wait on asynchronous operation

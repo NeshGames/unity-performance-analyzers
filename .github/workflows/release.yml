@@ -1,10 +1,10 @@
 name: Release
 
 # OpenUPM resolves the package from the git tag, so the tag itself must already
-# contain the analyzer DLL and a package.json whose version matches the tag exactly
-# (CLAUDE.md §2.3). A tag-triggered workflow cannot inject files into an existing
-# tag, so releasing works the other way around: run this workflow manually (after
-# REL approval) and it creates the release commit, the tag, and the GitHub Release.
+# contain the analyzer DLL and a package.json whose version matches the tag exactly.
+# A tag-triggered workflow cannot inject files into an existing tag, so releasing
+# works the other way around: run this workflow manually and it creates the release
+# commit, the tag, and the GitHub Release.
 # The version's single source is <Version> in src/Directory.Build.props; the
 # package.json version is written here and must never be edited by hand.
 
@@ -39,7 +39,7 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Releasing v$VERSION"
 
-      # Versions are never recycled (CLAUDE.md §2.4 applies to tags as a whole).
+      # Versions are never recycled: a published tag is permanent.
       - name: Refuse to re-release an existing tag
         run: |
           if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.version }}" | grep -q .; then
@@ -63,11 +63,17 @@ jobs:
       - name: Place analyzer DLL into the package
         run: cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
 
+      # The committed catalog may go stale during development; the released tag never does.
+      - name: Regenerate the rule catalog for the Rule Manager window
+        run: >
+          dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build
+          -- package/Editor/rules.json
+
       - name: Commit, tag, push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package/package.json
+          git add package/package.json package/Editor/rules.json
           git add -f package/Analyzers/UnityPerformanceAnalyzers.dll
           git commit -m "Release v${{ steps.version.outputs.version }}"
           git tag "v${{ steps.version.outputs.version }}"
@@ -100,3 +106,9 @@ jobs:
 
       - name: Analyzer DLL is present in the package
         run: test -f "package/Analyzers/UnityPerformanceAnalyzers.dll"
+
+      - name: Rule catalog matches the tag version
+        run: |
+          CATALOG=$(jq -r '.version' package/Editor/rules.json)
+          echo "tag=${GITHUB_REF_NAME#v} rules.json=$CATALOG"
+          test "${GITHUB_REF_NAME#v}" = "$CATALOG"

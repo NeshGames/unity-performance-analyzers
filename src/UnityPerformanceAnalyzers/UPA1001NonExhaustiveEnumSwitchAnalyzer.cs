@@ -58,19 +58,15 @@ namespace UnityPerformanceAnalyzers
             });
         }
 
-        // Same resolution pattern as HotPathDetector: once per compilation, defaults on any
-        // read failure. IDE-only in Unity projects (Q2) — Unity builds always use true.
+        // Same resolution pattern as HotPathDetector: once per compilation, layered through
+        // UpaOptions (options file > .editorconfig > default), defaults on any read failure.
         private static bool ReadAllowDefaultOption(Compilation compilation, AnalyzerOptions analyzerOptions)
         {
-            var firstTree = compilation.SyntaxTrees.FirstOrDefault();
-            if (firstTree is null)
-            {
-                return true;
-            }
-
-            var options = analyzerOptions.AnalyzerConfigOptionsProvider.GetOptions(firstTree);
-            return !(options.TryGetValue(AllowDefaultOptionKey, out var raw) &&
-                     bool.TryParse(raw.Trim(), out var parsed)) || parsed;
+            return UpaOptions.Resolve(analyzerOptions).GetBool(
+                AllowDefaultOptionKey,
+                compilation.SyntaxTrees.FirstOrDefault(),
+                analyzerOptions.AnalyzerConfigOptionsProvider,
+                fallback: true);
         }
 
         private static void AnalyzeSwitch(

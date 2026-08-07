@@ -7,27 +7,27 @@ using Microsoft.CodeAnalysis.Operations;
 namespace UnityPerformanceAnalyzers
 {
     /// <summary>
-    /// UPA2001: Reports calls to extension methods declared on System.Linq.Enumerable or
+    /// UPA0013: Reports calls to extension methods declared on System.Linq.Enumerable or
     /// System.Linq.Queryable on per-frame hot paths, at the call site — query syntax
     /// compiles into the same methods and triggers too. Same-named extensions on user types
     /// are excluded by declaring-type comparison. An opinionated, off-by-default rule for
-    /// low-allocation codebases (docs/rules/UPA2001.md).
+    /// low-allocation codebases (docs/rules/UPA0013.md).
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class UPA2001LinqUsageAnalyzer : DiagnosticAnalyzer
+    public sealed class UPA0013LinqUsageAnalyzer : DiagnosticAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
-        public const string DiagnosticId = "UPA2001";
+        public const string DiagnosticId = "UPA0013";
 
         private static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
             DiagnosticId,
-            new LocalizableResourceString(Strings.UPA2001Title, Strings.ResourceManager, typeof(Strings)),
-            new LocalizableResourceString(Strings.UPA2001MessageFormat, Strings.ResourceManager, typeof(Strings)),
-            DiagnosticCategories.Ecosystem,
+            new LocalizableResourceString(Strings.UPA0013Title, Strings.ResourceManager, typeof(Strings)),
+            new LocalizableResourceString(Strings.UPA0013MessageFormat, Strings.ResourceManager, typeof(Strings)),
+            DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
             isEnabledByDefault: false,
-            description: new LocalizableResourceString(Strings.UPA2001Description, Strings.ResourceManager, typeof(Strings)),
-            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA2001.md");
+            description: new LocalizableResourceString(Strings.UPA0013Description, Strings.ResourceManager, typeof(Strings)),
+            helpLinkUri: "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0013.md");
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);

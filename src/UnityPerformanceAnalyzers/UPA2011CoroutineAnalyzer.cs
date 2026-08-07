@@ -9,7 +9,9 @@ namespace UnityPerformanceAnalyzers
     /// <summary>
     /// UPA2011: Reports methods declared on MonoBehaviour-derived types that return the
     /// non-generic System.Collections.IEnumerator — the coroutine shape, including coroutine
-    /// Unity messages like IEnumerator Start(). Reported at the declaration; StartCoroutine
+    /// Unity messages like IEnumerator Start(). Registered only when UniTask is referenced:
+    /// without it there is no allocation-free replacement to point at, and advice the user
+    /// cannot act on is worse than staying silent. Reported at the declaration; StartCoroutine
     /// call sites are deliberately not reported to avoid duplicate diagnostics per coroutine.
     /// IEnumerator&lt;T&gt; methods are typical data iteration and excluded (docs/rules/UPA2011.md).
     /// </summary>
@@ -42,6 +44,12 @@ namespace UnityPerformanceAnalyzers
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterCompilationStartAction(ctx =>
             {
+                var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+                if (!profile.HasUniTask)
+                {
+                    return;
+                }
+
                 var monoBehaviourType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
                 var enumeratorType = ctx.Compilation.GetTypeByMetadataName("System.Collections.IEnumerator");
                 if (monoBehaviourType is null || enumeratorType is null)

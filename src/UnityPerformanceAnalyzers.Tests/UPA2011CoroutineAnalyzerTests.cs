@@ -7,7 +7,7 @@ namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA2011CoroutineAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
+        private static Task VerifyAsync(string source, bool referenceUniTask = true)
         {
             var test = new CSharpAnalyzerTest<UPA2011CoroutineAnalyzer, DefaultVerifier>
             {
@@ -15,6 +15,12 @@ namespace UnityPerformanceAnalyzers.Tests
                 ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
             };
             test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
+            if (referenceUniTask)
+            {
+                test.TestState.AdditionalReferences.Add(
+                    TestMetadataReferences.EmptyAssembly(UpaProfile.UniTaskAssemblyName));
+            }
+
             // UPA2011 is disabled by default; enable it the same way a preset would.
             test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
 root = true
@@ -90,6 +96,29 @@ class C : MonoBehaviour
         yield return 1;
     }
 }");
+        }
+
+        // UPA2011 test case 5 — without UniTask the rule never registers: there is no
+        // allocation-free rewrite to suggest.
+        [Fact]
+        public Task CoroutineMethod_WithoutUniTask_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    IEnumerator FadeOut()
+    {
+        yield return null;
+    }
+
+    IEnumerator Start()
+    {
+        yield return null;
+    }
+}", referenceUniTask: false);
         }
 
         // isEnabledByDefault: false — asserted on the descriptor because the

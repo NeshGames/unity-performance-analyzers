@@ -1,3 +1,7 @@
-# Verifies the Filename.[Analyzer Name].additionalfile convention: this file must reach
-# csc as /additionalfile: for every assembly. The content itself is not consumed yet.
-requiresWebGL: false
+# Universal options file: consumed by the analyzers since 0.2.0 (wins over .editorconfig).
+# Keys match the .editorconfig option names, e.g.:
+#   upa_hot_path_messages = Update,FixedUpdate,LateUpdate,OnTriggerEnter
+#   upa_enum_switch_allow_default = true
+# The lines below exercise the tolerant parser: both must be ignored without errors.
+unknown_key = ignored by design
+this line has no separator and must be ignored

@@ -22,4 +22,12 @@ public class ConsumerBehaviour : MonoBehaviour
     {
         _ = System.Threading.Tasks.Task.Run(() => { });
     }
+
+    // Same chain must produce UPA3004 on all three blocking waits.
+    int WaitForWork(System.Threading.Tasks.Task<int> task)
+    {
+        task.Wait();
+        task.GetAwaiter().GetResult();
+        return task.Result;
+    }
 }

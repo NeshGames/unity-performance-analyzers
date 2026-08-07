@@ -5,3 +5,4 @@ dotnet_diagnostic.UPA3000.severity = warning
 dotnet_diagnostic.UPA3001.severity = warning
 dotnet_diagnostic.UPA3002.severity = warning
 dotnet_diagnostic.UPA3003.severity = warning
+dotnet_diagnostic.UPA3004.severity = warning

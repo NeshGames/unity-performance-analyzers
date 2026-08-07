@@ -13,5 +13,6 @@
     <Rule Id="UPA3001" Action="Warning" />
     <Rule Id="UPA3002" Action="Warning" />
     <Rule Id="UPA3003" Action="Warning" />
+    <Rule Id="UPA3004" Action="Warning" />
   </Rules>
 </RuleSet>

@@ -40,7 +40,7 @@ preset to `Assets/Default.ruleset`:
 
 Extras in the same sample:
 
-- `webgl-addon.ruleset` — stacks UPA3000–3003 onto any preset via ruleset `<Include>`;
+- `webgl-addon.ruleset` — stacks UPA3000–3004 onto any preset via ruleset `<Include>`;
   requires the `UPA_TARGET_WEBGL` scripting define (see the sample README)
 - `editor-relaxed.ruleset` — drop into Editor asmdef folders as `Default.ruleset` to
   silence performance rules in tooling code
@@ -52,6 +52,41 @@ project-wide one for that assembly.
 
 Import the **Smoke Test** sample to verify the analyzer is loaded: it violates several
 rules on purpose and should light up the Console immediately.
+
+## Rule Manager window
+
+**Tools ▸ Unity Performance Analyzers ▸ Rule Manager** manages all of the above without
+hand-editing XML:
+
+- **Rules tab** — a severity dropdown for every UPA rule (grouped by category, with
+  condition badges) plus a Microsoft.Unity.Analyzers foldout; one-click preset apply
+  (read straight from the package, no sample import needed); and a WebGL toggle that
+  maintains the `UPA_TARGET_WEBGL` define across **all** build targets together with the
+  `webgl-addon.ruleset` Include. Per-asmdef ruleset overrides are listed read-only.
+- **Options tab** — edits the universal options file (next section), with an optional
+  mirror into `.editorconfig`.
+
+The window edits `Assets/Default.ruleset` conservatively: entries belonging to other
+analyzers, `<Include>` lines and comments are preserved as-is.
+
+## Analyzer options (universal options file)
+
+`Assets/Rules.UnityPerformanceAnalyzers.additionalfile` carries every analyzer option in
+`key = value` form and is honored by **Unity builds and IDE analysis alike** — Unity
+passes additional files to the compiler, which it never does for `.editorconfig`.
+Resolution is per key: the options file wins over `.editorconfig`, which wins over the
+built-in defaults.
+
+```ini
+upa_hot_path_messages = Update,FixedUpdate,LateUpdate,OnTriggerEnter
+upa_hot_path_attributes = HotPath,PerfCritical
+upa_hot_path_include_lambdas = true
+upa_enum_switch_allow_default = true
+```
+
+Parsing is tolerant by design: `#` comments, unknown keys and malformed lines are
+ignored, an invalid value falls through to the next channel, and a duplicated key keeps
+its last value. The Rule Manager's Options tab edits this file for you.
 
 ## Rules
 
@@ -73,6 +108,7 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | [UPA0010](docs/rules/UPA0010.md) | Raycasts without explicit `maxDistance` / `layerMask` | |
 | [UPA0011](docs/rules/UPA0011.md) | `SetActive` used to toggle UI visibility *(off by default)* | |
 | [UPA0012](docs/rules/UPA0012.md) | TMP `text` assignment instead of `SetText` *(off by default)* | ✓ |
+| [UPA0013](docs/rules/UPA0013.md) | `System.Linq` calls in per-frame methods *(off by default; formerly UPA2001)* | ✓ |
 
 ### Correctness
 
@@ -86,9 +122,8 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | ID | Reports | Package awareness |
 |---|---|---|
 | [UPA2000](docs/rules/UPA2000.md) | String building in per-frame methods | ZString switches the advice |
-| [UPA2001](docs/rules/UPA2001.md) | `System.Linq` calls in per-frame methods | |
 | [UPA2010](docs/rules/UPA2010.md) | `async Task` methods | Runs only with UniTask referenced |
-| [UPA2011](docs/rules/UPA2011.md) | Coroutine `IEnumerator` methods on MonoBehaviours | |
+| [UPA2011](docs/rules/UPA2011.md) | Coroutine `IEnumerator` methods on MonoBehaviours | Runs only with UniTask referenced |
 | [UPA2012](docs/rules/UPA2012.md) | `async void` / discarded task calls | UniTask switches the advice |
 | [UPA2021](docs/rules/UPA2021.md) | Public `Action` events modelling observable state | Runs only with R3 referenced |
 
@@ -100,6 +135,7 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | [UPA3001](docs/rules/UPA3001.md) | `System.Net.Sockets` unsupported on WebGL |
 | [UPA3002](docs/rules/UPA3002.md) | Synchronous file IO unsupported on WebGL |
 | [UPA3003](docs/rules/UPA3003.md) | `System.Diagnostics.Process` unsupported on WebGL |
+| [UPA3004](docs/rules/UPA3004.md) | Blocking waits on async operations (`WaitForCompletion`, `Task.Wait`, `.Result`, `GetAwaiter().GetResult()`) — deadlock on single-threaded WebGL |
 
 Package detection is by referenced assembly name (`UniTask`, `ZString`, `R3`) —
 per-assembly, automatic, zero configuration.
@@ -111,14 +147,10 @@ Every rule doc has a "How to configure or suppress" section. The short version:
 - **One call site**: `#pragma warning disable UPA0006` / `#pragma warning restore UPA0006`
 - **One assembly**: a `Default.ruleset` in that asmdef folder (see `editor-relaxed.ruleset`)
 - **Whole project**: change the rule's line in your `Assets/Default.ruleset`
-- **Hot-path classification** (which methods count as per-frame) is configurable via
-  `.editorconfig` — **in IDEs only**; Unity builds always use the built-in defaults:
-
-  ```ini
-  upa_hot_path_messages = Update,FixedUpdate,LateUpdate
-  upa_hot_path_attributes = HotPath,PerfCritical
-  upa_hot_path_include_lambdas = true
-  ```
+- **Hot-path classification** (which methods count as per-frame) and every other
+  analyzer option: set them in the universal options file (see
+  [Analyzer options](#analyzer-options-universal-options-file)) — effective in Unity
+  builds and IDEs alike; `.editorconfig` still works as an IDE-side fallback.
 
 Cold branches inside hot methods (lazy init, rare debug paths) will still be reported —
 the analyzers do no flow analysis. Suppress those locally rather than disabling rules.

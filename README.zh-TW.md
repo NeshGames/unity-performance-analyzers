@@ -37,7 +37,7 @@ analyzer 會自動套用到**專案內的每一個 assembly**——不需要任�
 
 同一個 sample 還附:
 
-- `webgl-addon.ruleset` — 以 ruleset 原生 `<Include>` 疊加 UPA3000–3003 到任一 preset;
+- `webgl-addon.ruleset` — 以 ruleset 原生 `<Include>` 疊加 UPA3000–3004 到任一 preset;
   需要 `UPA_TARGET_WEBGL` scripting define(見 sample 內說明)
 - `editor-relaxed.ruleset` — 放進 Editor asmdef 資料夾改名 `Default.ruleset`,
   讓工具程式碼不受效能規則干擾
@@ -48,6 +48,37 @@ Unity 只讀 ruleset——它不會把 `.editorconfig` 傳給編譯器(已於 20
 
 匯入 **Smoke Test** sample 可驗證 analyzer 已載入:它刻意違反多條規則,
 Console 應立即亮起警告。
+
+## Rule Manager 視窗
+
+**Tools ▸ Unity Performance Analyzers ▸ Rule Manager** 讓你不必手改 XML 就能管理上述一切:
+
+- **Rules 頁籤**——每條 UPA 規則各有嚴重度下拉(依類別分組、附條件徽章),
+  外加 Microsoft.Unity.Analyzers 摺疊區;preset 一鍵套用(直接讀取 package 內容,
+  不需先匯入 sample);WebGL 開關會同時維護**所有** build target 的
+  `UPA_TARGET_WEBGL` define 與 `webgl-addon.ruleset` 的 Include。
+  asmdef 資料夾的 ruleset 覆寫以唯讀清單列出。
+- **Options 頁籤**——編輯通用選項檔(見下一節),可選同步寫入 `.editorconfig`。
+
+視窗對 `Assets/Default.ruleset` 的改寫是保守的:其他 analyzer 的條目、
+`<Include>` 與註解都原樣保留。
+
+## Analyzer 選項(通用選項檔)
+
+`Assets/Rules.UnityPerformanceAnalyzers.additionalfile` 以 `key = value` 形式承載
+所有 analyzer 選項,**Unity 建置與 IDE 分析都會讀取**——Unity 會把 additional file
+傳給編譯器,`.editorconfig` 則不會。判定逐 key 進行:選項檔優先於
+`.editorconfig`,再優先於內建預設值。
+
+```ini
+upa_hot_path_messages = Update,FixedUpdate,LateUpdate,OnTriggerEnter
+upa_hot_path_attributes = HotPath,PerfCritical
+upa_hot_path_include_lambdas = true
+upa_enum_switch_allow_default = true
+```
+
+解析刻意容錯:`#` 註解、未知 key 與格式錯誤的行一律忽略,無效值落到下一層通道,
+重複 key 以最後一筆為準。Rule Manager 的 Options 頁籤會替你編輯這個檔案。
 
 ## 規則
 
@@ -69,6 +100,7 @@ Console 應立即亮起警告。
 | [UPA0010](docs/rules/UPA0010.zh-TW.md) | Raycast 未明示 `maxDistance` / `layerMask` | |
 | [UPA0011](docs/rules/UPA0011.zh-TW.md) | 用 `SetActive` 切換 UI 可見性 *(預設關閉)* | |
 | [UPA0012](docs/rules/UPA0012.zh-TW.md) | TMP `text` 指派而非 `SetText` *(預設關閉)* | ✓ |
+| [UPA0013](docs/rules/UPA0013.zh-TW.md) | 逐幀方法內的 `System.Linq` 呼叫 *(預設關閉;原 UPA2001)* | ✓ |
 
 ### 正確性
 
@@ -82,9 +114,8 @@ Console 應立即亮起警告。
 | ID | 回報內容 | 套件感知 |
 |---|---|---|
 | [UPA2000](docs/rules/UPA2000.zh-TW.md) | 逐幀方法內的字串建構 | ZString 切換建議句 |
-| [UPA2001](docs/rules/UPA2001.zh-TW.md) | 逐幀方法內的 `System.Linq` 呼叫 | |
 | [UPA2010](docs/rules/UPA2010.zh-TW.md) | `async Task` 方法 | 僅在引用 UniTask 時執行 |
-| [UPA2011](docs/rules/UPA2011.zh-TW.md) | MonoBehaviour 上的 coroutine `IEnumerator` 方法 | |
+| [UPA2011](docs/rules/UPA2011.zh-TW.md) | MonoBehaviour 上的 coroutine `IEnumerator` 方法 | 僅在引用 UniTask 時執行 |
 | [UPA2012](docs/rules/UPA2012.zh-TW.md) | `async void` / 被捨棄的 task 呼叫 | UniTask 切換建議句 |
 | [UPA2021](docs/rules/UPA2021.zh-TW.md) | 用 public `Action` event 表達可觀察狀態 | 僅在引用 R3 時執行 |
 
@@ -96,6 +127,7 @@ Console 應立即亮起警告。
 | [UPA3001](docs/rules/UPA3001.zh-TW.md) | WebGL 不支援的 `System.Net.Sockets` |
 | [UPA3002](docs/rules/UPA3002.zh-TW.md) | WebGL 不支援的同步檔案 IO |
 | [UPA3003](docs/rules/UPA3003.zh-TW.md) | WebGL 不支援的 `System.Diagnostics.Process` |
+| [UPA3004](docs/rules/UPA3004.zh-TW.md) | 阻塞等待非同步作業(`WaitForCompletion`、`Task.Wait`、`.Result`、`GetAwaiter().GetResult()`)——單執行緒 WebGL 上直接死鎖 |
 
 套件偵測以引用的 assembly 名稱為準(`UniTask`、`ZString`、`R3`)——
 per-assembly、全自動、零設定。
@@ -107,14 +139,9 @@ per-assembly、全自動、零設定。
 - **單一呼叫點**:`#pragma warning disable UPA0006` / `#pragma warning restore UPA0006`
 - **單一 assembly**:在該 asmdef 資料夾放 `Default.ruleset`(參考 `editor-relaxed.ruleset`)
 - **整個專案**:修改 `Assets/Default.ruleset` 裡該規則的那一行
-- **熱路徑判定**(哪些方法算逐幀)可經 `.editorconfig` 設定——**僅 IDE 生效**;
-  Unity 建置一律使用內建預設值:
-
-  ```ini
-  upa_hot_path_messages = Update,FixedUpdate,LateUpdate
-  upa_hot_path_attributes = HotPath,PerfCritical
-  upa_hot_path_include_lambdas = true
-  ```
+- **熱路徑判定**(哪些方法算逐幀)與其他所有 analyzer 選項:寫在通用選項檔
+  (見上方「Analyzer 選項」一節)——Unity 建置與 IDE 一體生效;
+  `.editorconfig` 仍可作為 IDE 端備援。
 
 熱方法內的冷分支(延遲初始化、罕見除錯路徑)仍會被回報——analyzer 不做流程分析。
 針對這類位置請就地抑制,而不是關掉整條規則。

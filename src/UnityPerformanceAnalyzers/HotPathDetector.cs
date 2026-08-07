@@ -65,29 +65,27 @@ namespace UnityPerformanceAnalyzers
         }
 
         /// <summary>
-        /// Resolves configuration once per compilation. Missing or unreadable options fall back
-        /// to the defaults; resolution never throws. Note that Unity does not pass .editorconfig
-        /// to the compiler, so these options take effect in IDE analysis only.
+        /// Resolves configuration once per compilation. Options come from the universal options
+        /// file first, then .editorconfig, then the built-in defaults (see UpaOptions); missing
+        /// or unreadable values fall back and resolution never throws.
         /// </summary>
         public static HotPathDetector Create(Compilation compilation, AnalyzerOptions analyzerOptions)
         {
             var monoBehaviourType = compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
 
+            var upaOptions = UpaOptions.Resolve(analyzerOptions);
             var firstTree = compilation.SyntaxTrees.FirstOrDefault();
-            var options = firstTree is null
-                ? null
-                : analyzerOptions.AnalyzerConfigOptionsProvider.GetOptions(firstTree);
+            var provider = analyzerOptions.AnalyzerConfigOptionsProvider;
 
-            var hotMessages = ParseNameSet(options, MessagesOptionKey, s_defaultHotMessages, stripAttributeSuffix: false);
-            var hotAttributes = ParseNameSet(options, AttributesOptionKey, s_defaultHotAttributes, stripAttributeSuffix: true);
-
-            var includeLambdas = true;
-            if (options is object &&
-                options.TryGetValue(IncludeLambdasOptionKey, out var rawIncludeLambdas) &&
-                bool.TryParse(rawIncludeLambdas.Trim(), out var parsedIncludeLambdas))
-            {
-                includeLambdas = parsedIncludeLambdas;
-            }
+            var hotMessages = ToNameSet(
+                upaOptions.GetList(MessagesOptionKey, firstTree, provider, ImmutableArray<string>.Empty),
+                s_defaultHotMessages,
+                stripAttributeSuffix: false);
+            var hotAttributes = ToNameSet(
+                upaOptions.GetList(AttributesOptionKey, firstTree, provider, ImmutableArray<string>.Empty),
+                s_defaultHotAttributes,
+                stripAttributeSuffix: true);
+            var includeLambdas = upaOptions.GetBool(IncludeLambdasOptionKey, firstTree, provider, fallback: true);
 
             return new HotPathDetector(monoBehaviourType, hotMessages, hotAttributes, includeLambdas);
         }
@@ -178,30 +176,23 @@ namespace UnityPerformanceAnalyzers
             return false;
         }
 
-        private static ImmutableHashSet<string> ParseNameSet(
-            AnalyzerConfigOptions? options,
-            string key,
+        private static ImmutableHashSet<string> ToNameSet(
+            ImmutableArray<string> names,
             ImmutableHashSet<string> defaults,
             bool stripAttributeSuffix)
         {
-            if (options is null || !options.TryGetValue(key, out var raw) || string.IsNullOrWhiteSpace(raw))
+            if (names.IsEmpty)
             {
                 return defaults;
             }
 
             var builder = ImmutableHashSet.CreateBuilder(StringComparer.Ordinal);
-            foreach (var part in raw.Split(','))
+            foreach (var name in names)
             {
-                var name = part.Trim();
-                if (name.Length == 0)
-                {
-                    continue;
-                }
-
                 builder.Add(stripAttributeSuffix ? StripAttributeSuffix(name) : name);
             }
 
-            return builder.Count == 0 ? defaults : builder.ToImmutable();
+            return builder.ToImmutable();
         }
 
         private static string GetShortName(NameSyntax name)
