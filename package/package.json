@@ -7,7 +7,13 @@
   "documentationUrl": "https://github.com/NeshGames/unity-performance-analyzers",
   "changelogUrl": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/package/CHANGELOG.md",
   "licensesUrl": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/LICENSE.md",
-  "keywords": ["roslyn", "analyzer", "performance", "code-quality", "editor"],
+  "keywords": [
+    "roslyn",
+    "analyzer",
+    "performance",
+    "code-quality",
+    "editor"
+  ],
   "author": {
     "name": "NeshGames",
     "url": "https://github.com/NeshGames"
