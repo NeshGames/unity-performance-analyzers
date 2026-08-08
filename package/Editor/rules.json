@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "upa": [
     {
       "id": "UPA0001",
@@ -262,6 +262,46 @@
       "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0026.md"
     },
     {
+      "id": "UPA0027",
+      "title": "Params array allocated at call site",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0027.md"
+    },
+    {
+      "id": "UPA0028",
+      "title": "Value type used as collection key without IEquatable",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0028.md"
+    },
+    {
+      "id": "UPA0029",
+      "title": "Sequential Add replaceable with AddRange",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": false,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0029.md"
+    },
+    {
+      "id": "UPA0030",
+      "title": "Known-allocating BCL API in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0030.md"
+    },
+    {
       "id": "UPA1000",
       "title": "Leaf class not sealed",
       "category": "Correctness",
@@ -467,6 +507,12 @@
       "type": "bool",
       "default": "true",
       "description": "For UPA1001, a default branch (or discard arm) counts as exhaustive."
+    },
+    {
+      "key": "upa_addrange_hot_path_only",
+      "type": "bool",
+      "default": "false",
+      "description": "Narrow UPA0029 to per-frame code instead of reporting copy loops anywhere."
     }
   ]
 }
