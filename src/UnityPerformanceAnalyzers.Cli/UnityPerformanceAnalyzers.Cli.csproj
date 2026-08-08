@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>upa-cli</AssemblyName>
+    <RootNamespace>UnityPerformanceAnalyzers.Cli</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same pinned Roslyn as the analyzer project; the analyzer's own reference is
+         PrivateAssets and does not flow through the project reference. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(RoslynVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UnityPerformanceAnalyzers\UnityPerformanceAnalyzers.csproj" />
+    <!-- UnityStubs is the default UnityEngine surface; the unity-dll-dir option overrides it. -->
+    <ProjectReference Include="..\UnityStubs\UnityStubs.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="UnityPerformanceAnalyzers.Tests" />
+  </ItemGroup>
+
+</Project>

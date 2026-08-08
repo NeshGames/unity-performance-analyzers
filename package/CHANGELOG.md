@@ -5,6 +5,28 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-08-08
+
+Rule behavior is unchanged from 0.4.0; this release adds tooling around the analyzers.
+
+### Added
+
+- **`upa-cli`** (`src/UnityPerformanceAnalyzers.Cli`): runs every rule outside Unity in
+  under a second, for CI jobs and quick local checks. Analyzes any set of files with
+  `--reference <assembly>` to simulate an installed package, `--define` for platform
+  rules, `--ruleset`/`--editorconfig`/`--additionalfile` for configuration, and
+  `--format json` for machine-readable output. Exit codes: `0` clean, `1` diagnostics at
+  or above `--fail-on` (default `warning`), `2` usage or execution error.
+  `--list-rules` prints the catalog straight from the loaded analyzer assembly.
+  Rules that judge a whole assembly are skipped unless `--whole-assembly` is passed, so
+  a partial file set cannot produce a false report; see the README for the other
+  approximations this trades for speed.
+
+### Changed
+
+- PR CI now fails when the package version regresses below the newest release tag, or
+  when the build version trails it.
+
 ## [0.4.0] - 2026-08-08
 
 Internal architecture release: rule behavior, severities, and diagnostic messages are

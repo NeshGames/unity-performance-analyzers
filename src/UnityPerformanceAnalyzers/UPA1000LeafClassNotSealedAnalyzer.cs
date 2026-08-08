@@ -13,6 +13,7 @@ namespace UnityPerformanceAnalyzers
     /// (CS0549), and an unused extension point may be intentional. Analysis is per-compilation;
     /// external derivation of public types is a documented limitation.
     /// </summary>
+    [CompilationWideRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA1000LeafClassNotSealedAnalyzer : UpaAnalyzer
     {

@@ -78,6 +78,13 @@ upa_hot_path_include_lambdas = true
 upa_enum_switch_allow_default = true
 ```
 
+| Key | 型別 | 預設值 | 作用 |
+|---|---|---|---|
+| `upa_hot_path_messages` | 逗號分隔清單 | `Update`、`FixedUpdate`、`LateUpdate`、`OnGUI`、`OnAnimatorMove`、`OnAnimatorIK`、`OnPreCull`、`OnPreRender`、`OnPostRender`、`OnRenderObject`、`OnWillRenderObject`、`OnRenderImage`、`OnTriggerStay`、`OnTriggerStay2D`、`OnCollisionStay`、`OnCollisionStay2D`、`OnParticleUpdateJobScheduled` | 哪些 MonoBehaviour 訊息算逐幀。**整組取代**預設值——要保留的標準訊息也得自己列出。影響全部熱路徑規則 |
+| `upa_hot_path_attributes` | 逗號分隔清單 | `HotPath`、`PerformanceCritical` | 哪些 attribute 短名可把任意方法標記為熱路徑,以名稱比對、`Attribute` 後綴可省略。讓非訊息方法也能納入 |
+| `upa_hot_path_include_lambdas` | `true` / `false` | `true` | 熱路徑方法內宣告的 lambda 與區域函式是否算熱。若你會把它們拿到他處呼叫,設 `false` |
+| `upa_enum_switch_allow_default` | `true` / `false` | `true` | UPA1001 中,`default` 分支(或 discard arm)是否算涵蓋其餘成員 |
+
 解析刻意容錯:`#` 註解、未知 key 與格式錯誤的行一律忽略,無效值落到下一層通道,
 重複 key 以最後一筆為準。Rule Manager 的 Options 頁籤會替你編輯這個檔案。
 
@@ -179,12 +186,81 @@ preset 也為 `UNT####` 規則分級;這些條目只在專案裡有 Microsoft.Un
 
 本 package 自身以 Roslyn 3.8 為目標,在所有支援的 Unity 版本都能載入。
 
+## 命令列驗證工具(`upa-cli`)
+
+在 Unity 之外、一秒內跑完同一套 analyzer——CI 或本機快速檢查不必開 Editor,
+也不必等專案匯入。
+
+```bash
+# 分析檔案(有達門檻的診斷即 exit 1)
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -- Assets/Scripts/Player.cs
+
+# CI 關卡:針對某個組件的完整原始碼集
+# (pattern 要加引號:由工具自己展開,各種 shell 行為才一致)
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -- \
+  "Assets/Scripts/**/*.cs" --whole-assembly --format json --fail-on error
+
+# 模擬「專案引用了 UniTask、且以 WebGL 為目標」
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -- Assets/Scripts/Loader.cs \
+  --reference UniTask --define UPA_TARGET_WEBGL
+
+# 這份建置認得哪些規則?
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -- --list-rules
+```
+
+退出碼:`0` 乾淨、`1` 有達到 `--fail-on`(預設 `warning`)的診斷、
+`2` 用法或執行錯誤——**包含任一 analyzer 執行失敗**,且與 `--fail-on` 無關:
+崩掉的規則根本沒產出可衡量的發現,這次執行就不能算乾淨。
+
+### 引數
+
+| 引數 | 說明 | 範例 |
+|---|---|---|
+| `<file...>` | 要分析的 `.cs` 檔(至少一個)。含 `*`、`?`、`**` 的 pattern **由工具自己展開**——請加引號避免 shell 搶先展開,如此在各種 shell 行為一致。pattern 沒對到任何檔案視為錯誤 | `upa-cli "Assets/**/*.cs"` |
+| `--reference <名稱\|路徑>` | 給**名稱**只讓套件「看起來存在」,這正是條件式規則檢查的東西;給 **DLL 路徑**則載入真實組件,呼叫該套件 API 的程式碼才解析得出來。可重複,兩種形式可混用 | `--reference UniTask`<br>`--reference Assets/Plugins/DOTween/DOTween.dll` |
+| `--define <符號>` | 加入前處理符號。可重複 | `--define UPA_TARGET_WEBGL` |
+| `--assembly-name <名稱>` | 編譯組件名,預設 `Assembly-CSharp`。player 程式碼規則會跳過 `*.Editor` 組件 | `--assembly-name MyGame.Tools.Editor` |
+| `--ruleset <路徑>` | 套用 `.ruleset` 的嚴重度 | `--ruleset Assets/Default.ruleset` |
+| `--editorconfig <路徑>` | 套用 `.editorconfig` 的嚴重度**與** `upa_*` analyzer 選項 | `--editorconfig .editorconfig` |
+| `--additionalfile <路徑>` | 傳入 additional file(例如通用選項檔)。可重複 | `--additionalfile Assets/Rules.UnityPerformanceAnalyzers.additionalfile` |
+| `--unity-dll-dir <目錄>` | 改用真實 Unity 組件目錄,而非內建 stub | `--unity-dll-dir <UnityEditor>/Data/Managed/UnityEngine` |
+| `--all-warn` | 強制所有規則以 warning 開啟,蓋過 ruleset 與 editorconfig | `--all-warn` |
+| `--whole-assembly` | 宣告這組檔案構成完整組件:啟用整組件規則,且編譯錯誤變致命 | `--whole-assembly` |
+| `--fail-on <等級>` | 退出碼 1 的門檻:`none`、`info`、`warning`(預設)、`error` | `--fail-on error` |
+| `--format <格式>` | `text`(預設)或 `json` | `--format json` |
+| `--list-rules` | 印出這份建置的規則目錄,不做分析 | `upa-cli --list-rules --format json` |
+| `--version` | 印出工具版本 | `upa-cli --version` |
+| `--help`、`-h` | 印出用法 | `upa-cli --help` |
+
+嚴重度優先序(弱→強):ruleset 的 `<IncludeAll>` 全域動作 → ruleset 的具名條目 →
+`--editorconfig`(可依檔案樣式分別設定)→ `--all-warn`。
+
+**要當關卡用?** 請帶 `--whole-assembly` 與該組件的完整原始碼集,
+**並為程式碼實際呼叫到的每個套件各給一個 `--reference <DLL 路徑>`**
+(若用到 stub 未涵蓋的 Unity API,再加 `--unity-dll-dir`)。這幾者合起來
+才把「參考用」變成「可信賴」:整組件規則會開始回報,編譯不過則以 exit 2 結束,
+不會回報一份它其實沒能驗證的乾淨結果。少給某個套件 DLL 時,工具會因未解型別
+明確失敗,而不是安靜地少報。
+
+**與 Unity 建置的差異**——最終權威仍是 Unity 自己的編譯:
+
+- 傳入的檔案清單不等於 assembly 邊界,因此需要整個組件才能判定的規則
+  (目前是 UPA1000)預設略過,要跑請加 `--whole-assembly`。
+- `--reference <名稱>` 只讓套件「看起來存在」,足以啟用該套件的規則,
+  但該套件的 API 仍無法解析。程式碼真的有呼叫時,請改給 DLL 路徑——
+  `--reference Assets/Plugins/DOTween/DOTween.dll`。
+- 引用了未傳入之型別的檔案會產生編譯錯誤,而這會削弱分析:規則以解析後的符號比對,
+  型別解析失敗時可能靜默漏報。工具只回報數量並繼續執行——**但 `--whole-assembly`
+  例外**:既然你宣告了這是完整編譯單元,它會以 exit 2 結束,而不是讓關卡放行
+  一份沒被好好分析的程式碼。
+
 ## Repository 結構
 
 | 路徑 | 用途 |
 |---|---|
 | `src/UnityPerformanceAnalyzers/` | analyzer 組件(netstandard2.0,Roslyn 3.8) |
 | `src/UnityPerformanceAnalyzers.CodeFixes/` | IDE 專用 code fix |
+| `src/UnityPerformanceAnalyzers.Cli/` | `upa-cli`——不透過 Unity 執行規則 |
 | `src/UnityPerformanceAnalyzers.Tests/` | xUnit analyzer 測試(net8.0) |
 | `src/UnityStubs/` | 測試用的最小 UnityEngine 手寫替身 |
 | `package/` | UPM 發佈根目錄 |

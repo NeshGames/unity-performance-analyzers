@@ -23,6 +23,7 @@
     <ProjectReference Include="..\UnityPerformanceAnalyzers\UnityPerformanceAnalyzers.csproj" />
     <ProjectReference Include="..\UnityPerformanceAnalyzers.CodeFixes\UnityPerformanceAnalyzers.CodeFixes.csproj" />
     <ProjectReference Include="..\UnityPerformanceAnalyzers.RuleManifest\UnityPerformanceAnalyzers.RuleManifest.csproj" />
+    <ProjectReference Include="..\UnityPerformanceAnalyzers.Cli\UnityPerformanceAnalyzers.Cli.csproj" />
     <ProjectReference Include="..\UnityStubs\UnityStubs.csproj" />
   </ItemGroup>
 

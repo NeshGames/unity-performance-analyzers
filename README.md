@@ -85,6 +85,13 @@ upa_hot_path_include_lambdas = true
 upa_enum_switch_allow_default = true
 ```
 
+| Key | Type | Default | Effect |
+|---|---|---|---|
+| `upa_hot_path_messages` | comma-separated list | `Update`, `FixedUpdate`, `LateUpdate`, `OnGUI`, `OnAnimatorMove`, `OnAnimatorIK`, `OnPreCull`, `OnPreRender`, `OnPostRender`, `OnRenderObject`, `OnWillRenderObject`, `OnRenderImage`, `OnTriggerStay`, `OnTriggerStay2D`, `OnCollisionStay`, `OnCollisionStay2D`, `OnParticleUpdateJobScheduled` | Which Unity messages on MonoBehaviour types count as per-frame. **Replaces** the default set — list every message you want, including the standard ones. Governs all hot-path rules |
+| `upa_hot_path_attributes` | comma-separated list | `HotPath`, `PerformanceCritical` | Attribute short names that mark any method as a hot path, matched by name with the `Attribute` suffix optional. Lets non-message methods opt in |
+| `upa_hot_path_include_lambdas` | `true` / `false` | `true` | Whether lambdas and local functions declared inside a hot-path method count as hot. Set `false` if you invoke them elsewhere |
+| `upa_enum_switch_allow_default` | `true` / `false` | `true` | For UPA1001, whether a `default` branch (or discard arm) counts as covering the remaining members |
+
 Parsing is tolerant by design: `#` comments, unknown keys and malformed lines are
 ignored, an invalid value falls through to the next channel, and a duplicated key keeps
 its last value. The Rule Manager's Options tab edits this file for you.
@@ -189,12 +196,86 @@ no current Unity bundles — it silently does nothing on every Unity version.
 
 This package itself targets Roslyn 3.8 and loads on every supported Unity version.
 
+## Command-line runner (`upa-cli`)
+
+Runs the same analyzers outside Unity, in under a second, so a CI job or a quick local
+check does not need an Editor licence or a full project import.
+
+```bash
+# analyze some files (exit 1 if anything reaches the fail threshold)
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -- Assets/Scripts/Player.cs
+
+# a CI gate over one assembly's full source set
+# (quote the pattern: the tool expands it, so it behaves the same in every shell)
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -- \
+  "Assets/Scripts/**/*.cs" --whole-assembly --format json --fail-on error
+
+# pretend the project references UniTask and targets WebGL
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -- Assets/Scripts/Loader.cs \
+  --reference UniTask --define UPA_TARGET_WEBGL
+
+# what rules does this build know about?
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -- --list-rules
+```
+
+Exit codes: `0` clean, `1` diagnostics at or above `--fail-on` (default `warning`),
+`2` usage or execution error — which includes an analyzer that failed to run, regardless
+of `--fail-on`: a rule that crashed produced no findings to weigh, so the run cannot be
+called clean.
+
+### Options
+
+| Option | Meaning | Example |
+|---|---|---|
+| `<file...>` | The `.cs` files to analyze (at least one). Patterns with `*`, `?` or `**` are expanded by the tool itself — quote them so your shell does not expand them first, and they behave identically everywhere. A pattern that matches nothing is an error | `upa-cli "Assets/**/*.cs"` |
+| `--reference <name\|path>` | A **name** makes a package look present, which is all the package-conditional rules check. A **path** to a DLL loads the real assembly, which code calling into that package needs in order to resolve. Repeatable; the forms mix | `--reference UniTask`<br>`--reference Assets/Plugins/DOTween/DOTween.dll` |
+| `--define <symbol>` | Add a preprocessor symbol. Repeatable | `--define UPA_TARGET_WEBGL` |
+| `--assembly-name <name>` | Compilation assembly name, default `Assembly-CSharp`. Player-code rules skip `*.Editor` assemblies | `--assembly-name MyGame.Tools.Editor` |
+| `--ruleset <path>` | Apply severities from a `.ruleset` | `--ruleset Assets/Default.ruleset` |
+| `--editorconfig <path>` | Apply severities **and** `upa_*` analyzer options from an `.editorconfig` | `--editorconfig .editorconfig` |
+| `--additionalfile <path>` | Pass an additional file, such as the universal options file. Repeatable | `--additionalfile Assets/Rules.UnityPerformanceAnalyzers.additionalfile` |
+| `--unity-dll-dir <dir>` | Use a real Unity managed directory instead of the bundled stubs | `--unity-dll-dir <UnityEditor>/Data/Managed/UnityEngine` |
+| `--all-warn` | Force every rule on at warning, overriding ruleset and editorconfig | `--all-warn` |
+| `--whole-assembly` | Declare the files a complete assembly: enables whole-assembly rules and makes compile errors fatal | `--whole-assembly` |
+| `--fail-on <level>` | Threshold for exit code 1: `none`, `info`, `warning` (default), `error` | `--fail-on error` |
+| `--format <format>` | `text` (default) or `json` | `--format json` |
+| `--list-rules` | Print this build's rule catalog instead of analyzing | `upa-cli --list-rules --format json` |
+| `--version` | Print the tool version | `upa-cli --version` |
+| `--help`, `-h` | Print usage | `upa-cli --help` |
+
+Severity precedence, weakest first: a ruleset's `<IncludeAll>` action, then its per-rule
+entries, then `--editorconfig` (which can scope a rule to one file pattern), then
+`--all-warn`.
+
+**Using it as a gate?** Pass `--whole-assembly` with an assembly's complete source set,
+**plus a `--reference <path>` for every package that source calls into** (and
+`--unity-dll-dir` if it uses Unity APIs the bundled stubs do not cover). Together those
+turn the run from advisory into authoritative: the whole-assembly rules start reporting,
+and a compilation that does not build exits 2 instead of reporting a clean result it
+could not actually verify. A gate that lacks a package's DLL will fail loudly on the
+unresolved types rather than quietly under-report.
+
+**Where it differs from a Unity build** — Unity's own compilation stays the source of
+truth:
+
+- The file list you pass is not an assembly boundary, so rules that judge the whole
+  assembly (currently UPA1000) are skipped unless you pass `--whole-assembly`.
+- `--reference <name>` only makes a package *look* present, which is enough to activate
+  its rules but leaves that package's APIs unresolved. Pass the DLL by path when the code
+  actually calls into it — `--reference Assets/Plugins/DOTween/DOTween.dll`.
+- Files that reference types you did not pass produce compile errors, which weaken the
+  analysis: rules match on resolved symbols, so unresolved types can silently suppress a
+  finding. The runner reports the count and keeps going, *except* under
+  `--whole-assembly` — there you have declared a complete compilation, so it exits 2
+  rather than let a gate pass code it could not analyze properly.
+
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
 | `src/UnityPerformanceAnalyzers/` | Analyzer assembly (netstandard2.0, Roslyn 3.8) |
 | `src/UnityPerformanceAnalyzers.CodeFixes/` | IDE-only code fixes |
+| `src/UnityPerformanceAnalyzers.Cli/` | `upa-cli` — run the rules without Unity |
 | `src/UnityPerformanceAnalyzers.Tests/` | xUnit analyzer tests (net8.0) |
 | `src/UnityStubs/` | Minimal hand-written UnityEngine stand-ins for tests |
 | `package/` | UPM publishing root |

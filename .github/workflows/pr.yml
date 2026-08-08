@@ -11,6 +11,33 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # version check compares against the newest release tag
+
+      # Cheap text-only check, kept first so a version mistake fails before the build.
+      # The release workflow writes package.json, so it trails the build version during
+      # development - the invariants are that it never regresses below the newest
+      # release, and that the build version is at or ahead of it.
+      - name: Version sanity
+        run: |
+          set -euo pipefail
+          package=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' package/package.json | head -1)
+          build=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' src/Directory.Build.props | head -1)
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -1 | sed 's/^v//')
+          echo "package.json=$package  Directory.Build.props=$build  latest tag=${latest:-none}"
+
+          lowest() { printf '%s\n%s\n' "$1" "$2" | sort -V | head -1; }
+
+          # Stated as "not below" rather than "equal to" so the release commit, which
+          # writes package.json and its tag in one push, cannot race this check.
+          if [ -n "${latest:-}" ] && [ "$(lowest "$package" "$latest")" != "$latest" ]; then
+            echo "::error::package.json version ($package) is below the newest release tag ($latest) - a released version must never regress."
+            exit 1
+          fi
+          if [ "$(lowest "$build" "$package")" != "$package" ]; then
+            echo "::error::Directory.Build.props version ($build) is behind package.json ($package)."
+            exit 1
+          fi
 
       - uses: actions/setup-dotnet@v4
         with:
