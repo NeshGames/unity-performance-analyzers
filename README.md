@@ -17,7 +17,7 @@ Distributed as a UPM package. Supports **Unity 2022.3 LTS through Unity 6**.
 Package Manager > *Add package from git URL…*:
 
 ```
-https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.4.0
+https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.5.0
 ```
 
 The analyzer applies to **every assembly in the project** automatically — no asmdef
