@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using UnityPerformanceAnalyzers.CodeFixes;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
@@ -18,23 +17,11 @@ namespace UnityPerformanceAnalyzers.Tests
             return test.RunAsync();
         }
 
-        private static Task VerifyFixAsync(string source, string fixedSource)
-        {
-            var test = new CSharpCodeFixTest<
-                UPA0029SequentialAddAnalyzer, UPA0029SequentialAddCodeFixProvider, DefaultVerifier>
-            {
-                TestCode = source,
-                FixedCode = fixedSource,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            return test.RunAsync();
-        }
-
-        // UPA0029 test case 1 (and case 10: the fix must compile and mean the same thing)
+        // UPA0029 test case 1
         [Fact]
-        public Task ForEachOverList_TriggersAndFixUsesAddRange()
+        public Task ForEachOverList_Triggers()
         {
-            return VerifyFixAsync(@"
+            return VerifyAsync(@"
 using System.Collections.Generic;
 
 class C
@@ -43,15 +30,6 @@ class C
     {
         {|UPA0029:foreach (var item in source)
             target.Add(item);|}
-    }
-}", @"
-using System.Collections.Generic;
-
-class C
-{
-    void Copy(List<int> source, List<int> target)
-    {
-        target.AddRange(source);
     }
 }");
         }
@@ -172,9 +150,9 @@ class C
 
         // UPA0029 test case 8 — the indexed form of the same copy.
         [Fact]
-        public Task IndexedForOverList_TriggersAndFixUsesAddRange()
+        public Task IndexedForOverList_Triggers()
         {
-            return VerifyFixAsync(@"
+            return VerifyAsync(@"
 using System.Collections.Generic;
 
 class C
@@ -183,15 +161,6 @@ class C
     {
         {|UPA0029:for (int i = 0; i < source.Count; i++)
             target.Add(source[i]);|}
-    }
-}", @"
-using System.Collections.Generic;
-
-class C
-{
-    void Copy(List<int> source, List<int> target)
-    {
-        target.AddRange(source);
     }
 }");
         }
@@ -380,6 +349,86 @@ class C
     {
         {|UPA0029:foreach (var item in source)
             _target.Add(item);|}
+    }
+}");
+        }
+
+        // A custom AddRange is free to do something other than repeated Add calls, and the
+        // element types need not line up — here the rewrite would not even compile.
+        [Fact]
+        public Task CustomTargetWithMismatchedAddRange_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+
+class Custom
+{
+    public void Add(int value) { }
+    public void AddRange(IEnumerable<string> values) { }
+}
+
+class C
+{
+    void Copy(List<int> source, Custom target)
+    {
+        foreach (var item in source)
+            target.Add(item);
+    }
+}");
+        }
+
+        // Even a type-compatible custom AddRange is out of scope: only List<T> is known to
+        // behave the same as the loop it replaces.
+        [Fact]
+        public Task CustomTargetWithMatchingAddRange_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+
+class Custom
+{
+    public void Add(int value) { }
+    public void AddRange(IEnumerable<int> values) { }
+}
+
+class C
+{
+    void Copy(List<int> source, Custom target)
+    {
+        foreach (var item in source)
+            target.Add(item);
+    }
+}");
+        }
+
+        // A custom ICollection<T> can make CopyTo and GetEnumerator disagree, and AddRange
+        // takes the CopyTo path. Only arrays and List<T> are known to behave the same.
+        [Fact]
+        public Task ForEachOverCustomCollection_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections;
+using System.Collections.Generic;
+
+class Custom : ICollection<int>
+{
+    public int Count => 0;
+    public bool IsReadOnly => false;
+    public void Add(int item) { }
+    public void Clear() { }
+    public bool Contains(int item) => false;
+    public void CopyTo(int[] array, int index) { }
+    public bool Remove(int item) => false;
+    public IEnumerator<int> GetEnumerator() => null;
+    IEnumerator IEnumerable.GetEnumerator() => null;
+}
+
+class C
+{
+    void Copy(Custom source, List<int> target)
+    {
+        foreach (var item in source)
+            target.Add(item);
     }
 }");
         }

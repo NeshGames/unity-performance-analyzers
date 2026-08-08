@@ -31,6 +31,23 @@ namespace UnityPerformanceAnalyzers
             DiagnosticSeverity.Warning,
             isEnabledByDefault: true);
 
+        /// <summary>
+        /// For members that allocate only when they have work to do. Measurement put Trim in
+        /// this group and left the case conversions out of it: on Unity's runtimes those
+        /// allocate even when the string is already in the target case.
+        /// </summary>
+        private static readonly DiagnosticDescriptor ConditionalRule = UpaDescriptor.Create(
+            DiagnosticId,
+            DiagnosticCategories.Performance,
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true,
+            messageFormatKey: Strings.UPA0030MessageFormatConditional);
+
+        // One descriptor per message format, one entry in SupportedDiagnostics. Roslyn matches
+        // a reported diagnostic against the declared set by ID, not by descriptor identity, so
+        // the alternate formats are supported by the entry below. Verified rather than assumed:
+        // emptying this array makes every test in this analyzer's suite fail on an unsupported
+        // diagnostic, and the alternate-format tests pass with it as written.
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
 
@@ -41,18 +58,21 @@ namespace UnityPerformanceAnalyzers
                 INamedTypeSymbol containingType,
                 string methodName,
                 string allocatedThing,
-                string advice)
+                string advice,
+                bool isConditional = false)
             {
                 ContainingType = containingType;
                 MethodName = methodName;
                 AllocatedThing = allocatedThing;
                 Advice = advice;
+                IsConditional = isConditional;
             }
 
             public INamedTypeSymbol ContainingType { get; }
             public string MethodName { get; }
             public string AllocatedThing { get; }
             public string Advice { get; }
+            public bool IsConditional { get; }
         }
 
         /// <inheritdoc/>
@@ -92,9 +112,9 @@ namespace UnityPerformanceAnalyzers
             Add(builder, compilation, "System.String", "ToLowerInvariant", "string", caseAdvice);
             Add(builder, compilation, "System.String", "ToUpper", "string", caseAdvice);
             Add(builder, compilation, "System.String", "ToUpperInvariant", "string", caseAdvice);
-            Add(builder, compilation, "System.String", "Trim", "string", trimAdvice);
-            Add(builder, compilation, "System.String", "TrimStart", "string", trimAdvice);
-            Add(builder, compilation, "System.String", "TrimEnd", "string", trimAdvice);
+            Add(builder, compilation, "System.String", "Trim", "string", trimAdvice, isConditional: true);
+            Add(builder, compilation, "System.String", "TrimStart", "string", trimAdvice, isConditional: true);
+            Add(builder, compilation, "System.String", "TrimEnd", "string", trimAdvice, isConditional: true);
 
             const string enumAdvice = "Cache the array in a static readonly field.";
             Add(builder, compilation, "System.Enum", "GetValues", "array", enumAdvice);
@@ -109,13 +129,33 @@ namespace UnityPerformanceAnalyzers
             string metadataName,
             string methodName,
             string allocatedThing,
-            string advice)
+            string advice,
+            bool isConditional = false)
         {
             var type = compilation.GetTypeByMetadataName(metadataName);
             if (type is object)
             {
-                builder.Add(new KnownAllocatingMethod(type, methodName, allocatedThing, advice));
+                builder.Add(new KnownAllocatingMethod(
+                    type, methodName, allocatedThing, advice, isConditional));
             }
+        }
+
+        /// <summary>
+        /// True for calls the framework documents as returning the receiver unchanged, which
+        /// can be recognized from the argument alone. <c>Substring(0)</c> is the case that
+        /// matters: it reads like a copy and is not one.
+        /// </summary>
+        private static bool ReturnsTheSameInstance(IInvocationOperation invocation)
+        {
+            if (invocation.TargetMethod.Name != "Substring" || invocation.Arguments.Length != 1)
+            {
+                return false;
+            }
+
+            var startIndex = invocation.Arguments[0].Value;
+            return startIndex.ConstantValue.HasValue &&
+                startIndex.ConstantValue.Value is int start &&
+                start == 0;
         }
 
         private static void AnalyzeInvocation(
@@ -148,8 +188,13 @@ namespace UnityPerformanceAnalyzers
             }
 
             var entry = known[entryIndex];
+            if (ReturnsTheSameInstance(invocation))
+            {
+                return;
+            }
+
             context.ReportDiagnostic(UpaDiagnostics.Create(
-                Rule,
+                entry.IsConditional ? ConditionalRule : Rule,
                 invocation.Syntax.GetLocation(),
                 entry.ContainingType.Name + "." + entry.MethodName,
                 entry.AllocatedThing,

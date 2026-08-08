@@ -124,7 +124,7 @@ upa_enum_switch_allow_default = true
 | [UPA0026](docs/rules/UPA0026.zh-TW.md) | 實值型別呼叫繼承的 `ToString` / `GetHashCode` / `Equals(object)` / `GetType` 造成裝箱 | ✓ |
 | [UPA0027](docs/rules/UPA0027.zh-TW.md) | `params` 多載以展開形式呼叫,每次配置一個陣列 | ✓ |
 | [UPA0028](docs/rules/UPA0028.zh-TW.md) | struct 作集合 key 但未實作 `IEquatable<T>` 與覆寫 `GetHashCode` | |
-| [UPA0029](docs/rules/UPA0029.zh-TW.md) | 可用 `AddRange` 一次配置取代的逐個 `Add` 迴圈 *(附 CodeFix)* | |
+| [UPA0029](docs/rules/UPA0029.zh-TW.md) | 可用 `AddRange` 一次配置取代的逐個 `Add` 迴圈 | |
 | [UPA0030](docs/rules/UPA0030.zh-TW.md) | 逐幀方法內已知會配置的 `string` / `Enum` 成員 | ✓ |
 
 > 非規則:[Enum 作字典 key](docs/rules/enum-dictionary-keys.zh-TW.md) 說明「enum key 會裝箱、

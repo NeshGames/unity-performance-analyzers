@@ -450,6 +450,9 @@
   <data name="UPA0030MessageFormat" xml:space="preserve">
     <value>'{0}' allocates a new {1} on every call. {2}</value>
   </data>
+  <data name="UPA0030MessageFormatConditional" xml:space="preserve">
+    <value>'{0}' allocates a new {1} whenever it has work to do. {2}</value>
+  </data>
   <data name="UPA0030Description" xml:space="preserve">
     <value>Whether an arbitrary method allocates cannot be decided without escape analysis across method boundaries, so this rule does not try: it checks a closed list of BCL members whose allocation is a documented, measured fact. The list covers the string operations that return a new instance (Split, ToCharArray, Substring, ToLower, ToLowerInvariant, ToUpper, ToUpperInvariant, Trim, TrimStart, TrimEnd) and the enum reflection helpers that return a new array on every call (Enum.GetValues, Enum.GetNames). Trim and its variants return the original instance when there is nothing to trim, so a reported call may cost nothing in practice; the rule cannot know the contents of the string. UnityEngine members with the same problem are reported by UPA0018 instead, so no call is reported twice. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
   </data>

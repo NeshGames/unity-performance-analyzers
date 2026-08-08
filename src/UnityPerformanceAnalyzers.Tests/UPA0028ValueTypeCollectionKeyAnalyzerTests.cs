@@ -63,7 +63,7 @@ class MyComparer : IEqualityComparer<PlainStruct>
             return VerifyAsync(@"
 class C
 {
-    {|UPA0028:Dictionary<PlainStruct, int>|} map;
+    Dictionary<PlainStruct, int> map = {|UPA0028:new Dictionary<PlainStruct, int>()|};
 }");
         }
 
@@ -74,7 +74,7 @@ class C
             return VerifyAsync(@"
 class C
 {
-    Dictionary<EquatableStruct, int> map;
+    Dictionary<EquatableStruct, int> map = new Dictionary<EquatableStruct, int>();
 }");
         }
 
@@ -85,7 +85,7 @@ class C
             return VerifyAsync(@"
 class C
 {
-    {|UPA0028:Dictionary<PartialStruct, int>|} map;
+    Dictionary<PartialStruct, int> map = {|UPA0028:new Dictionary<PartialStruct, int>()|};
 }");
         }
 
@@ -108,7 +108,7 @@ class C
             return VerifyAsync(@"
 class C
 {
-    {|UPA0028:HashSet<PlainStruct>|} set;
+    HashSet<PlainStruct> set = {|UPA0028:new HashSet<PlainStruct>()|};
 }");
         }
 
@@ -146,7 +146,7 @@ class C
             return VerifyAsync(@"
 class C
 {
-    Dictionary<MyEnum, int> map;
+    Dictionary<MyEnum, int> map = new Dictionary<MyEnum, int>();
 }");
         }
 
@@ -157,7 +157,7 @@ class C
             return VerifyAsync(@"
 class C
 {
-    Dictionary<MyClass, int> map;
+    Dictionary<MyClass, int> map = new Dictionary<MyClass, int>();
 }");
         }
 
@@ -168,7 +168,7 @@ class C
             return VerifyAsync(@"
 class C
 {
-    SortedDictionary<PlainStruct, int> map;
+    SortedDictionary<PlainStruct, int> map = new SortedDictionary<PlainStruct, int>();
 }");
         }
 
@@ -179,7 +179,111 @@ class C
             return VerifyAsync(@"
 class C
 {
-    {|UPA0028:Dictionary<WrongArgumentStruct, int>|} map;
+    Dictionary<WrongArgumentStruct, int> map = {|UPA0028:new Dictionary<WrongArgumentStruct, int>()|};
+}");
+        }
+
+        // A field built elsewhere may well use a custom comparer; the declaration cannot say.
+        [Fact]
+        public Task DeclarationWithoutCreation_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+class C
+{
+    Dictionary<PlainStruct, int> map;
+
+    C(Dictionary<PlainStruct, int> configured) { map = configured; }
+
+    void Use(Dictionary<PlainStruct, int> other) { }
+}");
+        }
+
+        // Naming the default comparer does not make it a different comparer.
+        [Fact]
+        public Task DictionaryConstructedWithExplicitDefaultComparer_Triggers()
+        {
+            return VerifyAsync(@"
+class C
+{
+    Dictionary<PlainStruct, int> map =
+        {|UPA0028:new Dictionary<PlainStruct, int>(EqualityComparer<PlainStruct>.Default)|};
+}");
+        }
+
+        [Fact]
+        public Task HashSetConstructedWithExplicitDefaultComparer_Triggers()
+        {
+            return VerifyAsync(@"
+class C
+{
+    HashSet<PlainStruct> set = {|UPA0028:new HashSet<PlainStruct>(EqualityComparer<PlainStruct>.Default)|};
+}");
+        }
+
+        // Target-typed new: the type name is in the declaration, not the creation.
+        [Fact]
+        public Task TargetTypedNew_Triggers()
+        {
+            return VerifyAsync(@"
+class C
+{
+    Dictionary<PlainStruct, int> map = {|UPA0028:new()|};
+}");
+        }
+
+        [Fact]
+        public Task TargetTypedNewWithComparer_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+class C
+{
+    Dictionary<PlainStruct, int> map = new(new MyComparer());
+}");
+        }
+
+        // Nullable<T> has a dedicated comparer that defers to the underlying type, so a
+        // nullable primitive key costs no more than the primitive itself.
+        [Fact]
+        public Task NullablePrimitiveKey_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+class C
+{
+    Dictionary<int?, int> map = new Dictionary<int?, int>();
+}");
+        }
+
+        [Fact]
+        public Task NullableEquatableStructKey_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+class C
+{
+    Dictionary<EquatableStruct?, int> map = new Dictionary<EquatableStruct?, int>();
+}");
+        }
+
+        // The underlying type still decides: a nullable plain struct is as bad as the struct.
+        [Fact]
+        public Task NullablePlainStructKey_Triggers()
+        {
+            return VerifyAsync(@"
+class C
+{
+    Dictionary<PlainStruct?, int> map = {|UPA0028:new Dictionary<PlainStruct?, int>()|};
+}");
+        }
+
+        // A linear search compares and never hashes, so a missing GetHashCode costs nothing.
+        [Fact]
+        public Task EquatableStructWithoutHashCode_InListContains_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+class C
+{
+    List<PartialStruct> values;
+
+    void Use() { var found = values.Contains(default); }
 }");
         }
 
@@ -197,14 +301,38 @@ class C
 }");
         }
 
-        // Dedup: a declaration with a creation initializer reports once, at the creation.
+        // One collection, one diagnostic: the type is written twice here and reported once.
         [Fact]
         public Task DeclarationWithCreationInitializer_ReportsOnceAtTheCreation()
         {
             return VerifyAsync(@"
 class C
 {
-    Dictionary<PlainStruct, int> map = new {|UPA0028:Dictionary<PlainStruct, int>|}();
+    Dictionary<PlainStruct, int> map = {|UPA0028:new Dictionary<PlainStruct, int>()|};
+}");
+        }
+
+        // Choosing the comparer overload is not the same as supplying a comparer: a null
+        // argument leaves EqualityComparer<T>.Default in place, which is the whole problem.
+        [Fact]
+        public Task DictionaryConstructedWithNullComparer_Triggers()
+        {
+            return VerifyAsync(@"
+class C
+{
+    Dictionary<PlainStruct, int> map =
+        {|UPA0028:new Dictionary<PlainStruct, int>((IEqualityComparer<PlainStruct>)null)|};
+}");
+        }
+
+        [Fact]
+        public Task DictionaryConstructedWithDefaultComparer_Triggers()
+        {
+            return VerifyAsync(@"
+class C
+{
+    Dictionary<PlainStruct, int> map =
+        {|UPA0028:new Dictionary<PlainStruct, int>(default(IEqualityComparer<PlainStruct>))|};
 }");
         }
 

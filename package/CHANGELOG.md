@@ -22,10 +22,11 @@ sandbox across Mono and IL2CPP on 2022.3 and Unity 6 before shipping.
   without both `IEquatable<T>` and a `GetHashCode` override falls to a comparer that boxes
   both operands per comparison, and to reflection when `Equals` is not overridden either.
   Not hot-path scoped: the cost is the same wherever the lookup happens.
-- **UPA0029** — sequential `Add` replaceable with `AddRange`, with a code fix. Only
-  reported when the source implements `ICollection<T>`, which is what lets `AddRange`
-  pre-size; over a plain `IEnumerable<T>` it adds one at a time and there is nothing to
-  gain.
+- **UPA0029** — sequential `Add` replaceable with `AddRange`. Only reported when the
+  source implements `ICollection<T>`, which is what lets `AddRange` pre-size; over a plain
+  `IEnumerable<T>` it adds one at a time and there is nothing to gain. Reported without an
+  automatic fix on purpose: two distinct references can point at the same list at runtime,
+  where the loop throws or never terminates and the rewrite would quietly do neither.
 - **UPA0030** — known-allocating BCL API in per-frame method. A closed list of `string`
   and `Enum` members that allocate on every call. Note that `Trim` returns the original
   instance when there is nothing to trim, and so may cost nothing at runtime.

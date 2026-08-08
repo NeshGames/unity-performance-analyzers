@@ -210,6 +210,43 @@ class C : MonoBehaviour
 }");
         }
 
+        // Documented no-op: Substring(0) returns the receiver, so there is nothing to report.
+        [Fact]
+        public Task StringSubstringFromZero_InUpdate_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    string source;
+
+    void Update()
+    {
+        var same = source.Substring(0);
+    }
+}");
+        }
+
+        // A non-constant start index could be anything, so the report stands.
+        [Fact]
+        public Task StringSubstringFromVariable_InUpdate_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    string source;
+    int start;
+
+    void Update()
+    {
+        var tail = {|UPA0030:source.Substring(start)|};
+    }
+}");
+        }
+
         // UPA0030 test case 11 — the trim variants are listed too.
         [Fact]
         public Task StringTrim_InUpdate_Triggers()

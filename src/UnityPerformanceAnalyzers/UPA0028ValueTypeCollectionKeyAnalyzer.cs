@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace UnityPerformanceAnalyzers
 {
@@ -47,6 +48,11 @@ namespace UnityPerformanceAnalyzers
             isEnabledByDefault: true,
             messageFormatKey: Strings.UPA0028MessageFormatHashCode);
 
+        // One descriptor per message format, one entry in SupportedDiagnostics. Roslyn matches
+        // a reported diagnostic against the declared set by ID, not by descriptor identity, so
+        // the alternate formats are supported by the entry below. Verified rather than assumed:
+        // emptying this array makes every test in this analyzer's suite fail on an unsupported
+        // diagnostic, and the alternate-format tests pass with it as written.
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(RuleMissingBoth);
 
@@ -77,9 +83,9 @@ namespace UnityPerformanceAnalyzers
             var listType = ctx.Compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
             var arrayType = ctx.Compilation.GetTypeByMetadataName("System.Array");
 
-            ctx.RegisterSyntaxNodeAction(
-                nodeCtx => AnalyzeGenericName(nodeCtx, hashedCollections, equatable),
-                SyntaxKind.GenericName);
+            ctx.RegisterOperationAction(
+                opCtx => AnalyzeObjectCreation(opCtx, hashedCollections, equatable),
+                OperationKind.ObjectCreation);
 
             ctx.RegisterSyntaxNodeAction(
                 nodeCtx => AnalyzeSearchingCall(nodeCtx, listType, arrayType, equatable),
@@ -101,23 +107,17 @@ namespace UnityPerformanceAnalyzers
             return resolved;
         }
 
-        private static void AnalyzeGenericName(
-            SyntaxNodeAnalysisContext context,
+        private static void AnalyzeObjectCreation(
+            OperationAnalysisContext context,
             HashSet<INamedTypeSymbol> hashedCollections,
             INamedTypeSymbol equatable)
         {
-            var genericName = (GenericNameSyntax)context.Node;
+            var creation = (IObjectCreationOperation)context.Operation;
 
-            // A qualified name reaches here through its right-hand side too; analyzing the
-            // inner node once is enough.
-            if (genericName.Parent is QualifiedNameSyntax qualified && qualified.Left == genericName)
-            {
-                return;
-            }
-
-            var type = context.SemanticModel.GetSymbolInfo(genericName, context.CancellationToken).Symbol
-                as INamedTypeSymbol;
-            if (type is null ||
+            // Operations rather than syntax, so that target-typed `new()` is covered: there
+            // the type name lives in the declaration and the creation expression has no type
+            // syntax at all, which a syntax walk would miss entirely.
+            if (!(creation.Type is INamedTypeSymbol type) ||
                 !type.IsGenericType ||
                 !hashedCollections.Contains(type.OriginalDefinition))
             {
@@ -125,28 +125,23 @@ namespace UnityPerformanceAnalyzers
             }
 
             var keyType = type.TypeArguments.Length == 0 ? null : type.TypeArguments[0];
-            if (!IsProblematicKey(keyType, equatable, out var missingEquatable, out var missingHashCode))
+            if (!IsProblematicKey(
+                    keyType, equatable, requireHashCode: true, out var missingEquatable, out var missingHashCode))
             {
                 return;
             }
 
-            var creation = FindOwningObjectCreation(genericName);
-            if (creation is object)
+            // Only creations are reported. A standalone type annotation — a field, parameter,
+            // property or return type — says nothing about which comparer the instance uses:
+            // the field may be built in a constructor with a custom comparer, the parameter
+            // handed one by its caller. Reporting those would be a false positive nobody can
+            // act on.
+            if (PassesEqualityComparer(creation))
             {
-                // The creation is where a comparer can be passed, so it decides.
-                if (PassesEqualityComparer(context.SemanticModel, creation, context.CancellationToken))
-                {
-                    return;
-                }
-            }
-            else if (IsDeclarationTypeWithCreationInitializer(genericName))
-            {
-                // The creation on the same line reports instead — one collection, one
-                // diagnostic, and it lands where the fix goes.
                 return;
             }
 
-            Report(context, genericName.GetLocation(), keyType!, missingEquatable, missingHashCode);
+            Report(context, creation.Syntax.GetLocation(), keyType!, missingEquatable, missingHashCode);
         }
 
         private static void AnalyzeSearchingCall(
@@ -180,12 +175,14 @@ namespace UnityPerformanceAnalyzers
                 elementType = method.TypeArguments[0];
             }
 
-            if (!IsProblematicKey(elementType, equatable, out var missingEquatable, out var missingHashCode))
+            // Linear search only ever calls Equals, so the hash side is irrelevant here.
+            if (!IsProblematicKey(
+                    elementType, equatable, requireHashCode: false, out var missingEquatable, out var missingHashCode))
             {
                 return;
             }
 
-            Report(context, invocation.GetLocation(), elementType!, missingEquatable, missingHashCode);
+            ReportAtSyntax(context, invocation.GetLocation(), elementType!, missingEquatable, missingHashCode);
         }
 
         private static bool IsSearchingMemberName(string name)
@@ -202,13 +199,23 @@ namespace UnityPerformanceAnalyzers
         }
 
         /// <summary>
-        /// True when the type is a struct that would fall to the boxing comparer. Enums are
-        /// excluded — measurement shows the BCL has non-boxing comparers for them — as are
-        /// type parameters, where the answer depends on the instantiation.
+        /// True when the type is a struct that would fall to the boxing comparer.
+        ///
+        /// Enums are excluded — measurement shows the BCL has non-boxing comparers for them —
+        /// as are type parameters, where the answer depends on the instantiation.
+        /// <c>Nullable&lt;T&gt;</c> is unwrapped rather than judged on its own: it does not
+        /// implement <c>IEquatable</c> of itself, but the runtime gives it a dedicated
+        /// comparer that defers to the underlying type, so <c>Dictionary&lt;int?, V&gt;</c>
+        /// costs no more than <c>Dictionary&lt;int, V&gt;</c>.
+        ///
+        /// <paramref name="requireHashCode"/> is false for linear searches. <c>Contains</c>,
+        /// <c>IndexOf</c> and <c>Remove</c> compare elements and never hash them, so demanding
+        /// a <c>GetHashCode</c> override there would report a cost that does not exist.
         /// </summary>
         private static bool IsProblematicKey(
             ITypeSymbol? type,
             INamedTypeSymbol equatable,
+            bool requireHashCode,
             out bool missingEquatable,
             out bool missingHashCode)
         {
@@ -223,8 +230,16 @@ namespace UnityPerformanceAnalyzers
                 return false;
             }
 
+            if (type is INamedTypeSymbol named &&
+                named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+                named.TypeArguments.Length == 1)
+            {
+                return IsProblematicKey(
+                    named.TypeArguments[0], equatable, requireHashCode, out missingEquatable, out missingHashCode);
+            }
+
             missingEquatable = !ImplementsEquatableOfSelf(type, equatable);
-            missingHashCode = !OverridesGetHashCode(type);
+            missingHashCode = requireHashCode && !OverridesGetHashCode(type);
             return missingEquatable || missingHashCode;
         }
 
@@ -256,75 +271,63 @@ namespace UnityPerformanceAnalyzers
             return false;
         }
 
-        private static ObjectCreationExpressionSyntax? FindOwningObjectCreation(GenericNameSyntax genericName)
+        private static bool PassesEqualityComparer(IObjectCreationOperation creation)
         {
-            var node = (SyntaxNode)genericName;
-            while (node.Parent is QualifiedNameSyntax qualified && qualified.Right == node)
+            foreach (var argument in creation.Arguments)
             {
-                node = qualified;
-            }
-
-            return node.Parent as ObjectCreationExpressionSyntax;
-        }
-
-        private static bool PassesEqualityComparer(
-            SemanticModel semanticModel,
-            ObjectCreationExpressionSyntax creation,
-            System.Threading.CancellationToken cancellationToken)
-        {
-            var constructor = semanticModel.GetSymbolInfo(creation, cancellationToken).Symbol as IMethodSymbol;
-            if (constructor is null)
-            {
-                return false;
-            }
-
-            foreach (var parameter in constructor.Parameters)
-            {
-                if (parameter.Type is INamedTypeSymbol named &&
-                    named.OriginalDefinition.Name == "IEqualityComparer")
+                if (!(argument.Parameter?.Type is INamedTypeSymbol parameterType) ||
+                    parameterType.OriginalDefinition.Name != "IEqualityComparer")
                 {
-                    return true;
+                    continue;
                 }
+
+                var value = argument.Value;
+                while (value is IConversionOperation conversion)
+                {
+                    value = conversion.Operand;
+                }
+
+                // A null or default argument leaves the default comparer in place.
+                var isNull = value.ConstantValue.HasValue && value.ConstantValue.Value is null;
+                if (isNull || value is IDefaultValueOperation)
+                {
+                    return false;
+                }
+
+                // So does passing it explicitly. EqualityComparer<T>.Default is precisely the
+                // comparer this rule warns about; naming it does not make it a different one.
+                return !IsDefaultEqualityComparer(value);
             }
 
             return false;
         }
 
-        /// <summary>
-        /// True when this generic name is the declared type of a field, property or local
-        /// whose initializer constructs the collection — the creation reports instead.
-        /// </summary>
-        private static bool IsDeclarationTypeWithCreationInitializer(GenericNameSyntax genericName)
+        private static void Report(
+            OperationAnalysisContext context,
+            Location location,
+            ITypeSymbol keyType,
+            bool missingEquatable,
+            bool missingHashCode)
         {
-            var node = (SyntaxNode)genericName;
-            while (node.Parent is QualifiedNameSyntax qualified && qualified.Right == node)
-            {
-                node = qualified;
-            }
-
-            switch (node.Parent)
-            {
-                case VariableDeclarationSyntax variableDeclaration:
-                    foreach (var declarator in variableDeclaration.Variables)
-                    {
-                        if (declarator.Initializer?.Value is ObjectCreationExpressionSyntax)
-                        {
-                            return true;
-                        }
-                    }
-
-                    return false;
-
-                case PropertyDeclarationSyntax property:
-                    return property.Initializer?.Value is ObjectCreationExpressionSyntax;
-
-                default:
-                    return false;
-            }
+            context.ReportDiagnostic(BuildDiagnostic(location, keyType, missingEquatable, missingHashCode));
         }
 
-        private static void Report(
+        private static void ReportAtSyntax(
             SyntaxNodeAnalysisContext context,
+            Location location,
+            ITypeSymbol keyType,
+            bool missingEquatable,
+            bool missingHashCode)
+        {
+            context.ReportDiagnostic(BuildDiagnostic(location, keyType, missingEquatable, missingHashCode));
+        }
+
+        private static bool IsDefaultEqualityComparer(IOperation value) =>
+            value is IPropertyReferenceOperation property &&
+            property.Property.Name == "Default" &&
+            property.Property.ContainingType?.OriginalDefinition.Name == "EqualityComparer";
+
+        private static Diagnostic BuildDiagnostic(
             Location location,
             ITypeSymbol keyType,
             bool missingEquatable,
@@ -343,11 +346,7 @@ namespace UnityPerformanceAnalyzers
                 break;
             }
 
-            context.ReportDiagnostic(UpaDiagnostics.Create(
-                rule,
-                location,
-                additionalLocations,
-                keyType.Name));
+            return UpaDiagnostics.Create(rule, location, additionalLocations, keyType.Name);
         }
     }
 }

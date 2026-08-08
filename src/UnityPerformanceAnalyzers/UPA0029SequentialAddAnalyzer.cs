@@ -19,6 +19,11 @@ namespace UnityPerformanceAnalyzers
     /// one at a time and there is nothing to gain, so this rule checks for that interface
     /// rather than suggesting the swap unconditionally.
     ///
+    /// Reported only, with no automatic fix. Two distinct references can point at the same
+    /// list at runtime, and no symbol comparison can rule that out; in that case the loop
+    /// throws or never terminates today, and an AddRange rewrite would quietly do neither.
+    /// Changing that is a decision for whoever reads the diagnostic, not for a fix.
+    ///
     /// Global by default; <c>upa_addrange_hot_path_only</c> narrows it to hot paths for
     /// projects that only care there.
     /// </summary>
@@ -46,11 +51,10 @@ namespace UnityPerformanceAnalyzers
         /// <inheritdoc/>
         private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
         {
-            var collectionInterface =
-                ctx.Compilation.GetTypeByMetadataName("System.Collections.Generic.ICollection`1");
             var enumerableInterface =
                 ctx.Compilation.GetTypeByMetadataName("System.Collections.Generic.IEnumerable`1");
-            if (collectionInterface is null || enumerableInterface is null)
+            var listType = ctx.Compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
+            if (enumerableInterface is null || listType is null)
             {
                 return;
             }
@@ -59,23 +63,23 @@ namespace UnityPerformanceAnalyzers
             var hotPathDetector = hotPathOnly ? HotPathDetector.Create(ctx.Compilation, ctx.Options) : null;
 
             ctx.RegisterOperationAction(
-                opCtx => AnalyzeLoop(opCtx, collectionInterface, enumerableInterface, hotPathDetector),
+                opCtx => AnalyzeLoop(opCtx, enumerableInterface, listType, hotPathDetector),
                 OperationKind.Loop);
         }
 
         private static void AnalyzeLoop(
             OperationAnalysisContext context,
-            INamedTypeSymbol collectionInterface,
             INamedTypeSymbol enumerableInterface,
+            INamedTypeSymbol listType,
             HotPathDetector? hotPathDetector)
         {
             switch (context.Operation)
             {
                 case IForEachLoopOperation:
-                    AnalyzeForEach(context, collectionInterface, enumerableInterface, hotPathDetector);
+                    AnalyzeForEach(context, enumerableInterface, listType, hotPathDetector);
                     break;
                 case IForLoopOperation forLoop:
-                    AnalyzeIndexedFor(context, forLoop, collectionInterface, enumerableInterface, hotPathDetector);
+                    AnalyzeIndexedFor(context, forLoop, enumerableInterface, listType, hotPathDetector);
                     break;
             }
         }
@@ -91,8 +95,8 @@ namespace UnityPerformanceAnalyzers
 
         private static void AnalyzeForEach(
             OperationAnalysisContext context,
-            INamedTypeSymbol collectionInterface,
             INamedTypeSymbol enumerableInterface,
+            INamedTypeSymbol listType,
             HotPathDetector? hotPathDetector)
         {
             if (!(context.Operation is IForEachLoopOperation loop))
@@ -112,21 +116,23 @@ namespace UnityPerformanceAnalyzers
             }
 
             var targetType = addCall.Instance?.Type as INamedTypeSymbol;
-            if (targetType is null || !HasAddRangeTakingEnumerable(targetType, enumerableInterface))
+            if (targetType is null)
             {
                 return;
             }
 
             // The whole point of the suggestion: AddRange can only pre-size when it can count
-            // the source, which is what ICollection<T> provides.
+            // the source, and only behaves like the loop for sources whose enumeration and
+            // CopyTo are known to agree.
             var source = Unwrap(loop.Collection);
             var sourceType = source?.Type;
-            if (sourceType is null || !ImplementsCollectionInterface(sourceType, collectionInterface))
+            if (sourceType is null || !IsKnownEquivalentSource(sourceType, listType))
             {
                 return;
             }
 
-            if (!IsRewritableCopy(addCall.Instance, source))
+            if (!CanTakeSourceAsRange(targetType, sourceType, listType, enumerableInterface) ||
+                !IsRewritableCopy(addCall.Instance, source))
             {
                 return;
             }
@@ -148,8 +154,8 @@ namespace UnityPerformanceAnalyzers
         private static void AnalyzeIndexedFor(
             OperationAnalysisContext context,
             IForLoopOperation loop,
-            INamedTypeSymbol collectionInterface,
             INamedTypeSymbol enumerableInterface,
+            INamedTypeSymbol listType,
             HotPathDetector? hotPathDetector)
         {
             var indexSymbol = GetZeroInitializedIndex(loop);
@@ -191,8 +197,8 @@ namespace UnityPerformanceAnalyzers
 
             var targetType = addCall.Instance?.Type as INamedTypeSymbol;
             if (targetType is null ||
-                !HasAddRangeTakingEnumerable(targetType, enumerableInterface) ||
-                !ImplementsCollectionInterface(source.Type, collectionInterface))
+                !IsKnownEquivalentSource(source.Type, listType) ||
+                !CanTakeSourceAsRange(targetType, source.Type, listType, enumerableInterface))
             {
                 return;
             }
@@ -444,16 +450,49 @@ namespace UnityPerformanceAnalyzers
                 SymbolEqualityComparer.Default.Equals(declarator.Symbol, localReference.Local);
         }
 
-        private static bool HasAddRangeTakingEnumerable(
+        /// <summary>
+        /// True when the target is a <c>List&lt;T&gt;</c> whose <c>AddRange</c> the source can
+        /// actually be passed to.
+        ///
+        /// Both halves matter. Restricting to <c>List&lt;T&gt;</c> is what makes the rewrite
+        /// mean the same thing: a custom <c>AddRange</c> is free to do something other than
+        /// what repeated <c>Add</c> calls do, and the rule cannot know. Checking the element
+        /// type is what keeps the rewrite compiling: a type with <c>Add(int)</c> and
+        /// <c>AddRange(IEnumerable&lt;string&gt;)</c> would otherwise be diagnosed and then
+        /// rewritten into code that does not build.
+        /// </summary>
+        private static bool CanTakeSourceAsRange(
             INamedTypeSymbol targetType,
+            ITypeSymbol sourceType,
+            INamedTypeSymbol listType,
             INamedTypeSymbol enumerableInterface)
         {
-            foreach (var member in targetType.GetMembers("AddRange"))
+            if (!SymbolEqualityComparer.Default.Equals(targetType.OriginalDefinition, listType) ||
+                targetType.TypeArguments.Length != 1)
             {
-                if (member is IMethodSymbol method &&
-                    method.Parameters.Length == 1 &&
-                    method.Parameters[0].Type is INamedTypeSymbol parameterType &&
-                    SymbolEqualityComparer.Default.Equals(parameterType.OriginalDefinition, enumerableInterface))
+                return false;
+            }
+
+            var elementType = targetType.TypeArguments[0];
+
+            if (sourceType is IArrayTypeSymbol arrayType)
+            {
+                return SymbolEqualityComparer.Default.Equals(arrayType.ElementType, elementType);
+            }
+
+            if (sourceType is INamedTypeSymbol named &&
+                SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, enumerableInterface) &&
+                named.TypeArguments.Length == 1 &&
+                SymbolEqualityComparer.Default.Equals(named.TypeArguments[0], elementType))
+            {
+                return true;
+            }
+
+            foreach (var candidate in sourceType.AllInterfaces)
+            {
+                if (SymbolEqualityComparer.Default.Equals(candidate.OriginalDefinition, enumerableInterface) &&
+                    candidate.TypeArguments.Length == 1 &&
+                    SymbolEqualityComparer.Default.Equals(candidate.TypeArguments[0], elementType))
                 {
                     return true;
                 }
@@ -462,32 +501,28 @@ namespace UnityPerformanceAnalyzers
             return false;
         }
 
-        private static bool ImplementsCollectionInterface(
+        /// <summary>
+        /// True for sources where AddRange is known to do what the loop did: arrays and
+        /// <c>List&lt;T&gt;</c>.
+        ///
+        /// Any <c>ICollection&lt;T&gt;</c> would let AddRange pre-size, but that is not the
+        /// whole question. <c>List&lt;T&gt;.AddRange</c> takes an ICollection fast path through
+        /// <c>Count</c> and <c>CopyTo</c>, while the loop it replaces goes through
+        /// <c>GetEnumerator</c>. A custom collection is free to make those disagree — in
+        /// order, in what they include, in what they throw — so the recommendation is limited
+        /// to the two types whose behaviour is fixed by the framework.
+        /// </summary>
+        private static bool IsKnownEquivalentSource(
             ITypeSymbol sourceType,
-            INamedTypeSymbol collectionInterface)
+            INamedTypeSymbol listType)
         {
-            // Arrays implement ICollection<T> at runtime, but the symbol model does not list
-            // it among AllInterfaces for every compilation, so treat them explicitly.
             if (sourceType is IArrayTypeSymbol)
             {
                 return true;
             }
 
-            if (sourceType is INamedTypeSymbol named &&
-                SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, collectionInterface))
-            {
-                return true;
-            }
-
-            foreach (var candidate in sourceType.AllInterfaces)
-            {
-                if (SymbolEqualityComparer.Default.Equals(candidate.OriginalDefinition, collectionInterface))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return sourceType is INamedTypeSymbol named &&
+                SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, listType);
         }
     }
 }

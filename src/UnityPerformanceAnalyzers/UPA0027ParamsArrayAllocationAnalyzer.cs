@@ -36,6 +36,11 @@ namespace UnityPerformanceAnalyzers
             isEnabledByDefault: true,
             messageFormatKey: Strings.UPA0027MessageFormatBoxing);
 
+        // One descriptor per message format, one entry in SupportedDiagnostics. Roslyn matches
+        // a reported diagnostic against the declared set by ID, not by descriptor identity, so
+        // the alternate formats are supported by the entry below. Verified rather than assumed:
+        // emptying this array makes every test in this analyzer's suite fail on an unsupported
+        // diagnostic, and the alternate-format tests pass with it as written.
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);
 
