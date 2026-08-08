@@ -4,8 +4,10 @@
      copy this into each Editor asmdef folder and rename it Default.ruleset -
      it then overrides the project-wide Assets/Default.ruleset for that assembly.
 
-     Performance pressure is irrelevant in editor tooling, so all UPA performance
-     and ecosystem rules are off; UNT correctness rules stay at Error.
+     Performance pressure is irrelevant in editor tooling, so UPA performance
+     and ecosystem rules are off; UNT correctness rules stay at Error. Rules
+     about how a type is declared keep their severity - being in editor code
+     does not make a struct any better as a dictionary key.
      GENERATED FILE - do not edit. Severities live in PresetTable.cs;
      regenerate via the RuleManifest presets mode (see that file's header). -->
 <RuleSet Name="UPA editor-relaxed" ToolsVersion="10.0">
@@ -36,6 +38,10 @@
     <Rule Id="UPA0024" Action="None" />
     <Rule Id="UPA0025" Action="None" />
     <Rule Id="UPA0026" Action="None" />
+    <Rule Id="UPA0027" Action="None" />
+    <Rule Id="UPA0028" Action="Warning" />
+    <Rule Id="UPA0029" Action="None" />
+    <Rule Id="UPA0030" Action="None" />
     <Rule Id="UPA1000" Action="None" />
     <Rule Id="UPA2000" Action="None" />
     <Rule Id="UPA2010" Action="None" />

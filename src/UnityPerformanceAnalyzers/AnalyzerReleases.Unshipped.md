@@ -31,6 +31,10 @@ UPA0023 | Performance | Disabled | OnGUI declared in player code
 UPA0024 | Performance | Disabled | Resources.Load in per-frame method
 UPA0025 | Performance | Warning | Finalizer declared in runtime code
 UPA0026 | Performance | Warning | Value type boxed by inherited method call
+UPA0027 | Performance | Warning | Params array allocated at call site
+UPA0028 | Performance | Warning | Value type used as collection key without IEquatable
+UPA0029 | Performance | Warning | Sequential Add replaceable with AddRange
+UPA0030 | Performance | Warning | Known-allocating BCL API in per-frame method
 UPA1000 | Correctness | Disabled | Leaf class not sealed
 UPA1001 | Correctness | Warning | Non-exhaustive enum switch
 UPA2000 | Ecosystem | Disabled | String concatenation in per-frame method

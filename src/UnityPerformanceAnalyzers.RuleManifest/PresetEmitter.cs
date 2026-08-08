@@ -101,6 +101,9 @@ public static class PresetEmitter
         sb.Append("# upa_hot_path_messages = Update,FixedUpdate,LateUpdate\n");
         sb.Append("# upa_hot_path_attributes = HotPath,PerfCritical\n");
         sb.Append("# upa_hot_path_include_lambdas = true\n\n");
+        sb.Append("# Rule options\n");
+        sb.Append("# upa_enum_switch_allow_default = true\n");
+        sb.Append("# upa_addrange_hot_path_only = false\n\n");
         sb.Append("# Editor tooling: relax performance pressure (IDE side; for Unity builds place\n");
         sb.Append("# editor-relaxed.ruleset as Default.ruleset in your Editor asmdef folders)\n");
         sb.Append("[**/Editor/**/*.cs]\n");
@@ -117,14 +120,17 @@ public static class PresetEmitter
         sb.Append("     Rulesets have no path scoping, so editor code gets its own file instead:\n");
         sb.Append("     copy this into each Editor asmdef folder and rename it Default.ruleset -\n");
         sb.Append("     it then overrides the project-wide Assets/Default.ruleset for that assembly.\n\n");
-        sb.Append("     Performance pressure is irrelevant in editor tooling, so all UPA performance\n");
-        sb.Append("     and ecosystem rules are off; UNT correctness rules stay at Error.\n");
+        sb.Append("     Performance pressure is irrelevant in editor tooling, so UPA performance\n");
+        sb.Append("     and ecosystem rules are off; UNT correctness rules stay at Error. Rules\n");
+        sb.Append("     about how a type is declared keep their severity - being in editor code\n");
+        sb.Append("     does not make a struct any better as a dictionary key.\n");
         sb.Append(GeneratedNotice("     "));
         sb.Append("<RuleSet Name=\"UPA editor-relaxed\" ToolsVersion=\"10.0\">\n");
         sb.Append("  <Rules AnalyzerId=\"UnityPerformanceAnalyzers\" RuleNamespace=\"UnityPerformanceAnalyzers\">\n");
         foreach (var row in PresetTable.UpaRows)
         {
-            sb.Append(RuleLine(row.Id, "none"));
+            var action = PresetTable.IsEditorRelaxedException(row.Id) ? row.Recommended : "none";
+            sb.Append(RuleLine(row.Id, action));
         }
 
         foreach (var id in PresetTable.WebGlRules)
@@ -154,7 +160,10 @@ public static class PresetEmitter
         sb.Append("[*.cs]\n");
         foreach (var row in PresetTable.UpaRows)
         {
-            sb.Append($"dotnet_diagnostic.{row.Id}.severity = none\n");
+            var severity = PresetTable.IsEditorRelaxedException(row.Id)
+                ? PresetTable.ToEditorconfigSeverity(row.Recommended)
+                : "none";
+            sb.Append($"dotnet_diagnostic.{row.Id}.severity = {severity}\n");
         }
 
         foreach (var id in PresetTable.WebGlRules)

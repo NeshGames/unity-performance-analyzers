@@ -130,6 +130,14 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | [UPA0024](docs/rules/UPA0024.md) | `Resources.Load` in per-frame methods *(off by default)* | ✓ |
 | [UPA0025](docs/rules/UPA0025.md) | Finalizers declared in runtime code | |
 | [UPA0026](docs/rules/UPA0026.md) | Value types boxed by inherited `ToString` / `GetHashCode` / `Equals(object)` / `GetType` calls | ✓ |
+| [UPA0027](docs/rules/UPA0027.md) | `params` overloads called in expanded form, which allocate an array per call | ✓ |
+| [UPA0028](docs/rules/UPA0028.md) | Structs used as collection keys without `IEquatable<T>` and `GetHashCode` | |
+| [UPA0029](docs/rules/UPA0029.md) | Copy loops that `AddRange` would do with one allocation *(code fix)* | |
+| [UPA0030](docs/rules/UPA0030.md) | Known-allocating `string` and `Enum` members in per-frame methods | ✓ |
+
+> Not a rule: [Enum dictionary keys](docs/rules/enum-dictionary-keys.md) documents why the
+> familiar "enum keys box, supply a comparer" advice no longer applies, with measurements
+> across Mono and IL2CPP — and where the cost actually is.
 
 ### Correctness
 

@@ -33,6 +33,10 @@
     <Rule Id="UPA0024" Action="None" />
     <Rule Id="UPA0025" Action="None" />
     <Rule Id="UPA0026" Action="None" />
+    <Rule Id="UPA0027" Action="None" />
+    <Rule Id="UPA0028" Action="None" />
+    <Rule Id="UPA0029" Action="None" />
+    <Rule Id="UPA0030" Action="None" />
     <Rule Id="UPA1000" Action="None" />
     <Rule Id="UPA2000" Action="None" />
     <Rule Id="UPA2010" Action="None" />

@@ -111,4 +111,16 @@ namespace UnityEngine
     public class Rigidbody : Component
     {
     }
+
+    /// <summary>
+    /// Mirrors the overload set that makes UPA0027 worth having: Unity ships arity-2 Max/Min
+    /// only, so a third argument silently resolves to the params overload and allocates.
+    /// </summary>
+    public static class Mathf
+    {
+        public static float Max(float a, float b) => 0f;
+        public static float Max(params float[] values) => 0f;
+        public static float Min(float a, float b) => 0f;
+        public static float Min(params float[] values) => 0f;
+    }
 }

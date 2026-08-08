@@ -46,6 +46,12 @@ public static class PresetTable
         new("UPA0024", "none", "none", "warning", "error"),
         new("UPA0025", "none", "warning", "error", "error"),
         new("UPA0026", "none", "warning", "error", "error"),
+        new("UPA0027", "none", "warning", "error", "error"),
+        new("UPA0028", "none", "warning", "error", "error"),
+        // Deliberately capped at warning: an optimization hint, not a correctness problem,
+        // and the gain is negligible on small collections.
+        new("UPA0029", "none", "warning", "warning", "warning"),
+        new("UPA0030", "none", "warning", "error", "error"),
         new("UPA1000", "none", "info", "warning", "warning"),
         new("UPA2000", "none", "none", "none", "error"),
         new("UPA2010", "none", "none", "none", "error"),
@@ -56,6 +62,18 @@ public static class PresetTable
         new("UPA2031", "none", "warning", "error", "error"),
         new("UPA2032", "none", "none", "info", "info"),
     };
+
+    /// <summary>
+    /// Rules that keep their severity in the editor-relaxed variants. Relaxation exists
+    /// because per-frame cost does not matter in editor tooling — a rule that is not about
+    /// per-frame cost has no reason to be switched off there. UPA0028 is about how a type is
+    /// declared, and a struct used as a dictionary key is just as wrong in an editor window.
+    /// </summary>
+    public static readonly string[] EditorRelaxedExceptions = { "UPA0028" };
+
+    /// <summary>True when the rule keeps its severity in the editor-relaxed variants.</summary>
+    public static bool IsEditorRelaxedException(string id) =>
+        Array.IndexOf(EditorRelaxedExceptions, id) >= 0;
 
     /// <summary>Microsoft.Unity.Analyzers correctness rules: error in every preset.</summary>
     public static readonly string[] UntCorrectness =

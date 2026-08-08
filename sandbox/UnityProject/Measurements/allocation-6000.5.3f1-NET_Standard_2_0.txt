@@ -1,0 +1,43 @@
+[MEASURE] context | editor batchmode
+[MEASURE] api compatibility level (Standalone) | NET_Standard_2_0
+[MEASURE] scripting backend (Standalone) | Mono2x
+=== environment ===
+[MEASURE] unity | 6000.5.3f1
+[MEASURE] platform | WindowsEditor
+[MEASURE] runtime | Mono 6.13.0 (Visual Studio built mono)
+[MEASURE] is64bit | True
+
+=== A1 comparer identity ===
+[MEASURE] EqualityComparer<IntEnum>.Default | System.Collections.Generic.EnumEqualityComparer`1[AllocationMeasurement+IntEnum]
+[MEASURE] EqualityComparer<ByteEnum>.Default | System.Collections.Generic.EnumEqualityComparer`1[AllocationMeasurement+ByteEnum]
+[MEASURE] EqualityComparer<LongEnum>.Default | System.Collections.Generic.LongEnumEqualityComparer`1[AllocationMeasurement+LongEnum]
+[MEASURE] EqualityComparer<int>.Default | System.Collections.Generic.GenericEqualityComparer`1[System.Int32]
+[MEASURE] EqualityComparer<PlainKey>.Default | System.Collections.Generic.ObjectEqualityComparer`1[AllocationMeasurement+PlainKey]
+[MEASURE] EqualityComparer<EquatableKey>.Default | System.Collections.Generic.GenericEqualityComparer`1[AllocationMeasurement+EquatableKey]
+
+=== A1 allocation deltas ===
+[MEASURE] Dictionary<IntEnum,int>.ContainsKey (no comparer) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] Dictionary<ByteEnum,int>.ContainsKey (no comparer) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] Dictionary<int,int>.ContainsKey (control) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] Dictionary<IntEnum,int>.ContainsKey (explicit comparer) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] Dictionary<PlainKey,int>.ContainsKey (no IEquatable) | 204800 bytes over 200000 iterations | 1.02 bytes/op | gen0 collections: 11 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Dictionary<EquatableKey,int>.ContainsKey (IEquatable) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+
+=== A3 known-allocating API candidates ===
+[MEASURE] String.Split(char) | 1425408 bytes over 20000 iterations | 71.27 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] String.ToCharArray() | 1236992 bytes over 20000 iterations | 61.85 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] String.Substring(int,int) | 618496 bytes over 20000 iterations | 30.92 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] String.ToLowerInvariant() | 1236992 bytes over 20000 iterations | 61.85 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] String.ToUpperInvariant() | 1236992 bytes over 20000 iterations | 61.85 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] String.Trim() (nothing to trim) | 0 bytes over 20000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] String.Trim() (whitespace present) | 958464 bytes over 20000 iterations | 47.92 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] Enum.GetValues(typeof(IntEnum)) | 995328 bytes over 20000 iterations | 49.77 bytes/op | gen0 collections: 2 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Enum.GetNames(typeof(IntEnum)) | 1265664 bytes over 20000 iterations | 63.28 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] Texture2D.GetPixels() | 2719744 bytes over 2000 iterations | 1359.87 bytes/op | gen0 collections: 4 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Texture2D.GetPixels32() | 970752 bytes over 2000 iterations | 485.38 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Texture2D.GetRawTextureData() (non-generic) | 970752 bytes over 2000 iterations | 485.38 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Texture2D.GetRawTextureData<byte>() (generic) | 0 bytes over 2000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] Animator.runtimeAnimatorController | MeasurementController
+[MEASURE] Animator clip count on layer 0 | 1
+[MEASURE] Animator.GetCurrentAnimatorClipInfo(int) (array overload) | 94208 bytes over 2000 iterations | 47.10 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] Animator.GetCurrentAnimatorClipInfo(int, List<T>) (list overload) | 0 bytes over 2000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation

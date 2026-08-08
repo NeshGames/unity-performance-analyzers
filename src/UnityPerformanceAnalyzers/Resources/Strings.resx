@@ -244,10 +244,10 @@
     <value>Allocating array-returning Unity API in per-frame method</value>
   </data>
   <data name="UPA0018MessageFormat" xml:space="preserve">
-    <value>'{0}' returns a newly allocated array on every access. Use {1} instead.</value>
+    <value>'{0}' returns a newly allocated array every time it runs. Use {1} instead.</value>
   </data>
   <data name="UPA0018Description" xml:space="preserve">
-    <value>Unity APIs that return arrays create a new copy of the array on every access. This rule checks a closed deny-list with documented non-allocating counterparts: Input.touches (use touchCount with GetTouch), Animator.parameters (use parameterCount with GetParameter), Renderer.sharedMaterials (use GetSharedMaterials with a cached List), and Camera.allCameras (use GetAllCameras with a preallocated array). Physics queries and Mesh array properties are deliberately excluded — other rules own those cases. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
+    <value>Unity APIs that return arrays create a new copy of the array every time they run. This rule checks a closed deny-list of UnityEngine members with documented non-allocating counterparts: Input.touches (use touchCount with GetTouch), Animator.parameters (use parameterCount with GetParameter), Animator.GetCurrentAnimatorClipInfo (use the List overload), Renderer.sharedMaterials (use GetSharedMaterials with a cached List), Camera.allCameras (use GetAllCameras with a preallocated array), and the Texture2D pixel readers GetPixels, GetPixels32 and the non-generic GetRawTextureData (use the generic GetRawTextureData overload, which returns a NativeArray view). Known-allocating BCL members belong to UPA0030 instead. Physics queries, Mesh array properties and the GetComponents overloads are deliberately excluded — other rules own those cases. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
   </data>
   <data name="UPA0017Title" xml:space="preserve">
     <value>Array-returning GetComponents overload in per-frame method</value>
@@ -410,5 +410,50 @@
   </data>
   <data name="UPA3004Description" xml:space="preserve">
     <value>Unity WebGL players run on a single thread: when the main thread blocks waiting for an asynchronous operation, the continuation that would complete the operation can never run, so the application freezes rather than slows down. This applies to AsyncOperationHandle.WaitForCompletion, Task.Wait, Task.WaitAll, Task.WaitAny, Task&lt;TResult&gt;.Result and the GetAwaiter().GetResult() idiom, patterns that often appear to work on desktop platforms where a thread pool exists. Await the operation instead. This rule runs only in compilations that define UPA_TARGET_WEBGL.</value>
+  </data>
+  <data name="UPA0027Title" xml:space="preserve">
+    <value>Params array allocated at call site</value>
+  </data>
+  <data name="UPA0027MessageFormat" xml:space="preserve">
+    <value>'{0}' resolves to its params overload here, allocating a {1}[] on every call. Use a fixed-arity overload, hoist the array to a field, or nest the calls.</value>
+  </data>
+  <data name="UPA0027MessageFormatBoxing" xml:space="preserve">
+    <value>'{0}' resolves to its params object[] overload here, allocating an array and boxing {1} value-type argument(s) on every call. Convert the arguments yourself, or use an overload that does not take object.</value>
+  </data>
+  <data name="UPA0028Title" xml:space="preserve">
+    <value>Value type used as collection key without IEquatable</value>
+  </data>
+  <data name="UPA0028MessageFormat" xml:space="preserve">
+    <value>'{0}' is used as a collection key but implements neither IEquatable&lt;{0}&gt; nor an override of GetHashCode. Every comparison boxes and falls back to reflection.</value>
+  </data>
+  <data name="UPA0028MessageFormatEquatable" xml:space="preserve">
+    <value>'{0}' is used as a collection key without implementing IEquatable&lt;{0}&gt;. EqualityComparer&lt;{0}&gt;.Default will box on every comparison.</value>
+  </data>
+  <data name="UPA0028MessageFormatHashCode" xml:space="preserve">
+    <value>'{0}' is used as a collection key without overriding GetHashCode. ValueType.GetHashCode uses reflection.</value>
+  </data>
+  <data name="UPA0028Description" xml:space="preserve">
+    <value>EqualityComparer&lt;T&gt;.Default chooses its implementation from the type: when T implements IEquatable&lt;T&gt; it calls the typed Equals directly, and otherwise it calls object.Equals(object), which boxes both operands on every comparison. When the struct also does not override Equals, the inherited ValueType.Equals compares field by field through reflection. GetHashCode behaves the same way, so both members are needed — implementing only one still leaves a cost. Enums are not reported: measurement across Mono and IL2CPP confirms the runtime has non-boxing comparers for them. Type parameters are not reported either, since the answer depends on the instantiated type. Unlike CA1815, this rule fires only where the struct is actually used as a key, so consider setting CA1815 to none when this rule is enabled.</value>
+  </data>
+  <data name="UPA0029Title" xml:space="preserve">
+    <value>Sequential Add replaceable with AddRange</value>
+  </data>
+  <data name="UPA0029MessageFormat" xml:space="preserve">
+    <value>This loop adds elements one at a time, which can reallocate the backing array several times. Use AddRange to size the buffer once.</value>
+  </data>
+  <data name="UPA0029Description" xml:space="preserve">
+    <value>List&lt;T&gt; grows by doubling: adding N elements one at a time can reallocate and copy the backing array O(log N) times. AddRange reserves the space up front instead — but only when the source implements ICollection&lt;T&gt;, which is what lets it ask how many elements are coming. For a plain IEnumerable&lt;T&gt;, such as a LINQ query or an iterator method, AddRange falls back to adding one at a time and there is nothing to gain, so this rule checks the source type rather than suggesting the swap unconditionally. Only loops whose body is a single Add of the iteration element are reported: a projection, a filter or an extra statement changes the meaning, and AddRange would not reproduce it. Set upa_addrange_hot_path_only to true to narrow the rule to per-frame code.</value>
+  </data>
+  <data name="UPA0030Title" xml:space="preserve">
+    <value>Known-allocating BCL API in per-frame method</value>
+  </data>
+  <data name="UPA0030MessageFormat" xml:space="preserve">
+    <value>'{0}' allocates a new {1} on every call. {2}</value>
+  </data>
+  <data name="UPA0030Description" xml:space="preserve">
+    <value>Whether an arbitrary method allocates cannot be decided without escape analysis across method boundaries, so this rule does not try: it checks a closed list of BCL members whose allocation is a documented, measured fact. The list covers the string operations that return a new instance (Split, ToCharArray, Substring, ToLower, ToLowerInvariant, ToUpper, ToUpperInvariant, Trim, TrimStart, TrimEnd) and the enum reflection helpers that return a new array on every call (Enum.GetValues, Enum.GetNames). Trim and its variants return the original instance when there is nothing to trim, so a reported call may cost nothing in practice; the rule cannot know the contents of the string. UnityEngine members with the same problem are reported by UPA0018 instead, so no call is reported twice. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
+  </data>
+  <data name="UPA0027Description" xml:space="preserve">
+    <value>A params parameter can be called in two ways. Passing an array uses normal form, where the allocation is visible and under the caller's control. Passing the elements directly uses expanded form, where the compiler creates a new array at the call site on every call — nothing in the source says so. Mathf.Max and Mathf.Min are the common case in Unity, since only arity-2 overloads exist and a third argument silently switches to the params overload; string.Format, string.Concat, string.Join, Path.Combine and Debug.LogFormat behave the same way past their fixed-arity overloads. When the parameter is params object[], each value-type argument boxes on top of the array allocation. Zero-argument calls are not reported: those compile to Array.Empty and allocate nothing. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
   </data>
 </root>

@@ -79,8 +79,43 @@ namespace UnityEngine
         public Mesh sharedMesh { get; set; } = null!;
     }
 
+    public struct Color32
+    {
+    }
+
+    /// <summary>
+    /// Stand-in for Unity's NativeArray. The real type lives in Unity.Collections and is a
+    /// view over unmanaged memory — the point for the analyzer is that the generic
+    /// GetRawTextureData overload returns this instead of a managed array.
+    /// </summary>
+    public struct NativeArray<T>
+    {
+        public int Length => 0;
+    }
+
+    public class Texture : Object
+    {
+        public int width => 0;
+        public int height => 0;
+    }
+
+    public class Texture2D : Texture
+    {
+        public Color[] GetPixels() => null!;
+        public Color[] GetPixels(int x, int y, int blockWidth, int blockHeight) => null!;
+        public Color32[] GetPixels32() => null!;
+        public byte[] GetRawTextureData() => null!;
+        public NativeArray<T> GetRawTextureData<T>() where T : struct => default;
+        public void SetPixels(Color[] colors) { }
+    }
+
     public class AnimatorControllerParameter
     {
+    }
+
+    public struct AnimatorClipInfo
+    {
+        public float weight => 0f;
     }
 
     public class Animator : Behaviour
@@ -88,6 +123,10 @@ namespace UnityEngine
         public AnimatorControllerParameter[] parameters => null!;
         public int parameterCount => 0;
         public AnimatorControllerParameter GetParameter(int index) => null!;
+
+        public AnimatorClipInfo[] GetCurrentAnimatorClipInfo(int layerIndex) => null!;
+        public void GetCurrentAnimatorClipInfo(int layerIndex, List<AnimatorClipInfo> clips) { }
+        public int GetCurrentAnimatorClipInfoCount(int layerIndex) => 0;
 
         public static int StringToHash(string name) => 0;
         public void Play(string stateName) { }

@@ -33,6 +33,10 @@ dotnet_diagnostic.UPA0023.severity = none
 dotnet_diagnostic.UPA0024.severity = none
 dotnet_diagnostic.UPA0025.severity = warning
 dotnet_diagnostic.UPA0026.severity = warning
+dotnet_diagnostic.UPA0027.severity = warning
+dotnet_diagnostic.UPA0028.severity = warning
+dotnet_diagnostic.UPA0029.severity = warning
+dotnet_diagnostic.UPA0030.severity = warning
 dotnet_diagnostic.UPA1000.severity = suggestion
 dotnet_diagnostic.UPA2000.severity = none
 dotnet_diagnostic.UPA2010.severity = none
@@ -72,6 +76,10 @@ dotnet_diagnostic.UNT0042.severity = warning
 # upa_hot_path_messages = Update,FixedUpdate,LateUpdate
 # upa_hot_path_attributes = HotPath,PerfCritical
 # upa_hot_path_include_lambdas = true
+
+# Rule options
+# upa_enum_switch_allow_default = true
+# upa_addrange_hot_path_only = false
 
 # Editor tooling: relax performance pressure (IDE side; for Unity builds place
 # editor-relaxed.ruleset as Default.ruleset in your Editor asmdef folders)

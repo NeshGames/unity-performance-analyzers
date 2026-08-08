@@ -5,6 +5,53 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-08-08
+
+Four rules for allocations that are invisible at the call site — the cost hides in
+overload resolution, in the comparer a collection picks, or inside a BCL method. Every
+entry in the new lists, and every replacement they recommend, was measured in a Unity
+sandbox across Mono and IL2CPP on 2022.3 and Unity 6 before shipping.
+
+### Added
+
+- **UPA0027** — params array allocated at call site. Expanded-form `params` calls create
+  an array per call with nothing in the source to say so; `Mathf.Max(a, b, c)` is the
+  common case, since Unity ships arity-2 overloads only. `params object[]` additionally
+  boxes each value-type argument, reported with a separate message that counts them.
+- **UPA0028** — value type used as collection key without `IEquatable<T>`. A struct key
+  without both `IEquatable<T>` and a `GetHashCode` override falls to a comparer that boxes
+  both operands per comparison, and to reflection when `Equals` is not overridden either.
+  Not hot-path scoped: the cost is the same wherever the lookup happens.
+- **UPA0029** — sequential `Add` replaceable with `AddRange`, with a code fix. Only
+  reported when the source implements `ICollection<T>`, which is what lets `AddRange`
+  pre-size; over a plain `IEnumerable<T>` it adds one at a time and there is nothing to
+  gain.
+- **UPA0030** — known-allocating BCL API in per-frame method. A closed list of `string`
+  and `Enum` members that allocate on every call. Note that `Trim` returns the original
+  instance when there is nothing to trim, and so may cost nothing at runtime.
+
+### Changed
+
+- **UPA0018** now covers methods as well as properties, gaining
+  `Animator.GetCurrentAnimatorClipInfo(int)` and the `Texture2D` pixel readers. The
+  generic `GetRawTextureData<T>()` and the `List` overload of `GetCurrentAnimatorClipInfo`
+  are the recommended replacements and are never reported themselves.
+- **UPA0006** no longer reports the boxing of value-type arguments inside a `params`
+  expansion. That allocation belongs to UPA0027, which names the call being made; before
+  this change one allocation would have produced two diagnostics. Boxing anywhere else is
+  unaffected.
+- The `editor-relaxed` presets keep UPA0028 at its normal severity instead of switching it
+  off with the rest. Relaxation exists because per-frame cost does not matter in editor
+  tooling, and that rule is not about per-frame cost.
+
+### Documentation
+
+- [Enum dictionary keys](https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/enum-dictionary-keys.md)
+  — the widely repeated advice that enum dictionary keys box no longer holds. Measurement
+  across five Mono and IL2CPP combinations shows the runtime has dedicated non-boxing
+  comparers for enums. The same measurements show the cost is real for struct keys, which
+  is what UPA0028 reports. No rule number is assigned; the page explains why.
+
 ## [0.5.0] - 2026-08-08
 
 Rule behavior is unchanged from 0.4.0; this release adds tooling around the analyzers.

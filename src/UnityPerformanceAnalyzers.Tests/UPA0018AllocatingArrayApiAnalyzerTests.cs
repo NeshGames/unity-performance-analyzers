@@ -119,5 +119,134 @@ class C : MonoBehaviour
     }
 }");
         }
+
+        // UPA0018 test case 5 (v0.6 deny-list extension)
+        [Fact]
+        public Task GetCurrentAnimatorClipInfoArrayOverload_InUpdate_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    Animator animator;
+
+    void Update()
+    {
+        var clips = {|UPA0018:animator.GetCurrentAnimatorClipInfo(0)|};
+    }
+}");
+        }
+
+        // UPA0018 test case 6 — the replacement must not report itself.
+        [Fact]
+        public Task GetCurrentAnimatorClipInfoListOverload_InUpdate_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    Animator animator;
+    List<AnimatorClipInfo> cached = new List<AnimatorClipInfo>();
+
+    void Update()
+    {
+        animator.GetCurrentAnimatorClipInfo(0, cached);
+    }
+}");
+        }
+
+        // UPA0018 test case 7
+        [Fact]
+        public Task TextureGetPixels_InUpdate_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    Texture2D texture;
+
+    void Update()
+    {
+        var pixels = {|UPA0018:texture.GetPixels()|};
+    }
+}");
+        }
+
+        // UPA0018 test case 8 — the generic overload is the advice, not a violation.
+        [Fact]
+        public Task TextureGetRawTextureDataGeneric_InUpdate_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    Texture2D texture;
+
+    void Update()
+    {
+        var data = texture.GetRawTextureData<byte>();
+    }
+}");
+        }
+
+        // UPA0018 test case 9
+        [Fact]
+        public Task TextureGetRawTextureDataNonGeneric_InUpdate_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    Texture2D texture;
+
+    void Update()
+    {
+        var data = {|UPA0018:texture.GetRawTextureData()|};
+    }
+}");
+        }
+
+        // UPA0018 test case 10
+        [Fact]
+        public Task TextureGetPixels_InStart_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    Texture2D texture;
+
+    void Start()
+    {
+        var pixels = texture.GetPixels();
+    }
+}");
+        }
+
+        // Also covers UPA0030's boundary: a BCL allocator on the same hot path is that
+        // rule's business, and must not surface here.
+        [Fact]
+        public Task StringSplit_InUpdate_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    string source;
+
+    void Update()
+    {
+        var parts = source.Split(',');
+    }
+}");
+        }
     }
 }

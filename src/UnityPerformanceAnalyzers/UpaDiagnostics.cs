@@ -21,6 +21,21 @@ namespace UnityPerformanceAnalyzers
             return Diagnostic.Create(descriptor, location, GetProperties(location), messageArgs);
         }
 
+        /// <summary>
+        /// Same, for rules that report at a use site but want to point at a declaration
+        /// elsewhere — the snippet still comes from the primary location, since that is the
+        /// line the diagnostic is anchored to.
+        /// </summary>
+        public static Diagnostic Create(
+            DiagnosticDescriptor descriptor,
+            Location location,
+            ImmutableArray<Location> additionalLocations,
+            params object?[]? messageArgs)
+        {
+            return Diagnostic.Create(
+                descriptor, location, additionalLocations, GetProperties(location), messageArgs);
+        }
+
         private static ImmutableDictionary<string, string?> GetProperties(Location location)
         {
             var tree = location.SourceTree;

@@ -60,13 +60,19 @@ namespace UnityPerformanceAnalyzers
                     allocationDescription = DescribeObjectCreation(objectCreation);
                     break;
                 case IArrayCreationOperation arrayCreation:
-                    // Implicit array creations are params expansions — excluded in v0.1.
+                    // Implicit array creations are params expansions — UPA0027's business.
                     allocationDescription = arrayCreation.IsImplicit
                         ? null
                         : arrayCreation.Type?.ToDisplayString(s_typeDisplayFormat);
                     break;
                 case IConversionOperation conversion:
-                    allocationDescription = DescribeBoxing(conversion);
+                    // The boxing inside a params expansion belongs to the same cost as the
+                    // array around it, and UPA0027 already reports both together while naming
+                    // the call. Reporting it here too would put two diagnostics on one line
+                    // for one allocation.
+                    allocationDescription = IsInsideParamsExpansion(conversion)
+                        ? null
+                        : DescribeBoxing(conversion);
                     break;
                 case IInterpolationOperation interpolation:
                     allocationDescription = DescribeInterpolationHoleBoxing(interpolation);
@@ -113,6 +119,16 @@ namespace UnityPerformanceAnalyzers
 
             return type.ToDisplayString(s_typeDisplayFormat);
         }
+
+        /// <summary>
+        /// True when this conversion is an element of the array the compiler synthesized for
+        /// an expanded-form params call. The element sits inside the array initializer, so the
+        /// initializer's parent is the implicit creation.
+        /// </summary>
+        private static bool IsInsideParamsExpansion(IConversionOperation conversion) =>
+            conversion.Parent is IArrayInitializerOperation initializer &&
+            initializer.Parent is IArrayCreationOperation arrayCreation &&
+            arrayCreation.IsImplicit;
 
         private static string? DescribeBoxing(IConversionOperation conversion)
         {

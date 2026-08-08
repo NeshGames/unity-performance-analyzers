@@ -20,3 +20,6 @@ sandbox/UnityProject/ProjectSettings/*
 !sandbox/UnityProject/ProjectSettings/ProjectVersion.txt
 sandbox/UnityProject/Packages/packages-lock.json
 sandbox/*.log
+# Player builds from the allocation measurement harness. The reports under
+# sandbox/UnityProject/Measurements/ are the durable artifact; the players are not.
+sandbox/UnityProject/Builds/

@@ -47,6 +47,11 @@ internal static class Program
             "bool",
             "true",
             "For UPA1001, a default branch (or discard arm) counts as exhaustive."),
+        new(
+            "upa_addrange_hot_path_only",
+            "bool",
+            "false",
+            "Narrow UPA0029 to per-frame code instead of reporting copy loops anywhere."),
     };
 
     private static int Main(string[] args)
