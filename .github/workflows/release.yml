@@ -1,7 +1,7 @@
 name: Release
 
-# OpenUPM resolves the package from the git tag, so the tag itself must already
-# contain the analyzer DLL and a package.json whose version matches the tag exactly.
+# Unity resolves the package straight out of the git tag the install URL names, so the tag
+# itself must already contain the analyzer DLL and a package.json whose version matches it.
 # Nothing can inject files into a tag that already exists, so releasing works the other
 # way around: run this workflow manually and it creates the release commit, the tag, and
 # the GitHub Release - in that order, and only after the package has been compiled in
@@ -19,6 +19,14 @@ on:
           package failed it.
         required: false
         default: ""
+      preflight_only:
+        description: >
+          Only check that trusted publishing still works, then stop. Nothing is built,
+          committed, tagged or published. Use it to prove a new or changed nuget.org
+          policy before a release depends on it.
+        type: boolean
+        required: false
+        default: false
 
 # Deliberately no tags trigger. Publishing on any pushed v* tag was a way into the
 # irreversible half of this workflow that skipped every gate in front of it: a tag whose
@@ -37,10 +45,53 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Answers "would a release be able to publish?" without releasing anything. The policy on
+  # nuget.org is matched against the workflow file the token comes from, so this has to live
+  # in this file to be worth running: a preflight in a workflow of its own would need a
+  # second policy and would then prove that second policy works, which is not the question.
+  #
+  # It is the same exchange prepare-release performs, and the key is discarded the same way.
+  # Nothing here checks out the repository, builds, or writes anything.
+  credential-preflight:
+    if: inputs.preflight_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: The nuget.org username is configured
+        env:
+          NUGET_USER: ${{ secrets.NUGET_USER }}
+        run: |
+          if [ -z "${NUGET_USER:-}" ]; then
+            echo "::error::NUGET_USER is not set. It is the nuget.org profile name that owns the trusted-publishing policy, not an email address."
+            exit 1
+          fi
+
+      # Pinned to a commit rather than to the v1 tag, unlike the actions/* steps elsewhere
+      # in this file. A moving tag decides later what code runs, and this is the one step
+      # that holds id-token: write and turns it into a credential able to publish under our
+      # name. The usual objection to pinning - silently running stale action code until a
+      # release fails - is what this job answers: it is the cheap way to find that out, and
+      # it finds it out before a release rather than during one.
+      - name: Trusted publishing reaches nuget.org
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841   # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Report
+        run: echo "Trusted publishing is configured correctly. Nothing was published." >> "$GITHUB_STEP_SUMMARY"
+
   # Pins the commit under test. Without it the smoke test and the release build would each
   # resolve "main" on their own, and a push landing between them would mean the thing that
   # was tested and the thing that ships are not the same commit - with nothing to notice.
+  #
+  # Skipping this on a preflight run is what stops the release: prepare-release requires a
+  # successful snapshot, so the whole irreversible half collapses behind one condition
+  # rather than each job having to remember to opt out.
   snapshot:
+    if: ${{ !inputs.preflight_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -163,6 +214,11 @@ jobs:
     if: always() && needs.snapshot.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # A job-level block replaces the workflow-level one outright rather than adding to it,
+    # so contents must be restated here - this job pushes the release commit and the tag.
+    permissions:
+      contents: write
+      id-token: write   # the OIDC token the trusted-publishing pre-flight below exchanges
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -213,14 +269,29 @@ jobs:
       # the guard above rejects every rerun of that version. Skipping the push instead
       # would be worse than failing - the release notes tell users to install this exact
       # version from NuGet, and attaching the .nupkg does not make that command work.
-      - name: NuGet credentials are present
+      #
+      # Publishing authenticates by OIDC, so there is no stored key whose presence could be
+      # asserted. What can be wrong instead is the trusted-publishing policy on nuget.org:
+      # absent, lapsed out of its provisional window, or naming a different owner, repo or
+      # workflow file. None of that is visible from here, so the pre-flight performs the real
+      # exchange and discards the key it gets. The policy is bound to the workflow file, and
+      # the publish job below lives in this same file, so what succeeds here is what it will
+      # present.
+      - name: The nuget.org username is configured
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_USER: ${{ secrets.NUGET_USER }}
         run: |
-          if [ -z "${NUGET_API_KEY:-}" ]; then
-            echo "::error::NUGET_API_KEY is not set. upa-cli ships from this workflow, so releasing without it would advertise an install command that fails. Add the secret and re-run - nothing has been pushed."
+          if [ -z "${NUGET_USER:-}" ]; then
+            echo "::error::NUGET_USER is not set. It is the nuget.org profile name that owns the trusted-publishing policy, not an email address. Add the secret and re-run - nothing has been pushed."
             exit 1
           fi
+
+      # Held in a secret rather than written here because this workflow is part of the
+      # published repository, and the account name is not something the package pages give away.
+      - name: Trusted publishing reaches nuget.org
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841   # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
 
       - name: Build
         run: dotnet build UnityPerformanceAnalyzers.sln -c Release
@@ -346,6 +417,10 @@ jobs:
     needs: prepare-release
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # As above, restating contents is not redundant: this job creates the GitHub Release.
+    permissions:
+      contents: write
+      id-token: write   # the OIDC token exchanged for the key that pushes to NuGet
     steps:
       - name: Resolve the tag
         id: tag
@@ -414,13 +489,22 @@ jobs:
           fi
           dotnet upa-cli --list-rules > /dev/null
 
+      # Here rather than at the top of the job: the key nuget.org issues lasts an hour, and
+      # the pack and install checks above are the slow part. Requesting it early would risk
+      # spending that hour on the checks and reaching the push with an expired key.
+      - name: NuGet login (OIDC to a short-lived key)
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841   # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Publish upa-cli to NuGet
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
           if [ -z "${NUGET_API_KEY:-}" ]; then
-            echo "::error::NUGET_API_KEY is not set; the release notes advertise this version on NuGet. Add the secret and re-run this job."
+            echo "::error::The login step returned no API key; the release notes advertise this version on NuGet. Re-run this job - the tag already exists and every step here is idempotent."
             exit 1
           fi
           dotnet nuget push "artifacts/nuget/*.nupkg" \
