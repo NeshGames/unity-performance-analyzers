@@ -1104,7 +1104,7 @@ public sealed class Broken : MonoBehaviour
 
         // A dangling link is the case that matters: File.Exists answers false for it, so a
         // guard built on that would replace a link someone placed on purpose.
-        [Theory]
+        [SymlinkTheory]
         [InlineData(true)]
         [InlineData(false)]
         public void SymlinkTarget_IsRefused(bool dangling)
@@ -1117,15 +1117,9 @@ public sealed class Broken : MonoBehaviour
                 File.WriteAllText(destination, "{}");
             }
 
-            try
-            {
-                File.CreateSymbolicLink(target, destination);
-            }
-            catch (Exception)
-            {
-                // Creating links needs a privilege this machine may not grant.
-                return;
-            }
+            // Not guarded: [SymlinkTheory] has already established that links can be created
+            // here, so a failure now is a real one rather than a missing privilege.
+            File.CreateSymbolicLink(target, destination);
 
             var (exitCode, _, stderr) = Run(file, "--whole-assembly", "--write-baseline", target);
 

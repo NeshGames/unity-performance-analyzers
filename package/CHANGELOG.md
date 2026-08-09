@@ -72,6 +72,11 @@ under those numbers; collapsing them costs nobody a version they had.
 
 ### Fixed
 
+- **`--write-baseline` at a symbolic link is refused before the link is followed.** The
+  refusal existed but ran after the existing file had been read, so a link pointing at
+  something that was not a baseline was rejected for that file's contents instead — the
+  answer named the wrong problem, and a dangling link was not caught at all.
+
 - **Two options only ever worked in the IDE.** `upa_shader_property_hot_path_only`
   (UPA0003) and `upa_log_wrapper_types` (UPA0005) read `.editorconfig` directly instead of
   going through the layered lookup, and Unity does not pass `.editorconfig` to the

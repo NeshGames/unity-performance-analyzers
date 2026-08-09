@@ -78,6 +78,11 @@ internal sealed class BaselineSession
 
         BaselineWriter.EnsureRunIsWritable(_options, result);
 
+        // Before File.Exists, and before the file is read. A link pointing at something that is
+        // not a baseline would otherwise be rejected for its target's contents - the caller
+        // hears that their file is malformed when what is wrong is that it is not their file.
+        BaselineWriter.EnsureNotSymbolicLink(target);
+
         if (File.Exists(target))
         {
             BaselineWriter.EnsureCoversExistingBaseline(

@@ -77,11 +77,14 @@ internal static class BaselineWriter
     /// Replaces the file atomically. An interrupted write destroys a contract that is already
     /// committed, so the existing file is either untouched or wholly replaced.
     /// </summary>
-    public static void Write(string path, BaselineDocument document)
+    /// <summary>
+    /// Refuses when the path names a symbolic link. Call this before anything else touches the
+    /// path: reading it first means a link whose target is not a baseline is refused for the
+    /// target's contents rather than for being a link, and the caller is told the wrong thing
+    /// about the thing they own.
+    /// </summary>
+    public static void EnsureNotSymbolicLink(string path)
     {
-        var directory = DirectoryOf(path);
-        Directory.CreateDirectory(directory);
-
         // Asked of the link itself rather than through File.Exists, which answers false for a
         // dangling link — and that is precisely the case where replacing it destroys a link
         // someone placed deliberately. Following one would write to whatever sits at the other
@@ -90,6 +93,17 @@ internal static class BaselineWriter
         {
             throw new CliException($"Refusing to write through a symbolic link: {path}");
         }
+    }
+
+    public static void Write(string path, BaselineDocument document)
+    {
+        var directory = DirectoryOf(path);
+        Directory.CreateDirectory(directory);
+
+        // Repeated rather than assumed of the caller: this is the method that replaces the
+        // file, and the guard belongs where the damage would be done as well as where the
+        // message is most useful.
+        EnsureNotSymbolicLink(path);
 
         // Same directory, so the replacement stays on one file system and can be atomic.
         var temporary = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
@@ -133,10 +147,16 @@ internal static class BaselineWriter
     {
         try
         {
-            return new FileInfo(path).LinkTarget is object;
+            // ResolveLinkTarget reports the link rather than following it, so a dangling link
+            // answers the same as a live one. FileInfo.LinkTarget is documented to do that too,
+            // but it reaches the answer through a FileInfo whose own existence checks differ by
+            // platform, and the dangling case is the one that has to be right.
+            return File.ResolveLinkTarget(path, returnFinalTarget: false) is object;
         }
         catch (IOException)
         {
+            // No entry at this path at all, which is the ordinary case: a baseline being
+            // written for the first time.
             return false;
         }
         catch (UnauthorizedAccessException)
