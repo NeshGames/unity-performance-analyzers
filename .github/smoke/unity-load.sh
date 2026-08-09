@@ -103,7 +103,7 @@ if [ "$compiled" -ne 1 ]; then
   infra "the project never compiled (licence, image, or editor start-up), so the package was not tested."
 fi
 
-if ! "$here/assert-diagnostics.sh" "$log" "Unity $label" "$here/Probe.cs" "$here/NoTrigger.cs"; then
+if ! bash "$here/assert-diagnostics.sh" "$log" "Unity $label" "$here/Probe.cs" "$here/NoTrigger.cs"; then
   echo "--- UPA diagnostics in $log"
   grep -E "\): (warning|error|info) (UPA[0-9]{4}|CS8032|CS8033|AD0001):" "$log" | sed 's/^/    /' || true
   exit 1

@@ -119,7 +119,7 @@ for csc in $compilers; do
   log="$work/roslyn-$version.log"
   compile "$csc" "$log" -analyzer:"$analyzer" -analyzer:"$codefixes"
   cat "$log"
-  "$here/assert-diagnostics.sh" "$log" "Roslyn $version" "$here/Probe.cs" "$here/NoTrigger.cs" || status=1
+  bash "$here/assert-diagnostics.sh" "$log" "Roslyn $version" "$here/Probe.cs" "$here/NoTrigger.cs" || status=1
 
   # Control run. The assertions above pass only when the analyzer is loaded, and this
   # is what proves it: the same probe, the same ruleset, no -analyzer arguments, and

@@ -58,10 +58,31 @@ check_full() {   # $1 = expected, $2 = override, $3 = local verdict, $4 = name, 
   done
   mkdir -p "$dir"
 
-  local got=allow
+  # The gate's two answers are exit 0 and exit 1. Anything else means it did not answer -
+  # 126 for a script without the executable bit, 127 for one that is not there - and mapping
+  # every non-zero status to "block" reads those as a refusal. Every case expecting a block
+  # then passes while nothing runs at all, which is what happened on Linux: 29 of these
+  # reported ok against a script that could not start.
+  #
+  # Run through `bash` for the same reason. The scripts are committed without the executable
+  # bit, which Windows cannot represent and Linux enforces, so executing one directly works
+  # everywhere it is developed and nowhere it is verified.
+  local status=0
   OVERRIDE="$override" LOCAL_VERDICT="$local_verdict" \
     GITHUB_ENV="$dir/env" GITHUB_STEP_SUMMARY="$dir/summary" \
-    "$here/release-gate.sh" "$dir" "$tmp/versions.json" > "$dir/out.txt" 2>&1 || got=block
+    bash "$here/release-gate.sh" "$dir" "$tmp/versions.json" > "$dir/out.txt" 2>&1 || status=$?
+
+  local got
+  case "$status" in
+    0) got=allow ;;
+    1) got=block ;;
+    *)
+      echo "SELFTEST FAIL: '$name' - the gate exited $status, which is neither allow nor block"
+      sed 's/^/    /' "$dir/out.txt"
+      failures=1
+      return
+      ;;
+  esac
 
   if [ "$got" != "$want" ]; then
     echo "SELFTEST FAIL: '$name' should $want, got $got"
@@ -160,11 +181,18 @@ check_full  allow "outage" "2022.3=pass 6000.1=pass" "a local result wins over a
 
 # A version list the gate cannot read must block rather than pass over an empty loop.
 printf '[]\n' > "$tmp/empty.json"
-if OVERRIDE="" "$here/release-gate.sh" "$tmp" "$tmp/empty.json" > /dev/null 2>&1; then
-  echo "SELFTEST FAIL: an empty version list was allowed through"
-  failures=1
-else
-  echo "ok  an empty version list -> block"
-fi
+empty_status=0
+OVERRIDE="" bash "$here/release-gate.sh" "$tmp" "$tmp/empty.json" > /dev/null 2>&1 || empty_status=$?
+case "$empty_status" in
+  1) echo "ok  an empty version list -> block" ;;
+  0)
+    echo "SELFTEST FAIL: an empty version list was allowed through"
+    failures=1
+    ;;
+  *)
+    echo "SELFTEST FAIL: the gate exited $empty_status on an empty version list, which is neither allow nor block"
+    failures=1
+    ;;
+esac
 
 exit $failures
