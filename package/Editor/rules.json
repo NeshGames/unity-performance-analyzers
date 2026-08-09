@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "upa": [
     {
       "id": "UPA0001",
@@ -302,6 +302,16 @@
       "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0030.md"
     },
     {
+      "id": "UPA0031",
+      "title": "Instantiate or Destroy in per-frame method",
+      "category": "Performance",
+      "defaultSeverity": "Warning",
+      "enabledByDefault": true,
+      "hotPath": true,
+      "condition": null,
+      "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0031.md"
+    },
+    {
       "id": "UPA1000",
       "title": "Leaf class not sealed",
       "category": "Correctness",
@@ -513,6 +523,18 @@
       "type": "bool",
       "default": "false",
       "description": "Narrow UPA0029 to per-frame code instead of reporting copy loops anywhere."
+    },
+    {
+      "key": "upa_shader_property_hot_path_only",
+      "type": "bool",
+      "default": "false",
+      "description": "Narrow UPA0003 to per-frame code instead of reporting every string-keyed lookup."
+    },
+    {
+      "key": "upa_log_wrapper_types",
+      "type": "list",
+      "default": "",
+      "description": "Type names that already wrap logging; UPA0005 stays quiet inside them."
     }
   ]
 }
