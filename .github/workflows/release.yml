@@ -12,11 +12,20 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      local_smoke:
+        description: >
+          Result of running .github/smoke/unity-load.sh outside CI, as
+          "2022.3.62f2=pass 6000.5.3f1=pass" and nothing else. This is the normal path: the
+          editor licence is deliberately not held by this repository, so the Unity layer
+          runs on a developer machine. Every supported version must be stated as passing;
+          anything else in the field, including pasted script output, is refused.
+        required: false
+        default: ""
       smoke_override:
         description: >
-          Reason to release although the Unity smoke test could not run (licence, image,
-          editor start-up). Leave empty. It is refused when the smoke test ran and the
-          package failed it.
+          Reason to release with no Unity result at all. Not for the case above - this one
+          states that the package is untested against Unity, and says so on the release
+          commit. It is refused when the smoke test ran and the package failed it.
         required: false
         default: ""
       preflight_only:
@@ -97,16 +106,29 @@ jobs:
     outputs:
       sha: ${{ steps.read.outputs.sha }}
       unity: ${{ steps.read.outputs.unity }}
+      licence: ${{ steps.read.outputs.licence }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
 
       - id: read
+        # Read here because a job-level `if` cannot see the secrets context, and the
+        # question has to be answered before the matrix below is worth starting.
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         run: |
           set -euo pipefail
           sha=$(git rev-parse HEAD)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+          # Presence only; the value itself is never printed or written anywhere.
+          if [ -n "${UNITY_LICENSE:-}" ]; then
+            echo "licence=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "licence=no" >> "$GITHUB_OUTPUT"
+            echo "No editor licence here, so the Unity layer runs outside CI - state its result in 'local_smoke'." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           # One source for the Unity versions: the matrix below and the gate in
           # prepare-release both read this file, so a version can never be smoke-tested
@@ -124,8 +146,17 @@ jobs:
   # It gates the tag rather than the publish step, because the tag *is* the Unity
   # distribution channel: UPM resolves the package straight out of it, so by the time a
   # tag exists a broken package is already installable.
+  #
+  # Skipped when this repository holds no editor licence, which is the deliberate state:
+  # a .ulf is a credential bound to a Unity account, and any collaborator with write access
+  # could read it back out of a workflow. Without it these jobs could only ever pull two
+  # editor images to reach a foregone infra verdict, and the release gate would then need
+  # an override every single time - which is how an override stops meaning anything. The
+  # check itself is not given up: unity-load.sh takes the editor path as an argument, so it
+  # runs on a developer machine and its result is stated in 'local_smoke'.
   unity-smoke:
     needs: snapshot
+    if: needs.snapshot.outputs.licence == 'yes'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -228,7 +259,12 @@ jobs:
           ref: ${{ needs.snapshot.outputs.sha }}
           fetch-depth: 0
 
+      # continue-on-error because the skipped-job case uploads nothing and the action treats
+      # a pattern that matches no artifact as an error. A download that fails for any other
+      # reason lands in the same place - no verdict files - and the gate reads that as "not
+      # tested", which is the safe direction for a mistake to fall in.
       - name: Collect the Unity smoke verdicts
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           pattern: unity-smoke-*
@@ -239,6 +275,7 @@ jobs:
       # in Unity and a permanent tag, and both ways of getting it wrong are quiet ones.
       - name: The Unity smoke test allows this release
         env:
+          LOCAL_VERDICT: ${{ inputs.local_smoke }}
           OVERRIDE: ${{ inputs.smoke_override }}
         run: |
           set -euo pipefail
@@ -379,9 +416,16 @@ jobs:
           git add -f package/Analyzers/UnityPerformanceAnalyzers.dll
           git add -f package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
 
-          # An unverified release says so on the commit it tags. A job summary is gone in
-          # a fortnight; whoever asks later why a version misbehaves reads the history.
+          # How a release was verified says so on the commit it tags. A job summary is gone
+          # in a fortnight; whoever asks later why a version misbehaves reads the history.
+          # The two notes are kept apart because they are different claims: one says the
+          # Unity check was run elsewhere, the other says it was not run.
           message="Release v${{ steps.version.outputs.version }}"
+          if [ -n "${LOCAL_SMOKE_NOTE:-}" ]; then
+            message="$message
+
+          Unity smoke test run outside CI: $LOCAL_SMOKE_NOTE"
+          fi
           if [ -n "${SMOKE_OVERRIDE_NOTE:-}" ]; then
             message="$message
 
