@@ -38,9 +38,9 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var flagsAttributeType = ctx.Compilation.GetTypeByMetadataName("System.FlagsAttribute");
+            var flagsAttributeType = ctx.Type("System.FlagsAttribute");
             var allowDefault = ReadAllowDefaultOption(ctx.Compilation, ctx.Options);
 
             ctx.RegisterOperationAction(

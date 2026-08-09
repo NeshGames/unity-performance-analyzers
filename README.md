@@ -8,7 +8,7 @@ compile-time checks. Rules adapt automatically to the packages each assembly ref
 
 Distributed as a UPM package. Supports **Unity 2022.3 LTS through Unity 6**.
 
-> **Status: pre-1.0.** All <!-- generated:rule-count -->45<!-- /generated:rule-count --> rules are implemented and verified against
+> **Status: pre-1.0.** All <!-- generated:rule-count -->46<!-- /generated:rule-count --> rules are implemented and verified against
 > Unity 2022.3 and Unity 6 sandbox builds. Rule IDs are stable — once released,
 > an ID is never reused.
 
@@ -136,6 +136,7 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | [UPA0028](docs/rules/UPA0028.md) | Structs used as collection keys without `IEquatable<T>` and `GetHashCode` | |
 | [UPA0029](docs/rules/UPA0029.md) | Copy loops that `AddRange` would do with one allocation | |
 | [UPA0030](docs/rules/UPA0030.md) | Known-allocating `string` and `Enum` members in per-frame methods | ✓ |
+| [UPA0031](docs/rules/UPA0031.md) | `Instantiate` or `Destroy` in per-frame methods | ✓ |
 
 > Not a rule: [Enum dictionary keys](docs/rules/enum-dictionary-keys.md) documents why the
 > familiar "enum keys box, supply a comparer" advice no longer applies, with measurements

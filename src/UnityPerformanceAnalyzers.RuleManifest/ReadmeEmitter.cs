@@ -1,4 +1,5 @@
 using System.Text;
+using UnityPerformanceAnalyzers.Catalog;
 
 namespace UnityPerformanceAnalyzers.RuleManifest;
 
@@ -73,6 +74,8 @@ public static class ReadmeEmitter
         ["UPA0029"] = new("Copy loops that `AddRange` would do with one allocation", "可用 `AddRange` 一次配置取代的逐個 `Add` 迴圈"),
         ["UPA0030"] = new("Known-allocating `string` and `Enum` members in per-frame methods", "逐幀方法內已知會配置的 `string` / `Enum` 成員"),
 
+        ["UPA0031"] = new("`Instantiate` or `Destroy` in per-frame methods", "逐幀方法內的 `Instantiate` / `Destroy`"),
+
         ["UPA1000"] = new("Leaf classes not sealed", "葉端類別未 `sealed`"),
         ["UPA1001"] = new("Enum switches missing declared members", "enum switch 漏列宣告成員"),
 
@@ -95,7 +98,7 @@ public static class ReadmeEmitter
     /// <summary>Rewrites both READMEs in place; returns the files it changed.</summary>
     public static IReadOnlyList<string> WriteAll(string repoRoot)
     {
-        var rules = RuleCatalog.Collect();
+        var rules = UpaRuleCatalog.Rules();
         var missing = rules.Where(rule => !s_blurbs.ContainsKey(rule.Id)).Select(rule => rule.Id).ToArray();
         if (missing.Length > 0)
         {
@@ -134,7 +137,7 @@ public static class ReadmeEmitter
         return text.Substring(0, start + begin.Length) + body + text.Substring(stop);
     }
 
-    private static string Render(IReadOnlyList<CatalogRule> rules, bool chinese)
+    private static string Render(IReadOnlyList<UpaRule> rules, bool chinese)
     {
         var sb = new StringBuilder();
 
@@ -171,7 +174,7 @@ public static class ReadmeEmitter
 
     private static void Section(
         StringBuilder sb,
-        IReadOnlyList<CatalogRule> rules,
+        IReadOnlyList<UpaRule> rules,
         bool chinese,
         string category,
         string heading,
@@ -207,7 +210,7 @@ public static class ReadmeEmitter
     /// contradict the rule, except for the note, which says something the metadata does not
     /// know (a former ID, for instance).
     /// </summary>
-    private static string Annotation(CatalogRule rule, Blurb blurb, bool chinese, bool annotateDefaultOff)
+    private static string Annotation(UpaRule rule, Blurb blurb, bool chinese, bool annotateDefaultOff)
     {
         var parts = new List<string>();
 

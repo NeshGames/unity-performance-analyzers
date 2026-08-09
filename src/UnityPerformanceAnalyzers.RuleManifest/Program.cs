@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.CodeAnalysis.Diagnostics;
 using UnityPerformanceAnalyzers;
+using UnityPerformanceAnalyzers.Catalog;
 
 namespace UnityPerformanceAnalyzers.RuleManifest;
 
@@ -19,40 +20,10 @@ namespace UnityPerformanceAnalyzers.RuleManifest;
 internal static class Program
 {
     // Rule metadata (hot-path scope, activation condition) travels with the analyzers as
-    // [HotPathRule]/[ConditionalRule] attributes and is read by reflection below — there
-    // is no curated ID table left to drift. UNT groups come from PresetTable, the same
-    // source the preset files are generated from.
-
-    private static readonly OptionRow[] s_options =
-    {
-        new(
-            "upa_hot_path_messages",
-            "list",
-            "Update,FixedUpdate,LateUpdate,OnGUI,OnAnimatorMove,OnAnimatorIK,OnPreCull," +
-            "OnPreRender,OnPostRender,OnRenderObject,OnWillRenderObject,OnRenderImage," +
-            "OnTriggerStay,OnTriggerStay2D,OnCollisionStay,OnCollisionStay2D,OnParticleUpdateJobScheduled",
-            "Unity messages treated as per-frame hot paths. Replaces the default set."),
-        new(
-            "upa_hot_path_attributes",
-            "list",
-            "HotPath,PerformanceCritical",
-            "Attribute short names that mark any method as a hot path ('Attribute' suffix optional)."),
-        new(
-            "upa_hot_path_include_lambdas",
-            "bool",
-            "true",
-            "Treat lambdas and local functions declared inside a hot-path method as hot."),
-        new(
-            "upa_enum_switch_allow_default",
-            "bool",
-            "true",
-            "For UPA1001, a default branch (or discard arm) counts as exhaustive."),
-        new(
-            "upa_addrange_hot_path_only",
-            "bool",
-            "false",
-            "Narrow UPA0029 to per-frame code instead of reporting copy loops anywhere."),
-    };
+    // [HotPathRule]/[ConditionalRule] attributes and is read by reflection below, and the
+    // option list comes from UpaOptionCatalog in the same assembly — there is no curated
+    // table left to drift. UNT groups come from PresetTable, the same source the preset
+    // files are generated from.
 
     private static int Main(string[] args)
     {
@@ -88,51 +59,34 @@ internal static class Program
             return 1;
         }
 
-        var analyzerAssembly = typeof(UPA1001NonExhaustiveEnumSwitchAnalyzer).Assembly;
-        var rules = new SortedDictionary<string, RuleRow>(StringComparer.Ordinal);
+        // The shape of rules.json is a contract with the Rule Manager window, so the catalog
+        // is projected onto it rather than serialized directly: a field added to the catalog
+        // for one tool's sake must not silently appear in the file another tool parses.
+        var rules = UpaRuleCatalog.Rules()
+            .Select(rule => new RuleRow(
+                rule.Id,
+                rule.Title,
+                rule.Category,
+                rule.DefaultSeverity,
+                rule.EnabledByDefault,
+                rule.HotPath,
+                rule.Condition,
+                rule.HelpUri))
+            .ToArray();
 
-        foreach (var type in analyzerAssembly.GetTypes())
-        {
-            if (type.IsAbstract || !typeof(DiagnosticAnalyzer).IsAssignableFrom(type))
-            {
-                continue;
-            }
-
-            var isHotPath = type.GetCustomAttribute<HotPathRuleAttribute>() is not null;
-            var condition = type.GetCustomAttribute<ConditionalRuleAttribute>()?.Condition;
-
-            var analyzer = (DiagnosticAnalyzer)Activator.CreateInstance(type)!;
-            foreach (var descriptor in analyzer.SupportedDiagnostics)
-            {
-                // UPA2012 lists two descriptors under one ID; first one wins for catalog data.
-                if (rules.ContainsKey(descriptor.Id))
-                {
-                    continue;
-                }
-
-                rules[descriptor.Id] = new RuleRow(
-                    descriptor.Id,
-                    descriptor.Title.ToString(),
-                    descriptor.Category,
-                    descriptor.DefaultSeverity.ToString(),
-                    descriptor.IsEnabledByDefault,
-                    isHotPath,
-                    condition,
-                    descriptor.HelpLinkUri);
-            }
-        }
-
-        var version = analyzerAssembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion.Split('+')[0]
-            ?? analyzerAssembly.GetName().Version?.ToString(3)
-            ?? "0.0.0";
+        var version = UpaRuleCatalog.Version;
 
         var manifest = new Manifest(
             version,
-            rules.Values.ToArray(),
+            rules,
             new UntGroups(PresetTable.UntCorrectness, PresetTable.UntPerformance),
-            s_options);
+            UpaOptionCatalog.Options
+                .Select(option => new OptionRow(
+                    option.Key,
+                    option.Kind.ToString().ToLowerInvariant(),
+                    option.Default,
+                    option.Description))
+                .ToArray());
 
         var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
         {
@@ -144,7 +98,7 @@ internal static class Program
         var outputPath = Path.GetFullPath(args[0]);
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
         File.WriteAllText(outputPath, json + "\n");
-        Console.WriteLine($"Wrote {rules.Count} rules to {outputPath} (version {version})");
+        Console.WriteLine($"Wrote {rules.Length} rules to {outputPath} (version {version})");
         return 0;
     }
 

@@ -27,4 +27,9 @@
     <ProjectReference Include="..\UnityStubs\UnityStubs.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Deliberate violations: read as text by the differential tests, never compiled. -->
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

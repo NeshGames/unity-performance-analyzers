@@ -30,15 +30,15 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var cameraType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Camera");
+            var cameraType = ctx.Type("UnityEngine.Camera");
             if (cameraType is null)
             {
                 return;
             }
 
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzePropertyReference(opCtx, cameraType, hotPathDetector),

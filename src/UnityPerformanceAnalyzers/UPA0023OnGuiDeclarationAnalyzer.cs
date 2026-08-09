@@ -32,14 +32,14 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            if (UpaProfile.IsEditorAssembly(ctx.Compilation))
+            if (ctx.IsEditorAssembly)
             {
                 return;
             }
 
-            var monoBehaviourType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
+            var monoBehaviourType = ctx.Type("UnityEngine.MonoBehaviour");
             if (monoBehaviourType is null)
             {
                 return;

@@ -1,29 +1,15 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA1000LeafClassNotSealedAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA1000LeafClassNotSealedAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA1000LeafClassNotSealedAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            // UPA1000 is disabled by default; enable it the same way a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA1000.severity = warning
-"));
-            return test.RunAsync();
-        }
+                EnabledRules = { "UPA1000" },
+            });
 
         // UPA1000 test case 1
         [Fact]

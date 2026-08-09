@@ -1,8 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
@@ -27,36 +23,18 @@ namespace UnityEngine.ResourceManagement.AsyncOperations
 }
 ";
 
-        // The UPA_TARGET_WEBGL define is simulated through parse options.
-        private class WebGlTest : CSharpAnalyzerTest<UPA3004BlockingWaitAnalyzer, DefaultVerifier>
-        {
-            public bool DefineWebGlTarget { get; set; } = true;
-
-            protected override ParseOptions CreateParseOptions()
-            {
-                var options = (CSharpParseOptions)base.CreateParseOptions();
-                return DefineWebGlTarget
-                    ? options.WithPreprocessorSymbols(UpaProfile.WebGlDefine)
-                    : options;
-            }
-        }
-
         private static Task VerifyAsync(string source, bool defineWebGlTarget = true, bool includeAddressablesStub = false)
         {
-            var test = new WebGlTest
-            {
-                TestCode = includeAddressablesStub ? source + AddressablesStub : source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-                DefineWebGlTarget = defineWebGlTarget,
-            };
             // UPA3004 is disabled by default; enable it as the webgl-addon preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
+            var harness = new RuleHarness { UnityStubs = false, EnabledRules = { "UPA3004" } };
+            if (defineWebGlTarget)
+            {
+                harness.Defines.Add(UpaProfile.WebGlDefine);
+            }
 
-[*.cs]
-dotnet_diagnostic.UPA3004.severity = warning
-"));
-            return test.RunAsync();
+            return RuleVerifier.VerifyAsync<UPA3004BlockingWaitAnalyzer>(
+                includeAddressablesStub ? source + AddressablesStub : source,
+                harness);
         }
 
         // UPA3004 test case 1 — Addressables WaitForCompletion, plain and generic handles

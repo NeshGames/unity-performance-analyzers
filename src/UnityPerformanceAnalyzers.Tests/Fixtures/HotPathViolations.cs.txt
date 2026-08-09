@@ -1,0 +1,32 @@
+// Shared fixture for the differential tests. Both pipelines assert against the markers
+// below, not against each other: two pipelines that agree can be wrong together, and they
+// do not run the same set of rules anyway.
+//
+// expect UPA0001
+// expect UPA0002
+// expect UPA0006
+// expect-none UPA0005
+//
+// Kept to rules that resolve only UnityEngine core types. Rules over BCL symbols see a
+// different reference set from each pipeline, and can legitimately disagree there.
+
+using System.Collections.Generic;
+using UnityEngine;
+
+class HotPathViolations : MonoBehaviour
+{
+    List<int> buffer;
+
+    void Update()
+    {
+        var t = GetComponent<Transform>();
+        var n = gameObject.name;
+        var fresh = new List<int>();
+        buffer = fresh;
+    }
+
+    void Start()
+    {
+        buffer = new List<int>();
+    }
+}

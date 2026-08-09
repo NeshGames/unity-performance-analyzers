@@ -8,7 +8,7 @@ assembly 引用的套件(UniTask、ZString、R3、DOTween)以及專案是否以 
 
 以 UPM package 形式發佈。支援 **Unity 2022.3 LTS ~ Unity 6**。
 
-> **狀態:pre-1.0。** 全部 <!-- generated:rule-count -->45<!-- /generated:rule-count --> 條規則已實作,並在 Unity 2022.3 與 Unity 6 的
+> **狀態:pre-1.0。** 全部 <!-- generated:rule-count -->46<!-- /generated:rule-count --> 條規則已實作,並在 Unity 2022.3 與 Unity 6 的
 > sandbox 建置實測通過。rule ID 一經發佈即穩定,永不重用。
 
 ## 安裝
@@ -128,6 +128,7 @@ upa_enum_switch_allow_default = true
 | [UPA0028](docs/rules/UPA0028.zh-TW.md) | struct 作集合 key 但未實作 `IEquatable<T>` 與覆寫 `GetHashCode` | |
 | [UPA0029](docs/rules/UPA0029.zh-TW.md) | 可用 `AddRange` 一次配置取代的逐個 `Add` 迴圈 | |
 | [UPA0030](docs/rules/UPA0030.zh-TW.md) | 逐幀方法內已知會配置的 `string` / `Enum` 成員 | ✓ |
+| [UPA0031](docs/rules/UPA0031.zh-TW.md) | 逐幀方法內的 `Instantiate` / `Destroy` | ✓ |
 
 > 非規則:[Enum 作字典 key](docs/rules/enum-dictionary-keys.zh-TW.md) 說明「enum key 會裝箱、
 > 要自備 comparer」這條流傳已久的建議為何已不適用,附 Mono 與 IL2CPP 的實測數據——

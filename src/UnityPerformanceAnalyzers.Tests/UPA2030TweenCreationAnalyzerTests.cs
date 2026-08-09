@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
@@ -9,27 +7,17 @@ namespace UnityPerformanceAnalyzers.Tests
     {
         private static Task VerifyAsync(string source, bool referenceDOTween = true)
         {
-            var test = new CSharpAnalyzerTest<UPA2030TweenCreationAnalyzer, DefaultVerifier>
+            var harness = new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
+                Sources = { DoTweenTestSources.Stubs },
+                EnabledRules = { "UPA2030" },
             };
-            test.TestState.Sources.Add(DoTweenTestSources.Stubs);
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
             if (referenceDOTween)
             {
-                test.TestState.AdditionalReferences.Add(
-                    TestMetadataReferences.EmptyAssembly(UpaProfile.DOTweenAssemblyName));
+                harness.PackageAssemblies.Add(UpaProfile.DOTweenAssemblyName);
             }
 
-            // UPA2030 is disabled by default; enable it the same way a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA2030.severity = warning
-"));
-            return test.RunAsync();
+            return RuleVerifier.VerifyAsync<UPA2030TweenCreationAnalyzer>(source, harness);
         }
 
         // UPA2030 test case 1

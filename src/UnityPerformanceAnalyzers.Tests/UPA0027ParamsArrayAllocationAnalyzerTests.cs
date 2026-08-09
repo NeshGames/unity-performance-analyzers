@@ -1,22 +1,12 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0027ParamsArrayAllocationAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0027ParamsArrayAllocationAnalyzer, DefaultVerifier>
-            {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            return test.RunAsync();
-        }
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0027ParamsArrayAllocationAnalyzer>(source);
 
         // UPA0027 test case 1
         [Fact]

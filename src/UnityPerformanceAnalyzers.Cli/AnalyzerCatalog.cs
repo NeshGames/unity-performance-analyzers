@@ -1,41 +1,18 @@
 using System.Collections.Immutable;
 using System.Reflection;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
+using UnityPerformanceAnalyzers.Catalog;
 
 namespace UnityPerformanceAnalyzers.Cli;
 
-/// <summary>One rule as the catalog sees it; mirrors package/Editor/rules.json plus compilationWide.</summary>
-internal sealed record RuleEntry(
-    string Id,
-    string Title,
-    string Category,
-    string DefaultSeverity,
-    bool EnabledByDefault,
-    bool HotPath,
-    string? Condition,
-    bool CompilationWide,
-    string HelpUri);
-
 /// <summary>
-/// Reflects the analyzer assembly for both the runnable analyzers and the rule catalog.
-/// Reading metadata off the analyzers themselves (rather than a committed rules.json)
-/// means the catalog can never be stale relative to the DLL in use.
+/// What this tool needs from the analyzer assembly: the analyzers to run, and the rule list
+/// behind <c>--list-rules</c>. The walk itself lives in <see cref="UpaRuleCatalog"/>, shared
+/// with the manifest generator so the two cannot disagree about what a rule is.
 /// </summary>
 internal static class AnalyzerCatalog
 {
-    private static Assembly AnalyzerAssembly => typeof(UPA1001NonExhaustiveEnumSwitchAnalyzer).Assembly;
-
-    public static string ToolVersion =>
-        AnalyzerAssembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion.Split('+')[0]
-        ?? AnalyzerAssembly.GetName().Version?.ToString(3)
-        ?? "0.0.0";
-
-    private static IEnumerable<Type> AnalyzerTypes() =>
-        AnalyzerAssembly.GetTypes()
-            .Where(t => !t.IsAbstract && typeof(DiagnosticAnalyzer).IsAssignableFrom(t))
-            .OrderBy(t => t.Name, StringComparer.Ordinal);
+    public static string ToolVersion => UpaRuleCatalog.Version;
 
     /// <summary>
     /// Analyzers to run. Compilation-wide rules are excluded unless the caller declares
@@ -47,9 +24,8 @@ internal static class AnalyzerCatalog
         var analyzers = ImmutableArray.CreateBuilder<DiagnosticAnalyzer>();
         var excluded = new SortedSet<string>(StringComparer.Ordinal);
 
-        foreach (var type in AnalyzerTypes())
+        foreach (var (type, instance) in UpaRuleCatalog.Analyzers())
         {
-            var instance = (DiagnosticAnalyzer)Activator.CreateInstance(type)!;
             if (!wholeAssembly && type.GetCustomAttribute<CompilationWideRuleAttribute>() is object)
             {
                 foreach (var descriptor in instance.SupportedDiagnostics)
@@ -66,42 +42,9 @@ internal static class AnalyzerCatalog
         return (analyzers.ToImmutable(), excluded.ToImmutableArray());
     }
 
-    public static ImmutableArray<RuleEntry> Rules()
-    {
-        var rules = new SortedDictionary<string, RuleEntry>(StringComparer.Ordinal);
-
-        foreach (var type in AnalyzerTypes())
-        {
-            var hotPath = type.GetCustomAttribute<HotPathRuleAttribute>() is object;
-            var condition = type.GetCustomAttribute<ConditionalRuleAttribute>()?.Condition;
-            var compilationWide = type.GetCustomAttribute<CompilationWideRuleAttribute>() is object;
-            var instance = (DiagnosticAnalyzer)Activator.CreateInstance(type)!;
-
-            foreach (var descriptor in instance.SupportedDiagnostics)
-            {
-                // A rule may export several descriptors under one id (UPA2012); first wins.
-                if (rules.ContainsKey(descriptor.Id))
-                {
-                    continue;
-                }
-
-                rules[descriptor.Id] = new RuleEntry(
-                    descriptor.Id,
-                    descriptor.Title.ToString(),
-                    descriptor.Category,
-                    descriptor.DefaultSeverity.ToString(),
-                    descriptor.IsEnabledByDefault,
-                    hotPath,
-                    condition,
-                    compilationWide,
-                    descriptor.HelpLinkUri);
-            }
-        }
-
-        return rules.Values.ToImmutableArray();
-    }
+    public static ImmutableArray<UpaRule> Rules() => UpaRuleCatalog.Rules().ToImmutableArray();
 
     /// <summary>Every diagnostic id the assembly exports — used by --all-warn.</summary>
     public static ImmutableArray<string> AllRuleIds() =>
-        Rules().Select(r => r.Id).ToImmutableArray();
+        UpaRuleCatalog.Rules().Select(rule => rule.Id).ToImmutableArray();
 }

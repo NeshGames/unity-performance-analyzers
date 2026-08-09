@@ -2,9 +2,7 @@ using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
@@ -60,21 +58,11 @@ static class Marker
 }
 ";
 
-        private static Task VerifyAsync(string source, string? extraConfig = null)
-        {
-            var test = new CSharpAnalyzerTest<HotPathProbeAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source, string? extraConfig = null) =>
+            RuleVerifier.VerifyAsync<HotPathProbeAnalyzer>(source + Prelude, new RuleHarness
             {
-                TestCode = source + Prelude,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            if (extraConfig is not null)
-            {
-                test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", $"root = true\n\n[*.cs]\n{extraConfig}\n"));
-            }
-
-            return test.RunAsync();
-        }
+                EditorConfig = extraConfig,
+            });
 
         // Hot-path test case 1
         [Fact]

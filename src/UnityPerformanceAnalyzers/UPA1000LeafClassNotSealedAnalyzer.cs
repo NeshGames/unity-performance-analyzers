@@ -33,7 +33,7 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
             // Per-compilation, thread-safe collections — analyzers run concurrently,
             // so shared mutable state must never be static.

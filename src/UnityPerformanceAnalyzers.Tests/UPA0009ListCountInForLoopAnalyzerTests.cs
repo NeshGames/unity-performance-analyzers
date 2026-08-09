@@ -1,29 +1,15 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0009ListCountInForLoopAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0009ListCountInForLoopAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0009ListCountInForLoopAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            // UPA0009 is disabled by default; enable it the same way a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA0009.severity = warning
-"));
-            return test.RunAsync();
-        }
+                EnabledRules = { "UPA0009" },
+            });
 
         // UPA0009 test case 1
         [Fact]
@@ -153,5 +139,143 @@ class C
     }
 }");
         }
+        // UPA0009 test case 7 - the collection leaves as an argument, so anything could have
+        // happened to it. Hoisting Count would be advice to break the program.
+        [Fact]
+        public Task BodyPassesListAsArgument_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    List<int> items = new List<int>();
+
+    void Mutate(List<int> target) { target.Add(0); }
+
+    void Update()
+    {
+        for (int i = 0; i < items.Count; i++)
+        {
+            Mutate(items);
+        }
+    }
+}");
+        }
+
+        // UPA0009 test case 8 - an alias. The old check compared receiver identifiers, so the
+        // Add on 'other' read as a mutation of something else entirely.
+        [Fact]
+        public Task BodyAliasesList_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    List<int> items = new List<int>();
+
+    void Update()
+    {
+        for (int i = 0; i < items.Count; i++)
+        {
+            var other = items;
+            other.Add(0);
+        }
+    }
+}");
+        }
+
+        // UPA0009 test case 9 - the narrowing must not swallow the ordinary case. An element
+        // assignment names the collection but cannot change how many things are in it.
+        [Fact]
+        public Task BodyAssignsElements_StillTriggers()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    List<int> items = new List<int>();
+
+    void Update()
+    {
+        for (int i = 0; i < {|UPA0009:items.Count|}; i++)
+        {
+            items[i] = items[i] + 1;
+        }
+    }
+}");
+        }
+
+        // UPA0009 test case 10 - a reduced extension call. The collection sits in the
+        // receiver position under a name no list of mutating methods could have contained,
+        // and the extension is free to mutate it.
+        [Fact]
+        public Task BodyCallsExtensionOnList_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+static class ListExtensions
+{
+    public static void TrimToLimit(this List<int> source)
+    {
+        source.RemoveAt(source.Count - 1);
+    }
+}
+
+class C : MonoBehaviour
+{
+    List<int> items = new List<int>();
+
+    void Update()
+    {
+        for (int i = 0; i < items.Count; i++)
+        {
+            items.TrimToLimit();
+        }
+    }
+}");
+        }
+
+        // UPA0009 test cases 11-13 - the same three escapes written as this.items. The
+        // receiver name is normalised to "items", so the question is whether the body scan
+        // still recognises the qualified form.
+        [Theory]
+        [InlineData("Mutate(this.items);")]
+        [InlineData("var alias = this.items; alias.Add(0);")]
+        [InlineData("this.items.TrimToLimit();")]
+        public Task BodyEscapesThroughQualifiedReceiver_DoesNotTrigger(string body)
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+static class ListExtensions
+{
+    public static void TrimToLimit(this List<int> source) { source.RemoveAt(0); }
+}
+
+class C : MonoBehaviour
+{
+    List<int> items = new List<int>();
+
+    void Mutate(List<int> target) { target.Add(0); }
+
+    void Update()
+    {
+        for (int i = 0; i < this.items.Count; i++)
+        {
+            " + body + @"
+        }
+    }
+}");
+        }
+
     }
 }

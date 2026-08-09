@@ -1,27 +1,15 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0003StringPropertyAccessAnalyzerTests
     {
-        private static Task VerifyAsync(string source, string? extraConfig = null)
-        {
-            var test = new CSharpAnalyzerTest<UPA0003StringPropertyAccessAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source, string? extraConfig = null) =>
+            RuleVerifier.VerifyAsync<UPA0003StringPropertyAccessAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            if (extraConfig is not null)
-            {
-                test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", $"root = true\n\n[*.cs]\n{extraConfig}\n"));
-            }
-
-            return test.RunAsync();
-        }
+                EditorConfig = extraConfig,
+            });
 
         // UPA0003 test case 1
         [Fact]
@@ -225,5 +213,77 @@ class C : MonoBehaviour
 }",
                 extraConfig: "upa_shader_property_hot_path_only = true");
         }
+
+        // UPA0003 test case 11 — the option works through the options file, which is the only
+        // channel Unity passes to the compiler
+        [Fact]
+        public Task HotPathOnly_ViaOptionsFile_DoesNotTrigger()
+        {
+            return RuleVerifier.VerifyAsync<UPA0003StringPropertyAccessAnalyzer>(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    public Material mat;
+
+    void Start()
+    {
+        mat.SetFloat(""_Alpha"", 1f);
+    }
+}",
+                new RuleHarness { OptionsFile = "upa_shader_property_hot_path_only = true" });
+        }
+
+        // UPA0003 test case 12 — an .editorconfig section applies to the files it globs. Both
+        // input orders, because reading the option once for the compilation gave every file
+        // whatever the first one happened to say.
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task PerFileSections_ApplyToTheirOwnFile_RegardlessOfOrder(bool reversed)
+        {
+            var strict = ("/Strict.cs", @"
+using UnityEngine;
+
+class Strict : MonoBehaviour
+{
+    public Material mat;
+
+    void Start()
+    {
+        {|UPA0003:mat.SetFloat(""_Alpha"", 1f)|};
+    }
+}");
+            var relaxed = ("/Relaxed.cs", @"
+using UnityEngine;
+
+class Relaxed : MonoBehaviour
+{
+    public Material mat;
+
+    void Start()
+    {
+        mat.SetFloat(""_Alpha"", 1f);
+    }
+}");
+
+            var harness = new RuleHarness
+            {
+                RawEditorConfig = @"
+root = true
+
+[*Strict.cs]
+upa_shader_property_hot_path_only = false
+
+[*Relaxed.cs]
+upa_shader_property_hot_path_only = true
+",
+            };
+            harness.NamedSources.Add(reversed ? relaxed : strict);
+            harness.NamedSources.Add(reversed ? strict : relaxed);
+
+            return RuleVerifier.VerifyAsync<UPA0003StringPropertyAccessAnalyzer>("class Empty { }", harness);
+        }
+
     }
 }

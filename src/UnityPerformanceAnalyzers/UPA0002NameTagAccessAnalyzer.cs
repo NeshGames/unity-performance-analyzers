@@ -31,17 +31,17 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var objectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Object");
-            var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
-            var componentType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Component");
+            var objectType = ctx.Type("UnityEngine.Object");
+            var gameObjectType = ctx.Type("UnityEngine.GameObject");
+            var componentType = ctx.Type("UnityEngine.Component");
             if (objectType is null && gameObjectType is null && componentType is null)
             {
                 return;
             }
 
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzePropertyReference(opCtx, objectType, gameObjectType, componentType, hotPathDetector),
@@ -70,7 +70,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (IsAssignmentTarget(propertyReference))
+            if (OperationFacts.IsOverwritten(propertyReference))
             {
                 return;
             }
@@ -89,12 +89,6 @@ namespace UnityPerformanceAnalyzers
                 Rule,
                 propertyReference.Syntax.GetLocation(),
                 property.Name));
-        }
-
-        private static bool IsAssignmentTarget(IPropertyReferenceOperation propertyReference)
-        {
-            return propertyReference.Parent is ISimpleAssignmentOperation assignment &&
-                ReferenceEquals(assignment.Target, propertyReference);
         }
 
         // A read that is an operand of == / != against a string is UNT0002's territory
@@ -116,10 +110,7 @@ namespace UnityPerformanceAnalyzers
                 var other = ReferenceEquals(binary.LeftOperand, current)
                     ? binary.RightOperand
                     : binary.LeftOperand;
-                while (other is IConversionOperation otherConversion)
-                {
-                    other = otherConversion.Operand;
-                }
+                other = OperationFacts.Unwrap(other);
 
                 return other.Type?.SpecialType == SpecialType.System_String;
             }

@@ -71,17 +71,17 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
             var hashedCollections = ResolveHashedCollections(ctx.Compilation);
-            var equatable = ctx.Compilation.GetTypeByMetadataName("System.IEquatable`1");
+            var equatable = ctx.Type("System.IEquatable`1");
             if (hashedCollections.Count == 0 || equatable is null)
             {
                 return;
             }
 
-            var listType = ctx.Compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
-            var arrayType = ctx.Compilation.GetTypeByMetadataName("System.Array");
+            var listType = ctx.Type("System.Collections.Generic.List`1");
+            var arrayType = ctx.Type("System.Array");
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzeObjectCreation(opCtx, hashedCollections, equatable),
@@ -94,17 +94,9 @@ namespace UnityPerformanceAnalyzers
 
         private static HashSet<INamedTypeSymbol> ResolveHashedCollections(Compilation compilation)
         {
-            var resolved = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
-            foreach (var metadataName in s_hashedCollectionMetadataNames)
-            {
-                var type = compilation.GetTypeByMetadataName(metadataName);
-                if (type is object)
-                {
-                    resolved.Add(type);
-                }
-            }
-
-            return resolved;
+            return new HashSet<INamedTypeSymbol>(
+                WellKnownTypes.Resolve(compilation, s_hashedCollectionMetadataNames),
+                SymbolEqualityComparer.Default);
         }
 
         private static void AnalyzeObjectCreation(
@@ -281,11 +273,7 @@ namespace UnityPerformanceAnalyzers
                     continue;
                 }
 
-                var value = argument.Value;
-                while (value is IConversionOperation conversion)
-                {
-                    value = conversion.Operand;
-                }
+                var value = OperationFacts.Unwrap(argument.Value);
 
                 // A null or default argument leaves the default comparer in place.
                 var isNull = value.ConstantValue.HasValue && value.ConstantValue.Value is null;

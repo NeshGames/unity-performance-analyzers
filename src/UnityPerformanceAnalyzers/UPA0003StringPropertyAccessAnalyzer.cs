@@ -37,38 +37,35 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var materialType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Material");
-            var propertyBlockType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MaterialPropertyBlock");
-            var shaderType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Shader");
-            var animatorType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Animator");
+            var materialType = ctx.Type("UnityEngine.Material");
+            var propertyBlockType = ctx.Type("UnityEngine.MaterialPropertyBlock");
+            var shaderType = ctx.Type("UnityEngine.Shader");
+            var animatorType = ctx.Type("UnityEngine.Animator");
             if (materialType is null && propertyBlockType is null && shaderType is null && animatorType is null)
             {
                 return;
             }
 
-            var hotPathOnly = ResolveHotPathOnlyOption(ctx.Compilation, ctx.Options);
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var options = UpaOptions.Resolve(ctx.Options);
+            var configProvider = ctx.Options.AnalyzerConfigOptionsProvider;
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzeInvocation(
-                    opCtx, materialType, propertyBlockType, shaderType, animatorType, hotPathOnly, hotPathDetector),
+                    opCtx,
+                    materialType,
+                    propertyBlockType,
+                    shaderType,
+                    animatorType,
+                    // Read at the call site, not once for the compilation: an .editorconfig
+                    // section applies to the files it globs, and answering from the first
+                    // syntax tree gave every file whatever the first one was configured with.
+                    options.GetBool(
+                        HotPathOnlyOptionKey, opCtx.Operation.Syntax.SyntaxTree, configProvider, fallback: false),
+                    hotPathDetector),
                 OperationKind.Invocation);
-        }
-
-        private static bool ResolveHotPathOnlyOption(Compilation compilation, AnalyzerOptions analyzerOptions)
-        {
-            var firstTree = compilation.SyntaxTrees.FirstOrDefault();
-            if (firstTree is null)
-            {
-                return false;
-            }
-
-            var options = analyzerOptions.AnalyzerConfigOptionsProvider.GetOptions(firstTree);
-            return options.TryGetValue(HotPathOnlyOptionKey, out var raw) &&
-                bool.TryParse(raw.Trim(), out var parsed) &&
-                parsed;
         }
 
         private static void AnalyzeInvocation(

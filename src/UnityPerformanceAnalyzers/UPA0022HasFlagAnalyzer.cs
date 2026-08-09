@@ -31,10 +31,10 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
             var enumType = ctx.Compilation.GetSpecialType(SpecialType.System_Enum);
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzeInvocation(opCtx, enumType, hotPathDetector),

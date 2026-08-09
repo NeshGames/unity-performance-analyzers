@@ -1,22 +1,12 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0001ComponentLookupAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0001ComponentLookupAnalyzer, DefaultVerifier>
-            {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            return test.RunAsync();
-        }
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0001ComponentLookupAnalyzer>(source);
 
         // UPA0001 test case 1
         [Fact]
@@ -179,5 +169,37 @@ class C : MonoBehaviour
     }
 }");
         }
+        // Invariant 5. UPA0016 had this case and UPA0001 did not: a method named GetComponent
+        // on a type of the project's own is not the one this rule is about, and binding on the
+        // name alone would report the code that has already avoided the cost.
+        [Fact]
+        public Task UserDefinedLookupMethods_InUpdate_DoNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class Registry
+{
+    public T GetComponent<T>() => default!;
+
+    public bool TryGetComponent<T>(out T component)
+    {
+        component = default!;
+        return false;
+    }
+}
+
+class C : MonoBehaviour
+{
+    Registry registry = new Registry();
+
+    void Update()
+    {
+        var r = registry.GetComponent<Transform>();
+        registry.TryGetComponent<Transform>(out var t);
+    }
+}");
+        }
+
     }
 }

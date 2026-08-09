@@ -62,7 +62,7 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
             var denied = ResolveDenyList(ctx.Compilation);
             if (denied.IsEmpty)
@@ -70,7 +70,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzePropertyReference(opCtx, denied, hotPathDetector),
@@ -149,8 +149,7 @@ namespace UnityPerformanceAnalyzers
             }
 
             // Writing (e.g. renderer.sharedMaterials = ...) does not allocate; only reads do.
-            if (propertyReference.Parent is ISimpleAssignmentOperation assignment &&
-                ReferenceEquals(assignment.Target, propertyReference))
+            if (OperationFacts.IsOverwritten(propertyReference))
             {
                 return;
             }

@@ -5,6 +5,47 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-08-09
+
+### Added
+
+- **UPA0031 — `Instantiate` or `Destroy` in a per-frame method.** One id with two messages:
+  creating and discarding objects every frame is one decision, and the answer to both halves
+  is a pool. Matching is on the method symbol rather than on how the call is written, because
+  inside a `MonoBehaviour` the usual line is `Instantiate(prefab)` with no receiver at all.
+
+- Every rule's specification now declares the assumptions it makes, against a fixed
+  six-category checklist. This is internal, but it produced two missing tests and one real
+  defect (the UPA0009 change below), so it is worth knowing it happened.
+
+### Fixed
+
+- **Two options only ever worked in the IDE.** `upa_shader_property_hot_path_only`
+  (UPA0003) and `upa_log_wrapper_types` (UPA0005) read `.editorconfig` directly instead of
+  going through the layered lookup, and Unity does not pass `.editorconfig` to the
+  compiler. Setting either one changed what your IDE showed and nothing about what your
+  build reported. Both now read the options file first, like every other option. If you had
+  set them and worked around them doing nothing, they will start taking effect.
+
+- **`.editorconfig` sections now apply per file for UPA0003.** The option was read once for
+  the whole compilation, from whichever source file happened to be first, so a section
+  scoped to one folder silently applied to all of them or to none.
+
+### Changed
+
+- **UPA0009 reports less, on purpose.** It advises hoisting `Count` out of a loop, which is
+  only correct while the collection does not change, and it decided that by comparing
+  receiver names in the loop body -- so an alias, or the collection passed to a method that
+  mutates it, was invisible. Following the advice would then break the program, which is
+  worse than a false positive. It now stays quiet whenever the loop body could reach the
+  collection other than by reading it. Element assignment (`list[i] = x`) still reports: it
+  cannot change how many items there are.
+
+- The option list in `rules.json` and the commented defaults in every preset
+  `.editorconfig` are generated from one declaration instead of three hand-kept copies. The
+  preset comments now show each option's real default, which is longer for
+  `upa_hot_path_messages` and adds the two options that were missing entirely.
+
 ## [0.7.0] - 2026-08-08
 
 ### Added

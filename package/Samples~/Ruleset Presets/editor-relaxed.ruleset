@@ -42,6 +42,7 @@
     <Rule Id="UPA0028" Action="Warning" />
     <Rule Id="UPA0029" Action="None" />
     <Rule Id="UPA0030" Action="None" />
+    <Rule Id="UPA0031" Action="None" />
     <Rule Id="UPA1000" Action="None" />
     <Rule Id="UPA2000" Action="None" />
     <Rule Id="UPA2010" Action="None" />

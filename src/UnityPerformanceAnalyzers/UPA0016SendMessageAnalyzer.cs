@@ -37,10 +37,10 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var componentType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Component");
-            var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
+            var componentType = ctx.Type("UnityEngine.Component");
+            var gameObjectType = ctx.Type("UnityEngine.GameObject");
             if (componentType is null && gameObjectType is null)
             {
                 return;

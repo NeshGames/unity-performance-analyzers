@@ -37,9 +37,9 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var physicsType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Physics");
+            var physicsType = ctx.Type("UnityEngine.Physics");
             if (physicsType is null)
             {
                 return;

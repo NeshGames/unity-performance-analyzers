@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 
+using UnityPerformanceAnalyzers.Catalog;
+
 namespace UnityPerformanceAnalyzers.Cli;
 
 /// <summary>
@@ -156,7 +158,7 @@ internal static class OutputWriter
         }
     }
 
-    public static void WriteRules(TextWriter stdout, ImmutableArray<RuleEntry> rules, OutputFormat format)
+    public static void WriteRules(TextWriter stdout, ImmutableArray<UpaRule> rules, OutputFormat format)
     {
         if (format == OutputFormat.Json)
         {

@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
@@ -46,15 +44,10 @@ class MyComparer : IEqualityComparer<PlainStruct>
 }
 ";
 
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0028ValueTypeCollectionKeyAnalyzer, DefaultVerifier>
-            {
-                TestCode = Types + source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            return test.RunAsync();
-        }
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0028ValueTypeCollectionKeyAnalyzer>(
+                Types + source,
+                new RuleHarness { UnityStubs = false });
 
         // UPA0028 test case 1
         [Fact]

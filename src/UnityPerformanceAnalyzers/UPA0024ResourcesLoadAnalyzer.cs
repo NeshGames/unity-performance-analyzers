@@ -38,15 +38,15 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var resourcesType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Resources");
+            var resourcesType = ctx.Type("UnityEngine.Resources");
             if (resourcesType is null)
             {
                 return;
             }
 
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzeInvocation(opCtx, resourcesType, hotPathDetector),

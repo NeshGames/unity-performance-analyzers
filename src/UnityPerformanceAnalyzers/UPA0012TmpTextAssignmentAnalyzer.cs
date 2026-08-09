@@ -32,15 +32,15 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var tmpTextType = ctx.Compilation.GetTypeByMetadataName("TMPro.TMP_Text");
+            var tmpTextType = ctx.Type("TMPro.TMP_Text");
             if (tmpTextType is null)
             {
                 return;
             }
 
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzePropertyReference(opCtx, tmpTextType, hotPathDetector),
@@ -62,7 +62,7 @@ namespace UnityPerformanceAnalyzers
             }
 
             // Only setter usage is reported — reads do not dirty the text.
-            if (!IsAssignmentTarget(propertyReference))
+            if (!OperationFacts.IsWritten(propertyReference))
             {
                 return;
             }
@@ -79,10 +79,5 @@ namespace UnityPerformanceAnalyzers
                 receiverTypeName));
         }
 
-        private static bool IsAssignmentTarget(IPropertyReferenceOperation propertyReference)
-        {
-            return propertyReference.Parent is IAssignmentOperation assignment &&
-                ReferenceEquals(assignment.Target, propertyReference);
-        }
     }
 }

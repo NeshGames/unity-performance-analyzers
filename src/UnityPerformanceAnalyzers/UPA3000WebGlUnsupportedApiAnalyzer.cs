@@ -62,9 +62,9 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            var profile = ctx.Profile;
             if (!profile.RequiresWebGL)
             {
                 return;
@@ -90,7 +90,7 @@ namespace UnityPerformanceAnalyzers
                     var rule = bannedApis.ClassifyMember(method.ContainingType, method.Name);
                     if (rule is object)
                     {
-                        Report(context, rule, GetInvocationLocation(invocation.Syntax),
+                        Report(context, rule, OperationFacts.MemberNameLocation(invocation.Syntax),
                             $"{method.ContainingType.Name}.{method.Name}");
                     }
 
@@ -138,18 +138,6 @@ namespace UnityPerformanceAnalyzers
             context.ReportDiagnostic(UpaDiagnostics.Create(rule, location, displayName));
         }
 
-        // Chained calls nest syntactically; anchor on the method name where possible.
-        private static Location GetInvocationLocation(SyntaxNode syntax)
-        {
-            if (syntax is InvocationExpressionSyntax invocation &&
-                invocation.Expression is MemberAccessExpressionSyntax memberAccess)
-            {
-                return memberAccess.Name.GetLocation();
-            }
-
-            return syntax.GetLocation();
-        }
-
         private sealed class BannedApis
         {
             private readonly ImmutableHashSet<INamedTypeSymbol> _threadingTypes;
@@ -180,30 +168,23 @@ namespace UnityPerformanceAnalyzers
 
             public static BannedApis Create(Compilation compilation)
             {
-                var threadingTypes = ImmutableHashSet.CreateBuilder<INamedTypeSymbol>(
-                    (SymbolEqualityComparer)SymbolEqualityComparer.Default);
-                foreach (var metadataName in new[]
-                {
-                    "System.Threading.Thread",
-                    "System.Threading.ThreadPool",
-                    "System.Threading.Timer",
-                    "System.Threading.Mutex",
-                    "System.Threading.Semaphore",
-                    "System.Threading.SemaphoreSlim",
-                    "System.Threading.Barrier",
-                    "System.Threading.EventWaitHandle",
-                    "System.Threading.Tasks.Parallel",
-                })
-                {
-                    var type = compilation.GetTypeByMetadataName(metadataName);
-                    if (type is object)
+                var threadingTypes = ImmutableHashSet.CreateRange<INamedTypeSymbol>(
+                    SymbolEqualityComparer.Default,
+                    WellKnownTypes.Resolve(compilation, new[]
                     {
-                        threadingTypes.Add(type);
-                    }
-                }
+                        "System.Threading.Thread",
+                        "System.Threading.ThreadPool",
+                        "System.Threading.Timer",
+                        "System.Threading.Mutex",
+                        "System.Threading.Semaphore",
+                        "System.Threading.SemaphoreSlim",
+                        "System.Threading.Barrier",
+                        "System.Threading.EventWaitHandle",
+                        "System.Threading.Tasks.Parallel",
+                    }));
 
                 return new BannedApis(
-                    threadingTypes.ToImmutable(),
+                    threadingTypes,
                     compilation.GetTypeByMetadataName("System.Threading.Tasks.Task"),
                     compilation.GetTypeByMetadataName("System.Threading.Tasks.TaskFactory"),
                     compilation.GetTypeByMetadataName("System.IO.File"),

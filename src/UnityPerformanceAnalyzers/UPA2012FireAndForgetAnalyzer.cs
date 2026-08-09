@@ -57,13 +57,13 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            var profile = ctx.Profile;
             var adviceAsyncVoid = profile.HasUniTask ? s_adviceAsyncVoidUniTask : s_adviceAsyncVoidDefault;
             var adviceFireAndForget = profile.HasUniTask ? s_adviceFireAndForgetUniTask : s_adviceFireAndForgetDefault;
 
-            var eventArgsType = ctx.Compilation.GetTypeByMetadataName("System.EventArgs");
+            var eventArgsType = ctx.Type("System.EventArgs");
             ctx.RegisterSyntaxNodeAction(
                 nodeCtx => AnalyzeAsyncVoid(nodeCtx, eventArgsType, adviceAsyncVoid),
                 SyntaxKind.MethodDeclaration);
@@ -79,23 +79,13 @@ namespace UnityPerformanceAnalyzers
 
         private static ImmutableArray<INamedTypeSymbol> GetTaskLikeTypes(Compilation compilation)
         {
-            var builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-            foreach (var metadataName in new[]
+            return WellKnownTypes.Resolve(compilation, new[]
             {
                 "System.Threading.Tasks.Task",
                 "System.Threading.Tasks.Task`1",
                 "Cysharp.Threading.Tasks.UniTask",
                 "Cysharp.Threading.Tasks.UniTask`1",
-            })
-            {
-                var type = compilation.GetTypeByMetadataName(metadataName);
-                if (type is object)
-                {
-                    builder.Add(type);
-                }
-            }
-
-            return builder.ToImmutable();
+            });
         }
 
         private static void AnalyzeAsyncVoid(

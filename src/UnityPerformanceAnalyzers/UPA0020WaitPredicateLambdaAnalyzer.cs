@@ -31,10 +31,10 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var waitUntilType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.WaitUntil");
-            var waitWhileType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.WaitWhile");
+            var waitUntilType = ctx.Type("UnityEngine.WaitUntil");
+            var waitWhileType = ctx.Type("UnityEngine.WaitWhile");
             if (waitUntilType is null && waitWhileType is null)
             {
                 return;
@@ -74,11 +74,7 @@ namespace UnityPerformanceAnalyzers
         {
             foreach (var argument in creation.Arguments)
             {
-                var value = argument.Value;
-                while (value is IConversionOperation conversion)
-                {
-                    value = conversion.Operand;
-                }
+                var value = OperationFacts.Unwrap(argument.Value);
 
                 if (value is IDelegateCreationOperation delegateCreation &&
                     delegateCreation.Target is IAnonymousFunctionOperation)

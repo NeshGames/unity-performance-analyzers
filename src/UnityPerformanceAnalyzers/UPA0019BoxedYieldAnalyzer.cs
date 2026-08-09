@@ -31,10 +31,10 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var monoBehaviourType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour");
-            var enumeratorType = ctx.Compilation.GetTypeByMetadataName("System.Collections.IEnumerator");
+            var monoBehaviourType = ctx.Type("UnityEngine.MonoBehaviour");
+            var enumeratorType = ctx.Type("System.Collections.IEnumerator");
             if (monoBehaviourType is null || enumeratorType is null)
             {
                 return;

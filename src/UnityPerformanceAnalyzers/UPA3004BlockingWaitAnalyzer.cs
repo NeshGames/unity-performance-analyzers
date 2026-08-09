@@ -47,9 +47,9 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            var profile = ctx.Profile;
             if (!profile.RequiresWebGL)
             {
                 return;
@@ -98,22 +98,8 @@ namespace UnityPerformanceAnalyzers
         {
             context.ReportDiagnostic(UpaDiagnostics.Create(
                 Rule,
-                GetReportLocation(syntax),
+                OperationFacts.MemberNameLocation(syntax),
                 $"{TrimGenericArity(typeName)}.{memberName}"));
-        }
-
-        // Chained expressions nest syntactically; the member name keeps each report readable.
-        private static Location GetReportLocation(SyntaxNode syntax)
-        {
-            switch (syntax)
-            {
-                case InvocationExpressionSyntax invocation when invocation.Expression is MemberAccessExpressionSyntax memberAccess:
-                    return memberAccess.Name.GetLocation();
-                case MemberAccessExpressionSyntax memberAccess:
-                    return memberAccess.Name.GetLocation();
-                default:
-                    return syntax.GetLocation();
-            }
         }
 
         private static string TrimGenericArity(string typeName)
@@ -158,22 +144,14 @@ namespace UnityPerformanceAnalyzers
 
             public static BannedMembers Create(Compilation compilation)
             {
-                var awaiters = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-                foreach (var metadataName in s_awaiterTypeNames)
-                {
-                    var type = compilation.GetTypeByMetadataName(metadataName);
-                    if (type is object)
-                    {
-                        awaiters.Add(type);
-                    }
-                }
+                var awaiters = WellKnownTypes.Resolve(compilation, s_awaiterTypeNames);
 
                 return new BannedMembers(
                     compilation.GetTypeByMetadataName("UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle"),
                     compilation.GetTypeByMetadataName("UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle`1"),
                     compilation.GetTypeByMetadataName("System.Threading.Tasks.Task"),
                     compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1"),
-                    awaiters.ToImmutable());
+                    awaiters);
             }
 
             public bool IsBlockingMethod(IMethodSymbol method)

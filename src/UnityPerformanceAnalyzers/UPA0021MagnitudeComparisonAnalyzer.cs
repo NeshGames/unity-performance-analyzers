@@ -31,14 +31,14 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
             var vectorTypes = ImmutableArray.CreateRange(
                 new[]
                 {
-                    ctx.Compilation.GetTypeByMetadataName("UnityEngine.Vector2"),
-                    ctx.Compilation.GetTypeByMetadataName("UnityEngine.Vector3"),
-                    ctx.Compilation.GetTypeByMetadataName("UnityEngine.Vector4"),
+                    ctx.Type("UnityEngine.Vector2"),
+                    ctx.Type("UnityEngine.Vector3"),
+                    ctx.Type("UnityEngine.Vector4"),
                 });
             if (vectorTypes[0] is null && vectorTypes[1] is null && vectorTypes[2] is null)
             {
@@ -91,11 +91,7 @@ namespace UnityPerformanceAnalyzers
             IOperation operand,
             ImmutableArray<INamedTypeSymbol?> vectorTypes)
         {
-            var current = operand;
-            while (current is IConversionOperation conversion)
-            {
-                current = conversion.Operand;
-            }
+            var current = OperationFacts.Unwrap(operand);
 
             if (current is IPropertyReferenceOperation propertyReference &&
                 propertyReference.Property.Name == "magnitude" &&

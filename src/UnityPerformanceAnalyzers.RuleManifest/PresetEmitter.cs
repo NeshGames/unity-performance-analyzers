@@ -1,5 +1,7 @@
 using System.Text;
 
+using UnityPerformanceAnalyzers;
+
 namespace UnityPerformanceAnalyzers.RuleManifest;
 
 /// <summary>
@@ -97,13 +99,17 @@ public static class PresetEmitter
         }
 
         sb.Append('\n');
-        sb.Append("# Hot-path classification (IDE only; Unity builds use the built-in defaults)\n");
-        sb.Append("# upa_hot_path_messages = Update,FixedUpdate,LateUpdate\n");
-        sb.Append("# upa_hot_path_attributes = HotPath,PerformanceCritical\n");
-        sb.Append("# upa_hot_path_include_lambdas = true\n\n");
-        sb.Append("# Rule options\n");
-        sb.Append("# upa_enum_switch_allow_default = true\n");
-        sb.Append("# upa_addrange_hot_path_only = false\n\n");
+        // Generated from UpaOptionCatalog. A hand-written copy of this block is how the
+        // documented default for upa_hot_path_attributes came to name an attribute the
+        // analyzers have never recognised.
+        sb.Append("# Analyzer options, with their defaults. Setting them here reaches the IDE;\n");
+        sb.Append("# put them in " + UpaOptionCatalog.OptionsFileName + " to reach Unity builds too.\n");
+        foreach (var option in UpaOptionCatalog.Options)
+        {
+            sb.Append(("# " + option.Key + " = " + option.Default).TrimEnd()).Append('\n');
+        }
+
+        sb.Append('\n');
         sb.Append("# Editor tooling: relax performance pressure (IDE side; for Unity builds place\n");
         sb.Append("# editor-relaxed.ruleset as Default.ruleset in your Editor asmdef folders)\n");
         sb.Append("[**/Editor/**/*.cs]\n");

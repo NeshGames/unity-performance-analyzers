@@ -1,28 +1,15 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0025FinalizerAnalyzerTests
     {
-        private static Task VerifyAsync(string source, string? assemblyName = null)
-        {
-            var test = new CSharpAnalyzerTest<UPA0025FinalizerAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source, string? assemblyName = null) =>
+            RuleVerifier.VerifyAsync<UPA0025FinalizerAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            if (assemblyName is object)
-            {
-                test.SolutionTransforms.Add((solution, projectId) =>
-                    solution.WithProjectAssemblyName(projectId, assemblyName));
-            }
-
-            return test.RunAsync();
-        }
+                AssemblyName = assemblyName,
+            });
 
         // UPA0025 test case 1
         [Fact]

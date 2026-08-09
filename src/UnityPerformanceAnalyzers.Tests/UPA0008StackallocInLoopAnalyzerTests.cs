@@ -1,27 +1,16 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0008StackallocInLoopAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0008StackallocInLoopAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0008StackallocInLoopAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.SolutionTransforms.Add((solution, projectId) =>
-            {
-                var options = (CSharpCompilationOptions)solution.GetProject(projectId)!.CompilationOptions!;
-                return solution.WithProjectCompilationOptions(projectId, options.WithAllowUnsafe(true));
+                UnityStubs = false,
+                AllowUnsafe = true,
             });
-            return test.RunAsync();
-        }
 
         // UPA0008 test case 1
         [Fact]

@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using UnityPerformanceAnalyzers.CodeFixes;
 using Xunit;
 
@@ -8,27 +6,14 @@ namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0022HasFlagAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0022HasFlagAnalyzer, DefaultVerifier>
-            {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            return test.RunAsync();
-        }
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0022HasFlagAnalyzer>(source);
 
         private static Task VerifyFixAsync(string source, string fixedSource)
         {
-            var test = new CSharpCodeFixTest<UPA0022HasFlagAnalyzer, UPA0022HasFlagCodeFixProvider, DefaultVerifier>
-            {
-                TestCode = source,
-                FixedCode = fixedSource,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            return test.RunAsync();
+            return RuleVerifier.VerifyCodeFixAsync<UPA0022HasFlagAnalyzer, UPA0022HasFlagCodeFixProvider>(
+                source,
+                fixedSource);
         }
 
         // UPA0022 test case 1

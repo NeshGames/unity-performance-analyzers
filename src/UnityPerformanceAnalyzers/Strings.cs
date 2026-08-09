@@ -200,5 +200,10 @@ namespace UnityPerformanceAnalyzers
         internal const string UPA0030MessageFormat = nameof(UPA0030MessageFormat);
         internal const string UPA0030MessageFormatConditional = nameof(UPA0030MessageFormatConditional);
         internal const string UPA0030Description = nameof(UPA0030Description);
+
+        internal const string UPA0031Title = nameof(UPA0031Title);
+        internal const string UPA0031MessageFormat = nameof(UPA0031MessageFormat);
+        internal const string UPA0031MessageFormatDestroy = nameof(UPA0031MessageFormatDestroy);
+        internal const string UPA0031Description = nameof(UPA0031Description);
     }
 }

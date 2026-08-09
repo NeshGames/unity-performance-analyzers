@@ -33,9 +33,9 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            var profile = ctx.Profile;
             if (!profile.HasR3)
             {
                 return;

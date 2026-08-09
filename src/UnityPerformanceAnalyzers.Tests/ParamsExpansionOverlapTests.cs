@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
@@ -13,16 +11,8 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </summary>
     public class ParamsExpansionOverlapTests
     {
-        private static Task VerifyAllocationRuleAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0006HotPathAllocationAnalyzer, DefaultVerifier>
-            {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            return test.RunAsync();
-        }
+        private static Task VerifyAllocationRuleAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0006HotPathAllocationAnalyzer>(source);
 
         [Fact]
         public Task DebugLogFormatWithValueTypeArgument_DoesNotReportAllocationRule()

@@ -52,6 +52,7 @@ public static class PresetTable
         // and the gain is negligible on small collections.
         new("UPA0029", "none", "warning", "warning", "warning"),
         new("UPA0030", "none", "warning", "error", "error"),
+        new("UPA0031", "none", "warning", "error", "error"),
         new("UPA1000", "none", "info", "warning", "warning"),
         // recommended is deliberately not "none": the rule was made unconditional so that
         // projects without ZString would still hear about hot-path string building, and

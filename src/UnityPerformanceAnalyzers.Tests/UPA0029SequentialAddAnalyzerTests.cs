@@ -1,21 +1,15 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0029SequentialAddAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0029SequentialAddAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0029SequentialAddAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            return test.RunAsync();
-        }
+                UnityStubs = false,
+            });
 
         // UPA0029 test case 1
         [Fact]

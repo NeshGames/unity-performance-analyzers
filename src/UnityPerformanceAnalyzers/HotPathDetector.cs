@@ -47,6 +47,13 @@ namespace UnityPerformanceAnalyzers
             "HotPath",
             "PerformanceCritical");
 
+        /// <summary>The Unity messages treated as per-frame work when nothing overrides them.
+        /// Exposed so the option catalog's stated default can be checked against the real one.</summary>
+        internal static ImmutableHashSet<string> DefaultHotMessages => s_defaultHotMessages;
+
+        /// <summary>The attribute short names that mark a method hot when nothing overrides them.</summary>
+        internal static ImmutableHashSet<string> DefaultHotAttributes => s_defaultHotAttributes;
+
         private readonly INamedTypeSymbol? _monoBehaviourType;
         private readonly ImmutableHashSet<string> _hotMessages;
         private readonly ImmutableHashSet<string> _hotAttributes;

@@ -32,16 +32,16 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var rendererType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Renderer");
-            var meshFilterType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.MeshFilter");
+            var rendererType = ctx.Type("UnityEngine.Renderer");
+            var meshFilterType = ctx.Type("UnityEngine.MeshFilter");
             if (rendererType is null && meshFilterType is null)
             {
                 return;
             }
 
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzePropertyReference(opCtx, rendererType, meshFilterType, hotPathDetector),
@@ -72,7 +72,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (IsAssignmentTarget(propertyReference))
+            if (OperationFacts.IsOverwritten(propertyReference))
             {
                 return;
             }
@@ -88,10 +88,5 @@ namespace UnityPerformanceAnalyzers
                 property.Name));
         }
 
-        private static bool IsAssignmentTarget(IPropertyReferenceOperation propertyReference)
-        {
-            return propertyReference.Parent is ISimpleAssignmentOperation assignment &&
-                ReferenceEquals(assignment.Target, propertyReference);
-        }
     }
 }

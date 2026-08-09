@@ -9,11 +9,16 @@ here exist only to keep Rider / Visual Studio severities in sync with your rules
 
 ## Picking a preset
 
+Which rule ids each preset sets, and to what, is in the preset files themselves; the rule
+tables in the repository README and `upa-cli --list-rules` describe what each one reports.
+Listing ids here as well only produced a third copy to keep in step, and it had already
+fallen behind.
+
 | Preset | Intent |
 |---|---|
-| `minimal` | Unity correctness rules (`UNT` group) as errors; UPA1001 keeps its default warning. Everything else off — a safe first install. |
+| `minimal` | Unity correctness rules (`UNT` group) as errors; the correctness rules that are on by default keep their warning. Everything else off — a safe first install. |
 | `recommended` | + UPA performance rules as warnings. The everyday default. |
-| `strict` | Performance rules become errors; opinionated rules (UPA0005/0011/0012/0020/0023/0024, UPA1000) start reporting. |
+| `strict` | Performance rules become errors, and the rules that are off by default because they ask something of the project — a logging wrapper, a sealed leaf class — start reporting. |
 | `cysharp-stack` | + ecosystem rules as errors (UniTask/ZString/R3 adoption). For codebases committed to the Cysharp stack. |
 
 ## Install
@@ -25,8 +30,8 @@ here exist only to keep Rider / Visual Studio severities in sync with your rules
 
 ## WebGL rules
 
-`webgl-addon.ruleset` grades UPA3000–UPA3004 (threading / sockets / sync file IO /
-Process / blocking waits) as warnings. To stack it on any base preset, copy it next to your
+`webgl-addon.ruleset` grades the platform rules — threading, sockets, synchronous file IO,
+`Process`, blocking waits — as warnings. To stack it on any base preset, copy it next to your
 `Assets/Default.ruleset` and add inside the `<RuleSet>` element:
 
 ```xml
@@ -54,6 +59,5 @@ builds always use the built-in hot-path defaults.
 - `UNT####` severities only take effect where Microsoft.Unity.Analyzers is present
   (e.g. the copy bundled with Visual Studio Tools for Unity); the entries are inert
   otherwise.
-- UPA2030–UPA2032 run only in assemblies that reference DOTween; their preset
-  entries are inert otherwise. The same applies to the other conditional ecosystem
-  rules (UniTask / R3).
+- The ecosystem rules run only in assemblies that reference the package they are about
+  (UniTask, ZString, R3, DOTween); their preset entries are inert everywhere else.

@@ -1,30 +1,17 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0005DirectDebugLoggingAnalyzerTests
     {
-        private static Task VerifyAsync(string source, string? extraConfig = null)
-        {
-            var test = new CSharpAnalyzerTest<UPA0005DirectDebugLoggingAnalyzer, DefaultVerifier>
+        // UPA0005 is disabled by default; enable it the same way a preset would.
+        private static Task VerifyAsync(string source, string? extraConfig = null) =>
+            RuleVerifier.VerifyAsync<UPA0005DirectDebugLoggingAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.Debug).Assembly);
-            // UPA0005 is disabled by default; enable it the same way a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", $@"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA0005.severity = warning
-{extraConfig}
-"));
-            return test.RunAsync();
-        }
+                EnabledRules = { "UPA0005" },
+                EditorConfig = extraConfig,
+            });
 
         // UPA0005 test case 1
         [Fact]
@@ -177,5 +164,93 @@ class C
     }
 }");
         }
+
+        // UPA0005 test case 11 - the attribute sits on the method, and the call sits in a
+        // lambda inside it. The compiler strips the whole call including that lambda, so the
+        // rule must walk out to the declaring method rather than stopping at the lambda.
+        [Fact]
+        public Task Log_InsideLambdaWithinConditionalMethod_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System;
+using UnityEngine;
+
+class C
+{
+    [System.Diagnostics.Conditional(""X"")]
+    void M()
+    {
+        Action a = () => Debug.Log(""x"");
+        a();
+    }
+}");
+        }
+
+        // UPA0005 test case 9 — wrapper types through the options file
+        [Fact]
+        public Task WrapperTypes_ViaOptionsFile_DoesNotTrigger()
+        {
+            return RuleVerifier.VerifyAsync<UPA0005DirectDebugLoggingAnalyzer>(@"
+using UnityEngine;
+
+static class GameLog
+{
+    public static void Info(string m)
+    {
+        Debug.Log(m);
+    }
+}",
+                new RuleHarness
+                {
+                    EnabledRules = { "UPA0005" },
+                    OptionsFile = "upa_log_wrapper_types = GameLog",
+                });
+        }
+
+        // UPA0005 test case 10 — per-file sections, both input orders
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task PerFileSections_ApplyToTheirOwnFile_RegardlessOfOrder(bool reversed)
+        {
+            var reported = ("/Reported.cs", @"
+using UnityEngine;
+
+static class Reported
+{
+    public static void Info(string m)
+    {
+        {|UPA0005:Debug.Log(m)|};
+    }
+}");
+            var wrapped = ("/Wrapped.cs", @"
+using UnityEngine;
+
+static class Wrapped
+{
+    public static void Info(string m)
+    {
+        Debug.Log(m);
+    }
+}");
+
+            var harness = new RuleHarness
+            {
+                RawEditorConfig = @"
+root = true
+
+[*.cs]
+dotnet_diagnostic.UPA0005.severity = warning
+
+[*Wrapped.cs]
+upa_log_wrapper_types = Wrapped
+",
+            };
+            harness.NamedSources.Add(reversed ? wrapped : reported);
+            harness.NamedSources.Add(reversed ? reported : wrapped);
+
+            return RuleVerifier.VerifyAsync<UPA0005DirectDebugLoggingAnalyzer>("class Empty { }", harness);
+        }
+
     }
 }

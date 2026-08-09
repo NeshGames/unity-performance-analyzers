@@ -38,10 +38,10 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
-            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
+            var profile = ctx.Profile;
             var advice = profile.HasZString ? s_adviceZString : s_adviceDefault;
 
             ctx.RegisterOperationAction(

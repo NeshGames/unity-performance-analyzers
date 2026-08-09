@@ -33,16 +33,16 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var enumerableType = ctx.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
-            var queryableType = ctx.Compilation.GetTypeByMetadataName("System.Linq.Queryable");
+            var enumerableType = ctx.Type("System.Linq.Enumerable");
+            var queryableType = ctx.Type("System.Linq.Queryable");
             if (enumerableType is null && queryableType is null)
             {
                 return;
             }
 
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzeInvocation(opCtx, enumerableType, queryableType, hotPathDetector),
@@ -74,21 +74,8 @@ namespace UnityPerformanceAnalyzers
 
             context.ReportDiagnostic(UpaDiagnostics.Create(
                 Rule,
-                GetReportLocation(invocation.Syntax),
+                OperationFacts.MemberNameLocation(invocation.Syntax),
                 $"{containingType.Name}.{method.Name}"));
-        }
-
-        // Chained calls nest syntactically (list.Where(...).ToList() spans the whole chain);
-        // reporting on the method name keeps each diagnostic distinct and readable.
-        private static Location GetReportLocation(SyntaxNode syntax)
-        {
-            if (syntax is InvocationExpressionSyntax invocation &&
-                invocation.Expression is MemberAccessExpressionSyntax memberAccess)
-            {
-                return memberAccess.Name.GetLocation();
-            }
-
-            return syntax.GetLocation();
         }
     }
 }

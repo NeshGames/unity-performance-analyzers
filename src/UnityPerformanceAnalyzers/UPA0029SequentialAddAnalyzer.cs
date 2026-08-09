@@ -49,18 +49,18 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
             var enumerableInterface =
-                ctx.Compilation.GetTypeByMetadataName("System.Collections.Generic.IEnumerable`1");
-            var listType = ctx.Compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
+                ctx.Type("System.Collections.Generic.IEnumerable`1");
+            var listType = ctx.Type("System.Collections.Generic.List`1");
             if (enumerableInterface is null || listType is null)
             {
                 return;
             }
 
             var hotPathOnly = ReadHotPathOnlyOption(ctx.Compilation, ctx.Options);
-            var hotPathDetector = hotPathOnly ? HotPathDetector.Create(ctx.Compilation, ctx.Options) : null;
+            var hotPathDetector = hotPathOnly ? ctx.HotPath : null;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzeLoop(opCtx, enumerableInterface, listType, hotPathDetector),

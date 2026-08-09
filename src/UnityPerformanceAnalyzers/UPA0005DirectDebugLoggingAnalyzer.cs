@@ -44,26 +44,35 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var debugType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Debug");
+            var debugType = ctx.Type("UnityEngine.Debug");
             if (debugType is null)
             {
                 return;
             }
 
             var conditionalAttributeType =
-                ctx.Compilation.GetTypeByMetadataName("System.Diagnostics.ConditionalAttribute");
+                ctx.Type("System.Diagnostics.ConditionalAttribute");
+
+            // Resolved here, not in the callback. UpaOptions.Resolve reads and parses the
+            // options file, and the callback runs once per Debug call -- in a logging-heavy
+            // project that is the same file parsed thousands of times, against the
+            // once-per-compilation contract the type documents.
+            var options = UpaOptions.Resolve(ctx.Options);
+            var configProvider = ctx.Options.AnalyzerConfigOptionsProvider;
 
             ctx.RegisterOperationAction(
-                opCtx => AnalyzeInvocation(opCtx, debugType, conditionalAttributeType),
+                opCtx => AnalyzeInvocation(opCtx, debugType, conditionalAttributeType, options, configProvider),
                 OperationKind.Invocation);
         }
 
         private static void AnalyzeInvocation(
             OperationAnalysisContext context,
             INamedTypeSymbol debugType,
-            INamedTypeSymbol? conditionalAttributeType)
+            INamedTypeSymbol? conditionalAttributeType,
+            UpaOptions options,
+            AnalyzerConfigOptionsProvider configProvider)
         {
             var invocation = (IInvocationOperation)context.Operation;
             var method = invocation.TargetMethod;
@@ -79,7 +88,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (IsInsideWrapperType(context, invocation))
+            if (IsInsideWrapperType(context, invocation, options, configProvider))
             {
                 return;
             }
@@ -113,20 +122,32 @@ namespace UnityPerformanceAnalyzers
             return false;
         }
 
-        private static bool IsInsideWrapperType(OperationAnalysisContext context, IInvocationOperation invocation)
+        private static bool IsInsideWrapperType(
+            OperationAnalysisContext context,
+            IInvocationOperation invocation,
+            UpaOptions options,
+            AnalyzerConfigOptionsProvider configProvider)
         {
-            var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(invocation.Syntax.SyntaxTree);
-            if (!options.TryGetValue(WrapperTypesOptionKey, out var raw) || string.IsNullOrWhiteSpace(raw))
+            // Through UpaOptions, so the options file works here too. .editorconfig alone is
+            // IDE-only: Unity does not pass it to the compiler, so a value set there did
+            // nothing in an actual build.
+            // The per-tree lookup stays here -- an .editorconfig section applies to the file
+            // the call is in -- but the options file behind it was parsed once.
+            var wrapperTypeNames = options.GetList(
+                WrapperTypesOptionKey,
+                invocation.Syntax.SyntaxTree,
+                configProvider,
+                ImmutableArray<string>.Empty);
+            if (wrapperTypeNames.IsEmpty)
             {
                 return false;
             }
 
-            var wrapperTypeNames = raw.Split(',');
             for (var type = context.ContainingSymbol.ContainingType; type is object; type = type.ContainingType)
             {
                 foreach (var wrapperTypeName in wrapperTypeNames)
                 {
-                    if (string.Equals(type.Name, wrapperTypeName.Trim(), StringComparison.Ordinal))
+                    if (string.Equals(type.Name, wrapperTypeName, StringComparison.Ordinal))
                     {
                         return true;
                     }

@@ -17,6 +17,15 @@ namespace UnityEngine
         public static Object FindAnyObjectByType(Type type) => null!;
         public static T[] FindObjectsByType<T>(FindObjectsSortMode sortMode) => null!;
         public static Object[] FindObjectsByType(Type type, FindObjectsSortMode sortMode) => null!;
+
+        // Inherited statics. Everything derived from Object -- which is every MonoBehaviour --
+        // calls these with no receiver, and that is the form UPA0031 is about.
+        public static Object Instantiate(Object original) => original;
+        public static Object Instantiate(Object original, Transform parent) => original;
+        public static T Instantiate<T>(T original) where T : Object => original;
+        public static void Destroy(Object obj) { }
+        public static void Destroy(Object obj, float t) { }
+        public static void DestroyImmediate(Object obj) { }
     }
 
     public enum FindObjectsSortMode

@@ -31,11 +31,11 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
-            var graphicType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.UI.Graphic");
-            var tmpTextType = ctx.Compilation.GetTypeByMetadataName("TMPro.TMP_Text");
+            var gameObjectType = ctx.Type("UnityEngine.GameObject");
+            var graphicType = ctx.Type("UnityEngine.UI.Graphic");
+            var tmpTextType = ctx.Type("TMPro.TMP_Text");
             if (gameObjectType is null || (graphicType is null && tmpTextType is null))
             {
                 return;

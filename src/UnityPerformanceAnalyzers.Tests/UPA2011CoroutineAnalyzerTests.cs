@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
@@ -9,26 +7,13 @@ namespace UnityPerformanceAnalyzers.Tests
     {
         private static Task VerifyAsync(string source, bool referenceUniTask = true)
         {
-            var test = new CSharpAnalyzerTest<UPA2011CoroutineAnalyzer, DefaultVerifier>
-            {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
+            var harness = new RuleHarness { EnabledRules = { "UPA2011" } };
             if (referenceUniTask)
             {
-                test.TestState.AdditionalReferences.Add(
-                    TestMetadataReferences.EmptyAssembly(UpaProfile.UniTaskAssemblyName));
+                harness.PackageAssemblies.Add(UpaProfile.UniTaskAssemblyName);
             }
 
-            // UPA2011 is disabled by default; enable it the same way a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA2011.severity = warning
-"));
-            return test.RunAsync();
+            return RuleVerifier.VerifyAsync<UPA2011CoroutineAnalyzer>(source, harness);
         }
 
         // UPA2011 test case 1

@@ -1,6 +1,5 @@
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
@@ -8,25 +7,12 @@ namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA1001NonExhaustiveEnumSwitchAnalyzerTests
     {
-        private static Task VerifyAsync(string source, bool allowDefault = true)
-        {
-            var test = new CSharpAnalyzerTest<UPA1001NonExhaustiveEnumSwitchAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source, bool allowDefault = true) =>
+            RuleVerifier.VerifyAsync<UPA1001NonExhaustiveEnumSwitchAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            if (!allowDefault)
-            {
-                test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
-
-[*.cs]
-upa_enum_switch_allow_default = false
-"));
-            }
-
-            return test.RunAsync();
-        }
+                UnityStubs = false,
+                EditorConfig = allowDefault ? null : "upa_enum_switch_allow_default = false",
+            });
 
         // UPA1001 test case 1
         [Fact]
@@ -235,9 +221,8 @@ class C
         [Fact]
         public Task ManyMissingMembers_MessageTruncates()
         {
-            var test = new CSharpAnalyzerTest<UPA1001NonExhaustiveEnumSwitchAnalyzer, DefaultVerifier>
-            {
-                TestCode = @"
+            var test = RuleVerifier.CreateTest<UPA1001NonExhaustiveEnumSwitchAnalyzer>(
+                @"
 enum Rainbow { Red, Orange, Yellow, Green, Blue, Indigo, Violet }
 
 class C
@@ -249,8 +234,7 @@ class C
         }
     }
 }",
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
+                new RuleHarness { UnityStubs = false });
             test.ExpectedDiagnostics.Add(
                 new DiagnosticResult(UPA1001NonExhaustiveEnumSwitchAnalyzer.DiagnosticId, DiagnosticSeverity.Warning)
                     .WithLocation(0)

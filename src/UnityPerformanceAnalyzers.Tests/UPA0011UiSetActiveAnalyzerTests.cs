@@ -1,29 +1,15 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0011UiSetActiveAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0011UiSetActiveAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0011UiSetActiveAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            // UPA0011 is disabled by default; enable it the same way a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA0011.severity = warning
-"));
-            return test.RunAsync();
-        }
+                EnabledRules = { "UPA0011" },
+            });
 
         // UPA0011 test case 1
         [Fact]

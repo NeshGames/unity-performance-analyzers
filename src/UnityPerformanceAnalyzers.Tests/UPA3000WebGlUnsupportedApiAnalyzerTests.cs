@@ -1,47 +1,24 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA3000WebGlUnsupportedApiAnalyzerTests
     {
-        // The UPA_TARGET_WEBGL define is simulated through parse options.
-        private class WebGlTest : CSharpAnalyzerTest<UPA3000WebGlUnsupportedApiAnalyzer, DefaultVerifier>
-        {
-            public bool DefineWebGlTarget { get; set; } = true;
-
-            protected override ParseOptions CreateParseOptions()
-            {
-                var options = (CSharpParseOptions)base.CreateParseOptions();
-                return DefineWebGlTarget
-                    ? options.WithPreprocessorSymbols(UpaProfile.WebGlDefine)
-                    : options;
-            }
-        }
-
         private static Task VerifyAsync(string source, bool defineWebGlTarget = true)
         {
-            var test = new WebGlTest
-            {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-                DefineWebGlTarget = defineWebGlTarget,
-            };
             // UPA3000~3003 are disabled by default; enable them as a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
+            var harness = new RuleHarness
+            {
+                UnityStubs = false,
+                EnabledRules = { "UPA3000", "UPA3001", "UPA3002", "UPA3003" },
+            };
+            if (defineWebGlTarget)
+            {
+                harness.Defines.Add(UpaProfile.WebGlDefine);
+            }
 
-[*.cs]
-dotnet_diagnostic.UPA3000.severity = warning
-dotnet_diagnostic.UPA3001.severity = warning
-dotnet_diagnostic.UPA3002.severity = warning
-dotnet_diagnostic.UPA3003.severity = warning
-"));
-            return test.RunAsync();
+            return RuleVerifier.VerifyAsync<UPA3000WebGlUnsupportedApiAnalyzer>(source, harness);
         }
 
         // Test case 1 — UPA3000: construction, static member access, and Task methods

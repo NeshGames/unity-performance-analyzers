@@ -68,19 +68,11 @@ static class Marker
 
         private static CSharpAnalyzerTest<EffectiveSeverityProbeAnalyzer, DefaultVerifier> CreateTest(
             string? editorConfig)
-        {
-            var test = new CSharpAnalyzerTest<EffectiveSeverityProbeAnalyzer, DefaultVerifier>
+            => RuleVerifier.CreateTest<EffectiveSeverityProbeAnalyzer>(Source, new RuleHarness
             {
-                TestCode = Source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            if (editorConfig is not null)
-            {
-                test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", editorConfig));
-            }
-
-            return test;
-        }
+                UnityStubs = false,
+                RawEditorConfig = editorConfig,
+            });
 
         // Baseline: the overload really does raise the reported severity above the
         // descriptor default (Warning -> Error).

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using UnityPerformanceAnalyzers.Catalog;
 using UnityPerformanceAnalyzers.RuleManifest;
 using Xunit;
 
@@ -39,7 +40,7 @@ namespace UnityPerformanceAnalyzers.Tests
                 ReadmeEmitter.WriteAll(root);
                 var english = File.ReadAllText(Path.Combine(root, "README.md"));
 
-                foreach (var rule in RuleCatalog.Collect())
+                foreach (var rule in UpaRuleCatalog.Rules())
                 {
                     var link = $"[{rule.Id}](docs/rules/{rule.Id}.md)";
                     var occurrences = english.Split(new[] { link }, StringSplitOptions.None).Length - 1;

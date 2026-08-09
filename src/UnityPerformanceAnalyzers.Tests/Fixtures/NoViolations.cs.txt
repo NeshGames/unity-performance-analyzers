@@ -1,0 +1,29 @@
+// The negative half. Every rule marked on the positive fixture must stay silent here, or
+// the differential proves only that both pipelines fire, not that either one discriminates.
+//
+// expect-none UPA0001
+// expect-none UPA0002
+// expect-none UPA0005
+// expect-none UPA0006
+
+using System.Collections.Generic;
+using UnityEngine;
+
+class NoViolations : MonoBehaviour
+{
+    List<int> buffer;
+    Transform cached;
+    string cachedName;
+
+    void Awake()
+    {
+        buffer = new List<int>();
+        cached = GetComponent<Transform>();
+        cachedName = gameObject.name;
+    }
+
+    void Update()
+    {
+        buffer.Add(cachedName.Length + (cached is null ? 0 : 1));
+    }
+}

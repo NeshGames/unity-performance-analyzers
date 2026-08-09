@@ -35,21 +35,21 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            var profile = ctx.Profile;
             if (!profile.HasDOTween)
             {
                 return;
             }
 
-            var tweenType = ctx.Compilation.GetTypeByMetadataName("DG.Tweening.Tween");
+            var tweenType = ctx.Type("DG.Tweening.Tween");
             if (tweenType is null)
             {
                 return;
             }
 
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzeInvocation(opCtx, tweenType, hotPathDetector),

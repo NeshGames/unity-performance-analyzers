@@ -24,27 +24,20 @@ namespace Cysharp.Threading.Tasks
             string source,
             bool referenceUniTask = false)
         {
-            var test = new CSharpAnalyzerTest<UPA2012FireAndForgetAnalyzer, DefaultVerifier>
+            // UPA2012 is disabled by default; enable it the same way a preset would.
+            var harness = new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
+                UnityStubs = false,
+                EnabledRules = { "UPA2012" },
                 // Both UPA2012 descriptors share the ID and severity; markup only needs ID + span.
                 MarkupOptions = MarkupOptions.UseFirstDescriptor,
             };
             if (referenceUniTask)
             {
-                test.TestState.AdditionalReferences.Add(
-                    TestMetadataReferences.EmptyAssembly(UpaProfile.UniTaskAssemblyName));
+                harness.PackageAssemblies.Add(UpaProfile.UniTaskAssemblyName);
             }
 
-            // UPA2012 is disabled by default; enable it the same way a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA2012.severity = warning
-"));
-            return test;
+            return RuleVerifier.CreateTest<UPA2012FireAndForgetAnalyzer>(source, harness);
         }
 
         // UPA2012 test case 1 — form A

@@ -456,6 +456,18 @@
   <data name="UPA0030Description" xml:space="preserve">
     <value>Whether an arbitrary method allocates cannot be decided without escape analysis across method boundaries, so this rule does not try: it checks a closed list of BCL members whose allocation is a documented, measured fact. The list covers the string operations that return a new instance (Split, ToCharArray, Substring, ToLower, ToLowerInvariant, ToUpper, ToUpperInvariant, Trim, TrimStart, TrimEnd) and the enum reflection helpers that return a new array on every call (Enum.GetValues, Enum.GetNames). Trim and its variants return the original instance when there is nothing to trim, so a reported call may cost nothing in practice; the rule cannot know the contents of the string. UnityEngine members with the same problem are reported by UPA0018 instead, so no call is reported twice. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
   </data>
+  <data name="UPA0031Title" xml:space="preserve">
+    <value>Instantiate or Destroy in per-frame method</value>
+  </data>
+  <data name="UPA0031MessageFormat" xml:space="preserve">
+    <value>Instantiating '{0}' on a per-frame path allocates and initialises a new object every frame. Take one from a pool and return it when done.</value>
+  </data>
+  <data name="UPA0031MessageFormatDestroy" xml:space="preserve">
+    <value>Destroying '{0}' on a per-frame path queues an object for collection every frame. Return it to a pool instead of destroying it.</value>
+  </data>
+  <data name="UPA0031Description" xml:space="preserve">
+    <value>Creating and destroying objects every frame produces garbage the collector must reclaim, and Unity object construction is not cheap. Reuse instances from a pool instead.</value>
+  </data>
   <data name="UPA0027Description" xml:space="preserve">
     <value>A params parameter can be called in two ways. Passing an array uses normal form, where the allocation is visible and under the caller's control. Passing the elements directly uses expanded form, where the compiler creates a new array at the call site on every call — nothing in the source says so. Mathf.Max and Mathf.Min are the common case in Unity, since only arity-2 overloads exist and a third argument silently switches to the params overload; string.Format, string.Concat, string.Join, Path.Combine and Debug.LogFormat behave the same way past their fixed-arity overloads. When the parameter is params object[], each value-type argument boxes on top of the array allocation. Zero-argument calls are not reported: those compile to Array.Empty and allocate nothing. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
   </data>

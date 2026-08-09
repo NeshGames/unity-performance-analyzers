@@ -37,6 +37,7 @@ dotnet_diagnostic.UPA0027.severity = error
 dotnet_diagnostic.UPA0028.severity = error
 dotnet_diagnostic.UPA0029.severity = warning
 dotnet_diagnostic.UPA0030.severity = error
+dotnet_diagnostic.UPA0031.severity = error
 dotnet_diagnostic.UPA1000.severity = warning
 dotnet_diagnostic.UPA2000.severity = error
 dotnet_diagnostic.UPA2010.severity = none
@@ -72,14 +73,15 @@ dotnet_diagnostic.UNT0037.severity = error
 dotnet_diagnostic.UNT0041.severity = error
 dotnet_diagnostic.UNT0042.severity = error
 
-# Hot-path classification (IDE only; Unity builds use the built-in defaults)
-# upa_hot_path_messages = Update,FixedUpdate,LateUpdate
+# Analyzer options, with their defaults. Setting them here reaches the IDE;
+# put them in Rules.UnityPerformanceAnalyzers.additionalfile to reach Unity builds too.
+# upa_hot_path_messages = Update,FixedUpdate,LateUpdate,OnGUI,OnAnimatorMove,OnAnimatorIK,OnPreCull,OnPreRender,OnPostRender,OnRenderObject,OnWillRenderObject,OnRenderImage,OnTriggerStay,OnTriggerStay2D,OnCollisionStay,OnCollisionStay2D,OnParticleUpdateJobScheduled
 # upa_hot_path_attributes = HotPath,PerformanceCritical
 # upa_hot_path_include_lambdas = true
-
-# Rule options
 # upa_enum_switch_allow_default = true
 # upa_addrange_hot_path_only = false
+# upa_shader_property_hot_path_only = false
+# upa_log_wrapper_types =
 
 # Editor tooling: relax performance pressure (IDE side; for Unity builds place
 # editor-relaxed.ruleset as Default.ruleset in your Editor asmdef folders)

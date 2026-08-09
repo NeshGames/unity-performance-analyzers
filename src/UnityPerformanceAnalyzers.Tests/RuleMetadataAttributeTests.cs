@@ -39,7 +39,8 @@ namespace UnityPerformanceAnalyzers.Tests
                 "UPA0017GetComponentsArrayAnalyzer", "UPA0018AllocatingArrayApiAnalyzer",
                 "UPA0022HasFlagAnalyzer", "UPA0024ResourcesLoadAnalyzer",
                 "UPA0026BoxedReceiverCallAnalyzer", "UPA0027ParamsArrayAllocationAnalyzer",
-                "UPA0030KnownAllocatingBclApiAnalyzer", "UPA2000StringConcatenationAnalyzer",
+                "UPA0030KnownAllocatingBclApiAnalyzer", "UPA0031HotPathLifecycleAnalyzer",
+                "UPA2000StringConcatenationAnalyzer",
                 "UPA2030TweenCreationAnalyzer",
             };
 

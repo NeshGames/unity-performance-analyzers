@@ -47,16 +47,16 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var gameObjectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.GameObject");
-            var objectType = ctx.Compilation.GetTypeByMetadataName("UnityEngine.Object");
+            var gameObjectType = ctx.Type("UnityEngine.GameObject");
+            var objectType = ctx.Type("UnityEngine.Object");
             if (gameObjectType is null && objectType is null)
             {
                 return;
             }
 
-            var hotPathDetector = HotPathDetector.Create(ctx.Compilation, ctx.Options);
+            var hotPathDetector = ctx.HotPath;
 
             ctx.RegisterOperationAction(
                 opCtx => AnalyzeInvocation(opCtx, gameObjectType, objectType, hotPathDetector),

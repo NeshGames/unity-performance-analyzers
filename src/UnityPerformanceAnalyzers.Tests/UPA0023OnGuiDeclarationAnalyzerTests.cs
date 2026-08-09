@@ -1,35 +1,16 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0023OnGuiDeclarationAnalyzerTests
     {
-        private static Task VerifyAsync(string source, string? assemblyName = null)
-        {
-            var test = new CSharpAnalyzerTest<UPA0023OnGuiDeclarationAnalyzer, DefaultVerifier>
+        private static Task VerifyAsync(string source, string? assemblyName = null) =>
+            RuleVerifier.VerifyAsync<UPA0023OnGuiDeclarationAnalyzer>(source, new RuleHarness
             {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            if (assemblyName is object)
-            {
-                test.SolutionTransforms.Add((solution, projectId) =>
-                    solution.WithProjectAssemblyName(projectId, assemblyName));
-            }
-
-            // UPA0023 is disabled by default; enable it the same way a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA0023.severity = warning
-"));
-            return test.RunAsync();
-        }
+                AssemblyName = assemblyName,
+                EnabledRules = { "UPA0023" },
+            });
 
         // UPA0023 test case 1
         [Fact]

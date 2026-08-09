@@ -33,16 +33,16 @@ namespace UnityPerformanceAnalyzers
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => s_supportedDiagnostics;
 
         /// <inheritdoc/>
-        private protected override void InitializeCore(CompilationStartAnalysisContext ctx)
+        private protected override void InitializeCore(UpaCompilationContext ctx)
         {
-            var profile = UpaProfile.Resolve(ctx.Compilation, ctx.Options);
+            var profile = ctx.Profile;
             if (!profile.HasUniTask)
             {
                 return;
             }
 
-            var taskType = ctx.Compilation.GetTypeByMetadataName("System.Threading.Tasks.Task");
-            var taskOfTType = ctx.Compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1");
+            var taskType = ctx.Type("System.Threading.Tasks.Task");
+            var taskOfTType = ctx.Type("System.Threading.Tasks.Task`1");
             if (taskType is null && taskOfTType is null)
             {
                 return;

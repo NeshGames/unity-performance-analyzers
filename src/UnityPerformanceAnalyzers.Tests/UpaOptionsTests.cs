@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
@@ -14,8 +12,6 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </summary>
     public class UpaOptionsTests
     {
-        private const string OptionsFilePath = "/Rules.UnityPerformanceAnalyzers.additionalfile";
-
         private const string Prelude = @"
 static class Marker
 {
@@ -23,26 +19,12 @@ static class Marker
 }
 ";
 
-        private static Task VerifyHotPathAsync(string source, string? optionsFile = null, string? editorConfig = null)
-        {
-            var test = new CSharpAnalyzerTest<HotPathProbeAnalyzer, DefaultVerifier>
+        private static Task VerifyHotPathAsync(string source, string? optionsFile = null, string? editorConfig = null) =>
+            RuleVerifier.VerifyAsync<HotPathProbeAnalyzer>(source + Prelude, new RuleHarness
             {
-                TestCode = source + Prelude,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            if (optionsFile is not null)
-            {
-                test.TestState.AdditionalFiles.Add((OptionsFilePath, optionsFile));
-            }
-
-            if (editorConfig is not null)
-            {
-                test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", $"root = true\n\n[*.cs]\n{editorConfig}\n"));
-            }
-
-            return test.RunAsync();
-        }
+                OptionsFile = optionsFile,
+                EditorConfig = editorConfig,
+            });
 
         private const string StartAndUpdateSource = @"
 using UnityEngine;
@@ -158,9 +140,8 @@ class C : MonoBehaviour
         [Fact]
         public Task EnumSwitchAllowDefault_ViaOptionsFile()
         {
-            var test = new CSharpAnalyzerTest<UPA1001NonExhaustiveEnumSwitchAnalyzer, DefaultVerifier>
-            {
-                TestCode = @"
+            return RuleVerifier.VerifyAsync<UPA1001NonExhaustiveEnumSwitchAnalyzer>(
+                @"
 enum State { Idle, Running, Dead }
 
 class C
@@ -176,10 +157,11 @@ class C
         }
     }
 }",
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalFiles.Add((OptionsFilePath, "upa_enum_switch_allow_default = false"));
-            return test.RunAsync();
+                new RuleHarness
+                {
+                    UnityStubs = false,
+                    OptionsFile = "upa_enum_switch_allow_default = false",
+                });
         }
     }
 }

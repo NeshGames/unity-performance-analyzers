@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.CSharp.Testing;
-using Microsoft.CodeAnalysis.Testing;
 using UnityPerformanceAnalyzers.CodeFixes;
 using Xunit;
 
@@ -8,27 +6,14 @@ namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0019BoxedYieldAnalyzerTests
     {
-        private static Task VerifyAsync(string source)
-        {
-            var test = new CSharpAnalyzerTest<UPA0019BoxedYieldAnalyzer, DefaultVerifier>
-            {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            return test.RunAsync();
-        }
+        private static Task VerifyAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA0019BoxedYieldAnalyzer>(source);
 
         private static Task VerifyFixAsync(string source, string fixedSource)
         {
-            var test = new CSharpCodeFixTest<UPA0019BoxedYieldAnalyzer, UPA0019BoxedYieldCodeFixProvider, DefaultVerifier>
-            {
-                TestCode = source,
-                FixedCode = fixedSource,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
-            return test.RunAsync();
+            return RuleVerifier.VerifyCodeFixAsync<UPA0019BoxedYieldAnalyzer, UPA0019BoxedYieldCodeFixProvider>(
+                source,
+                fixedSource);
         }
 
         // UPA0019 test case 1 (trigger half; the code fix half is YieldedZero_CodeFix_ReplacesWithNull)

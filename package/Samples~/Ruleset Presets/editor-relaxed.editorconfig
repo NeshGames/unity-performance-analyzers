@@ -34,6 +34,7 @@ dotnet_diagnostic.UPA0027.severity = none
 dotnet_diagnostic.UPA0028.severity = warning
 dotnet_diagnostic.UPA0029.severity = none
 dotnet_diagnostic.UPA0030.severity = none
+dotnet_diagnostic.UPA0031.severity = none
 dotnet_diagnostic.UPA1000.severity = none
 dotnet_diagnostic.UPA2000.severity = none
 dotnet_diagnostic.UPA2010.severity = none

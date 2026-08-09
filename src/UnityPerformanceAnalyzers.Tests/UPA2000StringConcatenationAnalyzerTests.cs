@@ -21,27 +21,14 @@ namespace UnityPerformanceAnalyzers.Tests
             string source,
             bool referenceZString = false)
         {
-            var test = new CSharpAnalyzerTest<UPA2000StringConcatenationAnalyzer, DefaultVerifier>
-            {
-                TestCode = source,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-            };
-            test.TestState.AdditionalReferences.Add(typeof(UnityEngine.MonoBehaviour).Assembly);
+            // UPA2000 is disabled by default; enable it the same way a preset would.
+            var harness = new RuleHarness { EnabledRules = { "UPA2000" } };
             if (referenceZString)
             {
-                test.TestState.AdditionalReferences.Add(
-                    TestMetadataReferences.EmptyAssembly(UpaProfile.ZStringAssemblyName));
+                harness.PackageAssemblies.Add(UpaProfile.ZStringAssemblyName);
             }
 
-            // UPA2000 is disabled by default; enable it the same way a preset would.
-            test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", @"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA2000.severity = warning
-"));
-
-            return test;
+            return RuleVerifier.CreateTest<UPA2000StringConcatenationAnalyzer>(source, harness);
         }
 
         // UPA2000 test case 1 — concatenation without ZString suggests StringBuilder
