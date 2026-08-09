@@ -252,6 +252,7 @@ jobs:
       id-token: write   # the OIDC token the trusted-publishing pre-flight below exchanges
     outputs:
       version: ${{ steps.version.outputs.version }}
+      nuget: ${{ steps.version.outputs.nuget }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -289,10 +290,32 @@ jobs:
       - name: Read version from Directory.Build.props
         id: version
         run: |
+          set -euo pipefail
           VERSION=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' src/Directory.Build.props)
           test -n "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Releasing v$VERSION"
+
+          # A NuGet id, a command name, and every version pushed under them are permanent,
+          # so publishing waits for 1.0. Derived from the version rather than kept in a
+          # flag someone has to remember to turn on: the release that is 1.0 is exactly the
+          # release that should publish, and nothing has to be noticed for that to happen.
+          #
+          # Checked rather than assumed, because the shell reads a version it cannot parse
+          # as "not 1.0 yet" and would carry on: past 1.0 that answer is wrong and silent.
+          major=${VERSION%%.*}
+          case "$major" in
+            ''|*[!0-9]*)
+              echo "::error::version '$VERSION' does not start with a number; it is the single source for the tag, the package and whether this release publishes."
+              exit 1
+              ;;
+          esac
+
+          # A prerelease of 1.0 does not publish. Claiming the id is the irreversible half
+          # of going to 1.0, and an rc is precisely the release that is not sure yet.
+          if [ "$major" -ge 1 ] && [ "${VERSION#*-}" = "$VERSION" ]; then nuget=yes; else nuget=no; fi
+          echo "nuget=$nuget" >> "$GITHUB_OUTPUT"
+          echo "publishes to NuGet: $nuget"
 
       # Versions are never recycled: a published tag is permanent.
       - name: Refuse to re-release an existing tag
@@ -314,7 +337,10 @@ jobs:
       # exchange and discards the key it gets. The policy is bound to the workflow file, and
       # the publish job below lives in this same file, so what succeeds here is what it will
       # present.
+      # Both are skipped below 1.0, where the release publishes nothing: a credential this
+      # run will never use is not a reason to refuse the run.
       - name: The nuget.org username is configured
+        if: steps.version.outputs.nuget == 'yes'
         env:
           NUGET_USER: ${{ secrets.NUGET_USER }}
         run: |
@@ -326,6 +352,7 @@ jobs:
       # Held in a secret rather than written here because this workflow is part of the
       # published repository, and the account name is not something the package pages give away.
       - name: Trusted publishing reaches nuget.org
+        if: steps.version.outputs.nuget == 'yes'
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841   # v1.2.0
         with:
           user: ${{ secrets.NUGET_USER }}
@@ -364,6 +391,7 @@ jobs:
       - name: Point README install URLs at this release
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          NUGET: ${{ steps.version.outputs.nuget }}
         run: |
           set -euo pipefail
           sed -i -E "s|(\?path=/package#v)[0-9]+\.[0-9]+\.[0-9]+|\1$VERSION|g" README.md README.zh-TW.md
@@ -372,11 +400,27 @@ jobs:
           # this page pins does not, so the command line and the Editor would disagree.
           sed -i -E "s|(NeshGames\.UnityPerformanceAnalyzers\.Cli --version )[0-9]+\.[0-9]+\.[0-9]+|\1$VERSION|g" README.md README.zh-TW.md
 
+          # The pages and the push have to agree in both directions. Telling people to
+          # install from NuGet on a release that publishes nothing is the failure this
+          # already produced once - the pages went out with the command months before any
+          # package existed under that id. The reverse is just as bad and quieter: pushing
+          # a package that no page mentions.
           for file in README.md README.zh-TW.md; do
             grep -q "path=/package#v$VERSION" "$file"
-            grep -q "NeshGames.UnityPerformanceAnalyzers.Cli --version $VERSION" "$file"
-            if grep -nE "NeshGames\.UnityPerformanceAnalyzers\.Cli( --global)?$" "$file"; then
-              echo "::error::$file has an unpinned tool install command"; exit 1
+
+            if [ "$NUGET" = yes ]; then
+              # The command as well as the id and version: the other direction forbids the
+              # literal "dotnet tool install", so requiring less than that here would let
+              # the page mention a package without ever saying how to get it.
+              grep -q "dotnet tool install .*NeshGames.UnityPerformanceAnalyzers.Cli --version $VERSION" "$file" || {
+                echo "::error::$file does not tell anyone how to install the CLI, and this release publishes it."; exit 1; }
+              if grep -nE "NeshGames\.UnityPerformanceAnalyzers\.Cli( --global)?$" "$file"; then
+                echo "::error::$file has an unpinned tool install command"; exit 1
+              fi
+            else
+              if grep -n "dotnet tool install" "$file"; then
+                echo "::error::$file tells people to install the CLI from NuGet, and this release publishes nothing there. Nothing has been pushed."; exit 1
+              fi
             fi
           done
 
@@ -533,16 +577,22 @@ jobs:
           fi
           dotnet upa-cli --list-rules > /dev/null
 
+      # Everything above still runs before 1.0: packing and starting the tool are checks,
+      # and a check that only happens on the release that publishes is a check that first
+      # runs on the one occasion it must not fail. Only the push waits.
+      #
       # Here rather than at the top of the job: the key nuget.org issues lasts an hour, and
       # the pack and install checks above are the slow part. Requesting it early would risk
       # spending that hour on the checks and reaching the push with an expired key.
       - name: NuGet login (OIDC to a short-lived key)
         id: login
+        if: needs.prepare-release.outputs.nuget == 'yes'
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841   # v1.2.0
         with:
           user: ${{ secrets.NUGET_USER }}
 
       - name: Publish upa-cli to NuGet
+        if: needs.prepare-release.outputs.nuget == 'yes'
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
@@ -556,22 +606,37 @@ jobs:
             --api-key "$NUGET_API_KEY" \
             --skip-duplicate
 
+      - name: Say that the CLI was not published
+        if: needs.prepare-release.outputs.nuget != 'yes'
+        run: |
+          echo "The CLI was built, packed and started, but not pushed: a NuGet id and every version under it are permanent, so publishing begins at 1.0. The .nupkg is attached to the release." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Create or update the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.tag.outputs.tag }}
           VERSION: ${{ steps.tag.outputs.version }}
           REPOSITORY: ${{ github.repository }}
+          NUGET: ${{ needs.prepare-release.outputs.nuget }}
         run: |
           set -euo pipefail
           notes=$(printf '%s\n' \
             "See package/CHANGELOG.md." \
             "" \
             "Unity package, via UPM:" \
-            "https://github.com/$REPOSITORY.git?path=/package#$TAG" \
-            "" \
-            "Command line runner:" \
-            "dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version $VERSION")
+            "https://github.com/$REPOSITORY.git?path=/package#$TAG")
+
+          # The notes say how to get the CLI only where that is true. Naming an install
+          # command for a package that was not pushed is the same defect as the README had.
+          if [ "$NUGET" = yes ]; then
+            notes=$(printf '%s\n' "$notes" "" \
+              "Command line runner:" \
+              "dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version $VERSION")
+          else
+            notes=$(printf '%s\n' "$notes" "" \
+              "Command line runner: build from source, or take the .nupkg attached below." \
+              "It is not on NuGet until 1.0 - an id and every version under it are permanent.")
+          fi
 
           # Taken from the package directory rather than a fresh build: those are the exact
           # bytes the tag ships to Unity, so an asset can never differ from what UPM resolves.

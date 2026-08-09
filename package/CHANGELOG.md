@@ -5,7 +5,11 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.0] - 2026-08-09
+## [0.7.0] - 2026-08-09
+
+Three version lines of work released as one. 0.7.0 and 0.8.0 were developed and their code
+went to the default branch, but neither was ever tagged, so nothing was ever installable
+under those numbers; collapsing them costs nobody a version they had.
 
 ### Added
 
@@ -14,45 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is a pool. Matching is on the method symbol rather than on how the call is written, because
   inside a `MonoBehaviour` the usual line is `Instantiate(prefab)` with no receiver at all.
 
-- Every rule's specification now declares the assumptions it makes, against a fixed
-  six-category checklist. This is internal, but it produced two missing tests and one real
-  defect (the UPA0009 change below), so it is worth knowing it happened.
-
-### Fixed
-
-- **Two options only ever worked in the IDE.** `upa_shader_property_hot_path_only`
-  (UPA0003) and `upa_log_wrapper_types` (UPA0005) read `.editorconfig` directly instead of
-  going through the layered lookup, and Unity does not pass `.editorconfig` to the
-  compiler. Setting either one changed what your IDE showed and nothing about what your
-  build reported. Both now read the options file first, like every other option. If you had
-  set them and worked around them doing nothing, they will start taking effect.
-
-- **`.editorconfig` sections now apply per file for UPA0003.** The option was read once for
-  the whole compilation, from whichever source file happened to be first, so a section
-  scoped to one folder silently applied to all of them or to none.
-
-### Changed
-
-- **UPA0009 reports less, on purpose.** It advises hoisting `Count` out of a loop, which is
-  only correct while the collection does not change, and it decided that by comparing
-  receiver names in the loop body -- so an alias, or the collection passed to a method that
-  mutates it, was invisible. Following the advice would then break the program, which is
-  worse than a false positive. It now stays quiet whenever the loop body could reach the
-  collection other than by reading it. Element assignment (`list[i] = x`) still reports: it
-  cannot change how many items there are.
-
-- The option list in `rules.json` and the commented defaults in every preset
-  `.editorconfig` are generated from one declaration instead of three hand-kept copies. The
-  preset comments now show each option's real default, which is longer for
-  `upa_hot_path_messages` and adds the two options that were missing entirely.
-
-## [0.7.0] - 2026-08-08
-
-### Added
-
 - The code fix assembly now ships with the package, so the fixes for UPA0019, UPA0021 and
   UPA0022 reach the IDE instead of existing only in the repository. Verified on Unity
-  2022.3 and Unity 6: both assemblies load as analyzers with no CS8032.
+  2022.3 and Unity 6: both assemblies load as analyzers with no CS8032, and the bulbs were
+  confirmed by hand in the Editor — the rewrites they preview are the ones documented.
 
 - **Baselines**: `upa-cli --write-baseline <path>` records what a project violates today,
   and `--baseline <path>` reports only what comes after. An existing project can then fail
@@ -73,20 +42,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the whole difference between fixable and not. The text output lists the first twenty and
   counts the rest; JSON gains a `compileErrors` array with all of them.
 
-- **`upa-cli` installs from NuGet** as a .NET tool, so command-line use no longer means
-  cloning this repository:
-
-  ```bash
-  dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version <version>
-  ```
-
-  Its version tracks the package's: a command that knows a different set of rules than the
-  package in your project would disagree with the Editor about the same code.
+- Every rule's specification now declares the assumptions it makes, against a fixed
+  six-category checklist. This is internal, but it produced two missing tests and one real
+  defect (the UPA0009 change below), so it is worth knowing it happened.
 
 ### Changed
 
-- The rule tables and rule count in both READMEs are generated from the analyzer assembly
-  and checked on every pull request. They were maintained by hand and had drifted.
+- **UPA0009 reports less, on purpose.** It advises hoisting `Count` out of a loop, which is
+  only correct while the collection does not change, and it decided that by comparing
+  receiver names in the loop body -- so an alias, or the collection passed to a method that
+  mutates it, was invisible. Following the advice would then break the program, which is
+  worse than a false positive. It now stays quiet whenever the loop body could reach the
+  collection other than by reading it. Element assignment (`list[i] = x`) still reports: it
+  cannot change how many items there are.
 
 - **UPA2000 reports at warning in the `recommended` preset** (was `none`). The rule is
   deliberately not conditional on ZString so that projects without it still hear about
@@ -94,7 +62,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   projects heard nothing. Expect new warnings on existing code; `Rule Manager` can lower
   it per project.
 
+- The rule tables and rule count in both READMEs are generated from the analyzer assembly
+  and checked on every pull request. They were maintained by hand and had drifted.
+
+- The option list in `rules.json` and the commented defaults in every preset
+  `.editorconfig` are generated from one declaration instead of three hand-kept copies. The
+  preset comments now show each option's real default, which is longer for
+  `upa_hot_path_messages` and adds the two options that were missing entirely.
+
 ### Fixed
+
+- **Two options only ever worked in the IDE.** `upa_shader_property_hot_path_only`
+  (UPA0003) and `upa_log_wrapper_types` (UPA0005) read `.editorconfig` directly instead of
+  going through the layered lookup, and Unity does not pass `.editorconfig` to the
+  compiler. Setting either one changed what your IDE showed and nothing about what your
+  build reported. Both now read the options file first, like every other option. If you had
+  set them and worked around them doing nothing, they will start taking effect.
+
+- **`.editorconfig` sections now apply per file for UPA0003.** The option was read once for
+  the whole compilation, from whichever source file happened to be first, so a section
+  scoped to one folder silently applied to all of them or to none.
 
 - The README claimed 41 rules; the package has 45.
 
@@ -103,6 +90,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Because the option *replaces* the default set rather than adding to it, anyone who copied
   the line out of a rule page or a preset comment turned off `[PerformanceCritical]`
   detection and got no indication that they had.
+
+### Note on the command line
+
+`upa-cli` is built from this repository rather than installed from NuGet. A package id, a
+command name, and every version pushed under them are permanent, so that channel opens at
+1.0. The release attaches a `.nupkg` for anyone who wants to install it from a local source.
 
 ## [0.6.0] - 2026-08-08
 

@@ -10,94 +10,17 @@ namespace UnityPerformanceAnalyzers.Cli
     /// <summary>Entry point, separated from the top-level statements so tests can drive it.</summary>
     internal static class CliEntryPoint
     {
-        public const int ExitClean = 0;
-        public const int ExitDiagnostics = 1;
-        public const int ExitError = 2;
+        public const int ExitClean = ExitCode.Clean;
+        public const int ExitDiagnostics = ExitCode.Diagnostics;
+        public const int ExitError = ExitCode.Error;
 
         /// <summary>
-        /// Exit code for a completed run. An analyzer that failed to execute outranks the
-        /// severity threshold entirely: there is no finding to weigh, only an analysis
-        /// that did not happen.
+        /// Exit code for a run with no baseline written. Kept here because it is what the
+        /// tests reach for; the reasoning lives in <see cref="ExitCode"/> with the two cases
+        /// this signature cannot express.
         /// </summary>
         public static int ResolveExitCode(AnalysisResult result, string failOn)
-        {
-            if (!result.AnalyzerFailures.IsEmpty)
-            {
-                return ExitError;
-            }
-
-            return AnalysisRunner.ShouldFail(result, failOn) ? ExitDiagnostics : ExitClean;
-        }
-
-        /// <summary>
-        /// How many compile errors the text channel lists before summarizing the rest. A set of
-        /// compile errors is usually a handful of missing types repeated dozens of times, so a
-        /// score of lines is enough to see the shape without burying the findings above it.
-        /// </summary>
-        private const int CompileErrorsShown = 20;
-
-        /// <summary>
-        /// Lists the compile errors behind the count. Without them the user is told a number
-        /// and left with nowhere to go: under --whole-assembly the run is refused, a baseline
-        /// cannot be written, and which type failed to resolve is the one thing that would
-        /// make it fixable.
-        /// </summary>
-        private static void WriteCompileErrors(TextWriter stderr, AnalysisResult result)
-        {
-            foreach (var error in result.CompileErrors.Take(CompileErrorsShown))
-            {
-                stderr.WriteLine(
-                    $"{error.File}({error.Line},{error.Column}): error {error.Id}: {error.Message}");
-            }
-
-            var remaining = result.CompileErrors.Length - CompileErrorsShown;
-            if (remaining > 0)
-            {
-                stderr.WriteLine($"... and {remaining} more compile errors.");
-            }
-        }
-
-        /// <summary>
-        /// Filters a run through its baseline, if one was given. Reading a baseline places no
-        /// completeness demand on the run: comparing a single changed file against the contract
-        /// is the ordinary way to use this. Only producing the contract requires a full run.
-        /// </summary>
-        private static AnalysisResult ApplyBaseline(AnalysisResult result, CliOptions options)
-        {
-            if (options.BaselinePath is not { } path)
-            {
-                return result;
-            }
-
-            var outcome = BaselineFilter.Apply(
-                result.Diagnostics,
-                BaselineDocument.Read(path),
-                result.AnalyzedFiles,
-                result.IsComplete);
-
-            return result with
-            {
-                Diagnostics = outcome.Reported,
-                BaselineSuppressedCount = outcome.SuppressedCount,
-                BaselineStaleCount = outcome.StaleCount,
-            };
-        }
-
-        /// <summary>Writes the baseline for this run, or throws; returns the entry count.</summary>
-        private static int WriteBaseline(string target, CliOptions options, AnalysisResult result)
-        {
-            BaselineWriter.EnsureRunIsWritable(options, result);
-
-            if (File.Exists(target))
-            {
-                BaselineWriter.EnsureCoversExistingBaseline(
-                    target, BaselineDocument.Read(target), result.AnalyzedFiles);
-            }
-
-            var document = BaselineFilter.Build(result.Diagnostics);
-            BaselineWriter.Write(target, document);
-            return document.Entries.Length;
-        }
+            => ExitCode.For(result, failOn, wholeAssembly: false, baselineWritten: false);
 
         public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
         {
@@ -129,54 +52,28 @@ namespace UnityPerformanceAnalyzers.Cli
                     return ExitClean;
                 }
 
-                var result = ApplyBaseline(AnalysisRunner.Run(options), options);
+                var baseline = BaselineSession.Open(options);
+                var result = AnalysisRunner.Run(options);
+                if (baseline is object)
+                {
+                    result = baseline.Filter(result);
+                }
+
                 OutputWriter.WriteAnalysis(stdout, result, options.Format);
+                OutputWriter.WriteRunProblems(stderr, result, options);
 
-                if (!result.AnalyzerFailures.IsEmpty)
+                // A refused run writes no baseline: freezing what a broken analysis saw is
+                // the one outcome worse than reporting nothing.
+                var written = ExitCode.For(result, options, baselineWritten: false) == ExitCode.Error
+                    ? null
+                    : baseline?.Write(result);
+
+                if (written is { } entries)
                 {
-                    // Independent of --fail-on: an analyzer that threw did not analyze
-                    // anything, so no severity threshold can make this run meaningful.
-                    stderr.WriteLine($"{result.AnalyzerFailures.Length} analyzer(s) failed to run:");
-                    foreach (var failure in result.AnalyzerFailures)
-                    {
-                        stderr.WriteLine($"  {failure}");
-                    }
-
-                    return ResolveExitCode(result, options.FailOn);
+                    stderr.WriteLine($"Wrote {entries} baseline entries to {options.WriteBaselinePath}.");
                 }
 
-                if (result.CompileErrorCount > 0)
-                {
-                    // Analyzers key off resolved symbols, so a compilation that does not
-                    // build can silently under-report. Whether that is a failure depends on
-                    // what the caller claimed: --whole-assembly asserts the file set is a
-                    // complete compilation unit, so errors there mean the results cannot be
-                    // trusted as a gate. Without it, a partial file set is expected to have
-                    // unresolved types and the run stays advisory.
-                    stderr.WriteLine(
-                        $"{result.CompileErrorCount} compile error(s); analyzer results may be incomplete.");
-                    WriteCompileErrors(stderr, result);
-
-                    if (options.WholeAssembly)
-                    {
-                        stderr.WriteLine(
-                            "Refusing to report success: --whole-assembly declares a complete compilation.");
-                        return ExitError;
-                    }
-                }
-
-                if (options.WriteBaselinePath is { } target)
-                {
-                    var written = WriteBaseline(target, options, result);
-                    stderr.WriteLine($"Wrote {written} baseline entries to {target}.");
-
-                    // Everything reported is part of the contract as of this moment, so
-                    // --fail-on has nothing left to weigh. Applying it would make freezing
-                    // existing debt an operation that always fails.
-                    return ExitClean;
-                }
-
-                return ResolveExitCode(result, options.FailOn);
+                return ExitCode.For(result, options, written is object);
             }
             catch (CliException ex)
             {

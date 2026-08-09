@@ -228,24 +228,23 @@ This package itself targets Roslyn 3.8 and loads on every supported Unity versio
 Runs the same analyzers outside Unity, in under a second, so a CI job or a quick local
 check does not need an Editor licence or a full project import.
 
-Install it as a .NET tool — the version tracks the analyzer package, so the command reports
-exactly the rules the package of the same version contains:
+It is not on NuGet yet. A package id and a command name are permanent once published, and
+so is every version pushed under them, so that step waits for 1.0. Until then, build it
+from this repository:
 
 ```bash
-# per repository, pinned in .config/dotnet-tools.json and committed
-dotnet new tool-manifest
-dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli --version 0.6.0
-dotnet upa-cli --version
-
-# or once per machine
-dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version 0.6.0
+git clone https://github.com/NeshGames/unity-performance-analyzers.git
+cd unity-performance-analyzers
+dotnet build UnityPerformanceAnalyzers.sln -c Release
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -c Release --no-build -- --version
 ```
 
-That version is the one this page pins for UPM above. Drop `--version` and you get the
-newest CLI, which may know rules the package in your project does not — the command and
-the Editor would then disagree about the same code.
+Check out the tag matching the package version your project uses. A CLI built from a
+different revision may know rules that package does not, and the command line and the
+Editor would then disagree about the same code.
 
-The examples below use the global form. With a manifest, prefix them with `dotnet`.
+The examples below are written as `upa-cli`. Running from a clone, that is
+`dotnet run --project src/UnityPerformanceAnalyzers.Cli -c Release --no-build --`.
 
 ```bash
 # analyze some files (exit 1 if anything reaches the fail threshold)

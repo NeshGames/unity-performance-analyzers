@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -157,6 +158,58 @@ internal static class OutputWriter
                 + " - regenerate with --write-baseline.");
         }
     }
+
+    /// <summary>
+    /// What went wrong with the run itself, on stderr. Not findings -- the reasons a set of
+    /// findings might mean less than it appears to.
+    /// </summary>
+    /// <remarks>
+    /// This lives here because the JSON channel already carried compile errors while the text
+    /// channel rendered them from the entry point, so one output format was written in two
+    /// files and the truncation rule existed in only one of them.
+    /// </remarks>
+    public static void WriteRunProblems(TextWriter stderr, AnalysisResult result, CliOptions options)
+    {
+        if (!result.AnalyzerFailures.IsEmpty)
+        {
+            stderr.WriteLine($"{result.AnalyzerFailures.Length} analyzer(s) failed to run:");
+            foreach (var failure in result.AnalyzerFailures)
+            {
+                stderr.WriteLine($"  {failure}");
+            }
+
+            return;
+        }
+
+        if (result.CompileErrorCount == 0)
+        {
+            return;
+        }
+
+        stderr.WriteLine($"{result.CompileErrorCount} compile error(s); analyzer results may be incomplete.");
+        foreach (var error in result.CompileErrors.Take(CompileErrorsShown))
+        {
+            stderr.WriteLine($"{error.File}({error.Line},{error.Column}): error {error.Id}: {error.Message}");
+        }
+
+        var remaining = result.CompileErrors.Length - CompileErrorsShown;
+        if (remaining > 0)
+        {
+            stderr.WriteLine($"... and {remaining} more compile errors.");
+        }
+
+        if (options.WholeAssembly)
+        {
+            stderr.WriteLine("Refusing to report success: --whole-assembly declares a complete compilation.");
+        }
+    }
+
+    /// <summary>
+    /// How many compile errors the text channel lists before summarizing the rest. A set of
+    /// compile errors is usually a handful of missing types repeated dozens of times, so a
+    /// score of lines is enough to see the shape without burying the findings above it.
+    /// </summary>
+    private const int CompileErrorsShown = 20;
 
     public static void WriteRules(TextWriter stdout, ImmutableArray<UpaRule> rules, OutputFormat format)
     {

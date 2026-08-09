@@ -218,23 +218,21 @@ preset 也為 `UNT####` 規則分級;這些條目只在專案裡有 Microsoft.Un
 在 Unity 之外、一秒內跑完同一套 analyzer——CI 或本機快速檢查不必開 Editor,
 也不必等專案匯入。
 
-以 .NET tool 安裝。版本與 analyzer 套件對齊,所以命令認得的規則,
-就是同版套件裡的那一組:
+目前尚未上架 NuGet。套件 id 與命令名一經發佈即永久固定,其下推出的每個版本亦然,
+因此這一步留到 1.0。在那之前,從本 repo 自行建置:
 
 ```bash
-# 每個 repo 一份,釘在 .config/dotnet-tools.json 並進版控
-dotnet new tool-manifest
-dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli --version 0.6.0
-dotnet upa-cli --version
-
-# 或每台機器裝一次
-dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version 0.6.0
+git clone https://github.com/NeshGames/unity-performance-analyzers.git
+cd unity-performance-analyzers
+dotnet build UnityPerformanceAnalyzers.sln -c Release
+dotnet run --project src/UnityPerformanceAnalyzers.Cli -c Release --no-build -- --version
 ```
 
-這個版本就是本頁上方 UPM 釘住的那一版。省略 `--version` 會裝到最新的 CLI,
-它可能認得專案裡那份套件沒有的規則——命令列與 Editor 就會對同一份程式碼給出不同答案。
+請切到與專案所用套件版本相同的 tag。以不同修訂版建置出的 CLI 可能認得那份套件沒有的規則,
+命令列與 Editor 就會對同一份程式碼給出不同答案。
 
-以下範例用全域形式;用 manifest 的話,前面加 `dotnet`。
+以下範例寫成 `upa-cli`;從 clone 執行時,對應
+`dotnet run --project src/UnityPerformanceAnalyzers.Cli -c Release --no-build --`。
 
 ```bash
 # 分析檔案(有達門檻的診斷即 exit 1)
