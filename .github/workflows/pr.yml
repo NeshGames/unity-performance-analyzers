@@ -8,7 +8,9 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Raised from 5 when the analyzer load smoke arrived: it downloads two pinned
+    # compiler toolsets before it can run.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,9 +56,60 @@ jobs:
           --filter "Category!=RequiresUnity"
           --logger "console;verbosity=minimal"
 
+      # Everything above compiles with the SDK's C# compiler, which is newer than the one
+      # inside either supported Unity version. An analyzer built against a newer Roslyn
+      # than its host cannot be created, and the host's answer is to warn once and then
+      # compile as if no analyzer were passed: green build, shipped package, rules that
+      # never run. This step is the only one that would notice, so it loads the built
+      # analyzers into the pinned Unity compilers and asserts on what comes back.
+      - name: Analyzer load smoke
+        run: |
+          set -euo pipefail
+          bash .github/smoke/assert-selftest.sh
+          bash .github/smoke/release-gate-selftest.sh
+          bash .github/smoke/analyzer-load.sh
+
+      # The tool package is only ever built during a release, where a packaging mistake
+      # would surface after the tag is already pushed and permanent. Packing here costs
+      # seconds and moves that failure to the pull request.
+      - name: Pack the CLI tool
+        run: |
+          set -euo pipefail
+          dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release --no-build -o artifacts/nuget
+          version=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' src/Directory.Build.props | head -1)
+          expected="artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.$version.nupkg"
+          if [ ! -f "$expected" ]; then
+            echo "::error::expected $expected; the release workflow attaches that exact path."
+            ls -1 artifacts/nuget
+            exit 1
+          fi
+
+          # Packing successfully says nothing about whether the tool starts, and the
+          # difference between the two is invisible until someone installs it.
+          work=$(mktemp -d)
+          cd "$work"
+          dotnet new tool-manifest
+          dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli \
+            --add-source "$GITHUB_WORKSPACE/artifacts/nuget" --version "$version"
+          reported=$(dotnet upa-cli --version)
+          if [ "$reported" != "$version" ]; then
+            echo "::error::packed tool reports $reported, expected $version"
+            exit 1
+          fi
+          dotnet upa-cli --list-rules > /dev/null
+
       # Preset files are generated from PresetTable.cs; a hand edit or a stale
       # regeneration shows up as a diff here and fails the build.
       - name: Preset drift check
         run: |
           dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- --presets .
           git diff --exit-code -- "package/Samples~/Ruleset Presets" sandbox/UnityProject/Assets/Default.ruleset
+
+      # The README rule tables were maintained by hand until v0.7 and drifted: v0.6.0
+      # shipped claiming 41 rules against a package carrying 45. The generator fails
+      # outright on a rule with no description, so adding a rule cannot silently leave
+      # the tables behind.
+      - name: README drift check
+        run: |
+          dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- --readme .
+          git diff --exit-code -- README.md README.zh-TW.md

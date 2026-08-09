@@ -74,7 +74,7 @@ dotnet_diagnostic.UNT0042.severity = error
 
 # Hot-path classification (IDE only; Unity builds use the built-in defaults)
 # upa_hot_path_messages = Update,FixedUpdate,LateUpdate
-# upa_hot_path_attributes = HotPath,PerfCritical
+# upa_hot_path_attributes = HotPath,PerformanceCritical
 # upa_hot_path_include_lambdas = true
 
 # Rule options

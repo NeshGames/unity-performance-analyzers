@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "com.neshgames.unity-performance-analyzers": "file:../../../../package"
+  }
+}

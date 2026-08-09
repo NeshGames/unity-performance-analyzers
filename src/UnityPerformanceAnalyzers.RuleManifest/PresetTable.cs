@@ -53,7 +53,11 @@ public static class PresetTable
         new("UPA0029", "none", "warning", "warning", "warning"),
         new("UPA0030", "none", "warning", "error", "error"),
         new("UPA1000", "none", "info", "warning", "warning"),
-        new("UPA2000", "none", "none", "none", "error"),
+        // recommended is deliberately not "none": the rule was made unconditional so that
+        // projects without ZString would still hear about hot-path string building, and
+        // leaving it off in the everyday preset put that motivation right back where it
+        // started.
+        new("UPA2000", "none", "warning", "error", "error"),
         new("UPA2010", "none", "none", "none", "error"),
         new("UPA2011", "none", "none", "none", "error"),
         new("UPA2012", "none", "none", "none", "error"),

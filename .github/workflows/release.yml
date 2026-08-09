@@ -2,30 +2,192 @@ name: Release
 
 # OpenUPM resolves the package from the git tag, so the tag itself must already
 # contain the analyzer DLL and a package.json whose version matches the tag exactly.
-# A tag-triggered workflow cannot inject files into an existing tag, so releasing
-# works the other way around: run this workflow manually and it creates the release
-# commit, the tag, and the GitHub Release.
+# Nothing can inject files into a tag that already exists, so releasing works the other
+# way around: run this workflow manually and it creates the release commit, the tag, and
+# the GitHub Release - in that order, and only after the package has been compiled in
+# Unity.
 # The version's single source is <Version> in src/Directory.Build.props; the
 # package.json version is written here and must never be edited by hand.
 
 on:
   workflow_dispatch:
-  push:
-    tags: ["v*"]
+    inputs:
+      smoke_override:
+        description: >
+          Reason to release although the Unity smoke test could not run (licence, image,
+          editor start-up). Leave empty. It is refused when the smoke test ran and the
+          package failed it.
+        required: false
+        default: ""
+
+# Deliberately no tags trigger. Publishing on any pushed v* tag was a way into the
+# irreversible half of this workflow that skipped every gate in front of it: a tag whose
+# version fields happen to line up would have had its CLI pushed to NuGet and a Release
+# created, without the package ever having been compiled in Unity. Recovering a run that
+# tagged and then failed is what the separate publish job is for - re-run it.
 
 permissions:
   contents: write
 
+# One release at a time. Two concurrent runs would each build a release commit on
+# their own view of main, and the loser would fail after the winner had already
+# published a permanent tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  prepare-release:
-    if: github.event_name == 'workflow_dispatch'
+  # Pins the commit under test. Without it the smoke test and the release build would each
+  # resolve "main" on their own, and a push landing between them would mean the thing that
+  # was tested and the thing that ships are not the same commit - with nothing to notice.
+  snapshot:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.read.outputs.sha }}
+      unity: ${{ steps.read.outputs.unity }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
+
+      - id: read
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+          # One source for the Unity versions: the matrix below and the gate in
+          # prepare-release both read this file, so a version can never be smoke-tested
+          # without being required, or required without being tested.
+          unity=$(jq -c . .github/smoke/unity-versions.json)
+          test "$unity" != "[]"
+          echo "unity=$unity" >> "$GITHUB_OUTPUT"
+          echo "releasing $sha against Unity $unity"
+
+  # Installs the package into a throwaway Unity project and compiles it, on every Unity
+  # version the package claims to support. This is the only check that goes through
+  # Unity's own import pipeline - the .meta labels, the package layout, the ruleset
+  # lookup and the compiler arguments Unity assembles are all Unity's.
+  #
+  # It gates the tag rather than the publish step, because the tag *is* the Unity
+  # distribution channel: UPM resolves the package straight out of it, so by the time a
+  # tag exists a broken package is already installable.
+  unity-smoke:
+    needs: snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false   # one version failing must not hide the other's verdict
+      matrix:
+        unity: ${{ fromJSON(needs.snapshot.outputs.unity) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.snapshot.outputs.sha }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # The same two files a release places into the package. Unity must load the
+      # assembled package, not a source tree.
+      - name: Build and assemble the package
+        run: |
+          set -euo pipefail
+          dotnet build UnityPerformanceAnalyzers.sln -c Release
+          cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
+          cp src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll package/Analyzers/
+
+      # Records a verdict rather than just passing or failing, because the two ways this
+      # can fail are not the same thing. "The package is wrong" must block the release.
+      # "Unity never started" must not, on its own, be able to hold a release hostage for
+      # reasons that have nothing to do with the product - but it must also never be
+      # mistaken for a pass. unity-load.sh separates them by evidence: a product verdict
+      # requires diagnostics from a real compile.
+      - name: Compile the probe project in Unity
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_VERSION: ${{ matrix.unity }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$RUNNER_TEMP/verdict"
+
+          docker run --rm -e UNITY_LICENSE -e UNITY_VERSION \
+            -v "$GITHUB_WORKSPACE":/repo -w /repo \
+            "unityci/editor:ubuntu-$UNITY_VERSION-base-3" \
+            bash -c '
+              set -uo pipefail
+              if [ -z "${UNITY_LICENSE:-}" ]; then
+                echo "UNITY_LICENSE is not set; the editor cannot start." >&2
+                exit 2
+              fi
+              mkdir -p /root/.local/share/unity3d/Unity
+              printf "%s" "$UNITY_LICENSE" > /root/.local/share/unity3d/Unity/Unity_lic.ulf
+              bash .github/smoke/unity-load.sh /opt/unity/Editor/Unity "$UNITY_VERSION"
+            '
+          status=$?
+
+          case "$status" in
+            0) verdict=pass ;;
+            1) verdict=product ;;
+            *) verdict=infra ;;   # anything else never reached a compile
+          esac
+          echo "$verdict" > "$RUNNER_TEMP/verdict/verdict.txt"
+          echo "$UNITY_VERSION: $verdict (exit $status)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          # The editor log travels in the same directory as the verdict, not as a second
+          # upload path. Two paths with no common directory make the artifact root their
+          # common ancestor instead, which would bury verdict.txt somewhere the gate does
+          # not look - and a verdict the gate cannot find reads as one that never existed.
+          cp artifacts/smoke/*.log "$RUNNER_TEMP/verdict/" 2>/dev/null || true
+
+          # The step itself does not fail on a bad verdict: the verdict is the product,
+          # and prepare-release is where it is acted on. A failed step here would
+          # collapse both kinds of failure back into one.
+          exit 0
+
+      - name: Keep the verdict and the editor log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-smoke-${{ matrix.unity }}
+          path: ${{ runner.temp }}/verdict
+          if-no-files-found: warn
+          retention-days: 14
+
+  prepare-release:
+    needs: [snapshot, unity-smoke]
+    # always(): a smoke job that never reported must still reach the gate below, which is
+    # the only place allowed to decide what a missing verdict means.
+    if: always() && needs.snapshot.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The commit the smoke test ran against, not whatever main points at now.
+          ref: ${{ needs.snapshot.outputs.sha }}
           fetch-depth: 0
+
+      - name: Collect the Unity smoke verdicts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: unity-smoke-*
+          path: ${{ runner.temp }}/verdicts
+
+      # The decision itself lives in a script with its own self-test, which the pull
+      # request workflow runs. It is the only thing standing between a package that failed
+      # in Unity and a permanent tag, and both ways of getting it wrong are quiet ones.
+      - name: The Unity smoke test allows this release
+        env:
+          OVERRIDE: ${{ inputs.smoke_override }}
+        run: |
+          set -euo pipefail
+          bash .github/smoke/release-gate.sh \
+            "$RUNNER_TEMP/verdicts" .github/smoke/unity-versions.json
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -46,6 +208,20 @@ jobs:
             echo "::error::Tag v${{ steps.version.outputs.version }} already exists"; exit 1
           fi
 
+      # Checked before anything is committed, tagged or pushed. Discovering a missing
+      # credential after the tag exists would be unrecoverable: the tag is permanent and
+      # the guard above rejects every rerun of that version. Skipping the push instead
+      # would be worse than failing - the release notes tell users to install this exact
+      # version from NuGet, and attaching the .nupkg does not make that command work.
+      - name: NuGet credentials are present
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "${NUGET_API_KEY:-}" ]; then
+            echo "::error::NUGET_API_KEY is not set. upa-cli ships from this workflow, so releasing without it would advertise an install command that fails. Add the secret and re-run - nothing has been pushed."
+            exit 1
+          fi
+
       - name: Build
         run: dotnet build UnityPerformanceAnalyzers.sln -c Release
 
@@ -60,8 +236,14 @@ jobs:
           jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' package/package.json > package/package.json.tmp
           mv package/package.json.tmp package/package.json
 
-      - name: Place analyzer DLL into the package
-        run: cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
+      # Both assemblies carry the RoslynAnalyzer label. Unity hands them to csc as
+      # analyzers and the IDE picks up the code fixes from the same classification;
+      # the unity-smoke job above compiles a project against exactly these two files on
+      # every supported editor version.
+      - name: Place analyzer DLLs into the package
+        run: |
+          cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
+          cp src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll package/Analyzers/
 
       # The committed catalog may go stale during development; the released tag never does.
       - name: Regenerate the rule catalog for the Rule Manager window
@@ -72,50 +254,208 @@ jobs:
       # Install instructions must always point at the tag being cut; a moving tag or
       # #main would break UPM's revision locking, so the URL is versioned and synced here.
       - name: Point README install URLs at this release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          sed -i -E "s|(\?path=/package#v)[0-9]+\.[0-9]+\.[0-9]+|\1${{ steps.version.outputs.version }}|g" README.md README.zh-TW.md
-          grep -n "path=/package#v${{ steps.version.outputs.version }}" README.md README.zh-TW.md
+          set -euo pipefail
+          sed -i -E "s|(\?path=/package#v)[0-9]+\.[0-9]+\.[0-9]+|\1$VERSION|g" README.md README.zh-TW.md
+          # The CLI install command is pinned for the same reason as the UPM URL: an
+          # unpinned command resolves the newest tool, which can know rules the package
+          # this page pins does not, so the command line and the Editor would disagree.
+          sed -i -E "s|(NeshGames\.UnityPerformanceAnalyzers\.Cli --version )[0-9]+\.[0-9]+\.[0-9]+|\1$VERSION|g" README.md README.zh-TW.md
+
+          for file in README.md README.zh-TW.md; do
+            grep -q "path=/package#v$VERSION" "$file"
+            grep -q "NeshGames.UnityPerformanceAnalyzers.Cli --version $VERSION" "$file"
+            if grep -nE "NeshGames\.UnityPerformanceAnalyzers\.Cli( --global)?$" "$file"; then
+              echo "::error::$file has an unpinned tool install command"; exit 1
+            fi
+          done
+
+      # Packed before the tag so a packaging failure costs a re-run rather than stranding
+      # a permanent tag. Publishing still happens after, since a NuGet version should not
+      # exist without the tag it names.
+      - name: Pack upa-cli
+        run: |
+          set -euo pipefail
+          dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release --no-build -o artifacts/nuget
+          test -f "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.${{ steps.version.outputs.version }}.nupkg"
+
+      # Proves the package installs and starts before the tag is cut; dotnet pack
+      # succeeding says nothing about whether the tool runs.
+      - name: The packed tool installs and runs
+        run: |
+          set -euo pipefail
+          work=$(mktemp -d)
+          cd "$work"
+          dotnet new tool-manifest
+          dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli \
+            --add-source "$GITHUB_WORKSPACE/artifacts/nuget" \
+            --version "${{ steps.version.outputs.version }}"
+          reported=$(dotnet upa-cli --version)
+          if [ "$reported" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::packed tool reports $reported, expected ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+          dotnet upa-cli --list-rules > /dev/null
 
       - name: Commit, tag, push
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package/package.json package/Editor/rules.json README.md README.zh-TW.md
           git add -f package/Analyzers/UnityPerformanceAnalyzers.dll
-          git commit -m "Release v${{ steps.version.outputs.version }}"
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin main "v${{ steps.version.outputs.version }}"
+          git add -f package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
 
-      - name: Create GitHub Release
+          # An unverified release says so on the commit it tags. A job summary is gone in
+          # a fortnight; whoever asks later why a version misbehaves reads the history.
+          message="Release v${{ steps.version.outputs.version }}"
+          if [ -n "${SMOKE_OVERRIDE_NOTE:-}" ]; then
+            message="$message
+
+          Released without a Unity smoke result. Reason given: $SMOKE_OVERRIDE_NOTE"
+          fi
+          git commit -m "$message"
+          git tag "v${{ steps.version.outputs.version }}"
+
+          # main must not have moved since the snapshot: the release commit was built on
+          # that commit and the Unity smoke test ran against it, so a fast-forward onto
+          # newer history would publish a package nobody tested and nobody reviewed.
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$(git rev-parse HEAD^)" ]; then
+            echo "::error::main moved during the release run - re-run the workflow"; exit 1
+          fi
+
+          # --atomic or neither. Without it git updates each ref independently, so a
+          # rejected branch update can still leave the tag published - and a tag is
+          # permanent, which makes the failed run impossible to retry cleanly.
+          # HEAD:refs/heads/main, not main: the checkout is of the snapshot commit, so
+          # there is no local branch of that name to push.
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/v${{ steps.version.outputs.version }}"
+
+  # Publishing is its own job on purpose. The tag pushed above is permanent and the guard
+  # in prepare-release rejects every rerun of that version, so a NuGet outage or a GitHub
+  # API failure in the same job would strand the release with no way to finish it. Split
+  # out, "Re-run failed jobs" repeats only this half, against the tag that already exists.
+  # Everything here is idempotent for the same reason.
+  publish:
+    # Reachable only through prepare-release, which is reachable only through the smoke
+    # gate. That chain is what makes "nothing is published that Unity has not compiled"
+    # a property of the workflow rather than a habit.
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve the tag
+        id: tag
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -n "$VERSION"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # The tag, not the branch: these artifacts must be the ones that tag ships.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # Run here rather than as a sibling job, because publishing is irreversible: a NuGet
+      # version cannot be withdrawn, so nothing may be pushed until the tag it names has been
+      # shown to be internally consistent. As a parallel job these checks could still be
+      # running while the package went out. Checked against the tag rather than the branch,
+      # so what is asserted is what a consumer resolves.
+      - name: The tag is internally consistent
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          package=$(jq -r '.version' package/package.json)
+          catalog=$(jq -r '.version' package/Editor/rules.json)
+          echo "tag=$VERSION package.json=$package rules.json=$catalog"
+
+          test "$VERSION" = "$package"
+          test "$VERSION" = "$catalog"
+          test -f package/Analyzers/UnityPerformanceAnalyzers.dll
+          test -f package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
+
+      - name: Pack upa-cli from the tag
+        run: |
+          set -euo pipefail
+          dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release -o artifacts/nuget
+          test -f "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.${{ steps.tag.outputs.version }}.nupkg"
+
+      # Also present before the tag is cut, where it fails cheaply. It is repeated here
+      # because this is the step that cannot be undone, and because that one packed the
+      # working tree while this one packs the tag: dotnet pack succeeding says nothing
+      # about whether the tool starts, and a NuGet version that does not start cannot be
+      # withdrawn.
+      - name: The packed tool installs and runs
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          work=$(mktemp -d)
+          cd "$work"
+          dotnet new tool-manifest
+          dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli \
+            --add-source "$GITHUB_WORKSPACE/artifacts/nuget" \
+            --version "$VERSION"
+          reported=$(dotnet upa-cli --version)
+          if [ "$reported" != "$VERSION" ]; then
+            echo "::error::packed tool reports $reported, expected $VERSION"
+            exit 1
+          fi
+          dotnet upa-cli --list-rules > /dev/null
+
+      - name: Publish upa-cli to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NUGET_API_KEY:-}" ]; then
+            echo "::error::NUGET_API_KEY is not set; the release notes advertise this version on NuGet. Add the secret and re-run this job."
+            exit 1
+          fi
+          dotnet nuget push "artifacts/nuget/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate
+
+      - name: Create or update the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "v${{ steps.version.outputs.version }}"
-          --title "v${{ steps.version.outputs.version }}"
-          --notes "See package/CHANGELOG.md. Install via UPM:
-          https://github.com/${{ github.repository }}.git?path=/package#v${{ steps.version.outputs.version }}"
-          src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll
-
-  # Safety net for tags pushed by hand: the tag content must be internally consistent.
-  validate-tag:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Tag matches package.json version
+          TAG: ${{ steps.tag.outputs.tag }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          PKG=$(jq -r '.version' package/package.json)
-          echo "tag=$TAG package.json=$PKG"
-          test "$TAG" = "$PKG"
+          set -euo pipefail
+          notes=$(printf '%s\n' \
+            "See package/CHANGELOG.md." \
+            "" \
+            "Unity package, via UPM:" \
+            "https://github.com/$REPOSITORY.git?path=/package#$TAG" \
+            "" \
+            "Command line runner:" \
+            "dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version $VERSION")
 
-      - name: Analyzer DLL is present in the package
-        run: test -f "package/Analyzers/UnityPerformanceAnalyzers.dll"
+          # Taken from the package directory rather than a fresh build: those are the exact
+          # bytes the tag ships to Unity, so an asset can never differ from what UPM resolves.
+          assets=(
+            package/Analyzers/UnityPerformanceAnalyzers.dll
+            package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
+            "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.$VERSION.nupkg"
+          )
 
-      - name: Rule catalog matches the tag version
-        run: |
-          CATALOG=$(jq -r '.version' package/Editor/rules.json)
-          echo "tag=${GITHUB_REF_NAME#v} rules.json=$CATALOG"
-          test "${GITHUB_REF_NAME#v}" = "$CATALOG"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes "$notes"
+            gh release upload "$TAG" "${assets[@]}" --clobber
+          else
+            gh release create "$TAG" --title "$TAG" --notes "$notes" "${assets[@]}"
+          fi

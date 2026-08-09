@@ -8,7 +8,7 @@ assembly 引用的套件(UniTask、ZString、R3、DOTween)以及專案是否以 
 
 以 UPM package 形式發佈。支援 **Unity 2022.3 LTS ~ Unity 6**。
 
-> **狀態:pre-1.0。** 全部 41 條規則已實作,並在 Unity 2022.3 與 Unity 6 的
+> **狀態:pre-1.0。** 全部 <!-- generated:rule-count -->45<!-- /generated:rule-count --> 條規則已實作,並在 Unity 2022.3 與 Unity 6 的
 > sandbox 建置實測通過。rule ID 一經發佈即穩定,永不重用。
 
 ## 安裝
@@ -73,7 +73,7 @@ Console 應立即亮起警告。
 
 ```ini
 upa_hot_path_messages = Update,FixedUpdate,LateUpdate,OnTriggerEnter
-upa_hot_path_attributes = HotPath,PerfCritical
+upa_hot_path_attributes = HotPath,PerformanceCritical
 upa_hot_path_include_lambdas = true
 upa_enum_switch_allow_default = true
 ```
@@ -91,6 +91,8 @@ upa_enum_switch_allow_default = true
 ## 規則
 
 每條規則的完整文件:[`docs/rules/`](docs/rules/)。
+
+<!-- generated:rules -->
 
 ### 效能(除註明外預設啟用)
 
@@ -113,7 +115,7 @@ upa_enum_switch_allow_default = true
 | [UPA0015](docs/rules/UPA0015.zh-TW.md) | 逐幀方法內存取 `Camera.main` *(Info)* | ✓ |
 | [UPA0016](docs/rules/UPA0016.zh-TW.md) | `SendMessage` / `SendMessageUpwards` / `BroadcastMessage` 呼叫 | |
 | [UPA0017](docs/rules/UPA0017.zh-TW.md) | 回傳陣列的 `GetComponents` 多載(改用 `List<T>` 多載) | ✓ |
-| [UPA0018](docs/rules/UPA0018.zh-TW.md) | 配置陣列的回傳型 API(`Input.touches`、`Animator.parameters`、`Renderer.sharedMaterials`、`Camera.allCameras`) | ✓ |
+| [UPA0018](docs/rules/UPA0018.zh-TW.md) | 配置陣列的 Unity 回傳型 API(`Input.touches`、`Animator.parameters`、`Texture2D.GetPixels` 等) | ✓ |
 | [UPA0019](docs/rules/UPA0019.zh-TW.md) | coroutine 內 yield 實值型別(裝箱;Unity 視同 `null`) | |
 | [UPA0020](docs/rules/UPA0020.zh-TW.md) | `WaitUntil` / `WaitWhile` 建構時傳入 lambda *(預設關閉)* | |
 | [UPA0021](docs/rules/UPA0021.zh-TW.md) | 可用 `sqrMagnitude` 取代的 `magnitude` / `Distance` 比較 | |
@@ -163,6 +165,22 @@ upa_enum_switch_allow_default = true
 
 套件偵測以引用的 assembly 名稱為準(`UniTask`、`ZString`、`R3`、`DOTween`)——
 per-assembly、全自動、零設定。
+<!-- /generated:rules -->
+
+## Code fix
+
+三條規則附自動修正,由 IDE 在診斷出現處提供:
+
+| 規則 | 修正 |
+|---|---|
+| UPA0019 | `yield return <裝箱值>` → `yield return null` |
+| UPA0021 | 改比較平方長度,免去開根號 |
+| UPA0022 | `x.HasFlag(y)` → `(x & y) == y`,僅在 `y` 可安全求值兩次時提供 |
+
+修正位於隨 analyzer 一同散布的第二顆組件。Unity 會把兩顆都交給編譯器;
+修正本身是 IDE 專用的,編譯器用不到。
+
+UPA0029 刻意不附修正——理由見[該規則文件](docs/rules/UPA0029.zh-TW.md)。
 
 ## 調校與抑制
 
@@ -199,22 +217,41 @@ preset 也為 `UNT####` 規則分級;這些條目只在專案裡有 Microsoft.Un
 在 Unity 之外、一秒內跑完同一套 analyzer——CI 或本機快速檢查不必開 Editor,
 也不必等專案匯入。
 
+以 .NET tool 安裝。版本與 analyzer 套件對齊,所以命令認得的規則,
+就是同版套件裡的那一組:
+
+```bash
+# 每個 repo 一份,釘在 .config/dotnet-tools.json 並進版控
+dotnet new tool-manifest
+dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli --version 0.6.0
+dotnet upa-cli --version
+
+# 或每台機器裝一次
+dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version 0.6.0
+```
+
+這個版本就是本頁上方 UPM 釘住的那一版。省略 `--version` 會裝到最新的 CLI,
+它可能認得專案裡那份套件沒有的規則——命令列與 Editor 就會對同一份程式碼給出不同答案。
+
+以下範例用全域形式;用 manifest 的話,前面加 `dotnet`。
+
 ```bash
 # 分析檔案(有達門檻的診斷即 exit 1)
-dotnet run --project src/UnityPerformanceAnalyzers.Cli -- Assets/Scripts/Player.cs
+upa-cli Assets/Scripts/Player.cs
 
 # CI 關卡:針對某個組件的完整原始碼集
 # (pattern 要加引號:由工具自己展開,各種 shell 行為才一致)
-dotnet run --project src/UnityPerformanceAnalyzers.Cli -- \
-  "Assets/Scripts/**/*.cs" --whole-assembly --format json --fail-on error
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --format json --fail-on error
 
 # 模擬「專案引用了 UniTask、且以 WebGL 為目標」
-dotnet run --project src/UnityPerformanceAnalyzers.Cli -- Assets/Scripts/Loader.cs \
-  --reference UniTask --define UPA_TARGET_WEBGL
+upa-cli Assets/Scripts/Loader.cs --reference UniTask --define UPA_TARGET_WEBGL
 
 # 這份建置認得哪些規則?
-dotnet run --project src/UnityPerformanceAnalyzers.Cli -- --list-rules
+upa-cli --list-rules
 ```
+
+想直接從原始碼跑?下面每個 `upa-cli` 都換成
+`dotnet run --project src/UnityPerformanceAnalyzers.Cli --`。
 
 退出碼:`0` 乾淨、`1` 有達到 `--fail-on`(預設 `warning`)的診斷、
 `2` 用法或執行錯誤——**包含任一 analyzer 執行失敗**,且與 `--fail-on` 無關:
@@ -231,10 +268,13 @@ dotnet run --project src/UnityPerformanceAnalyzers.Cli -- --list-rules
 | `--ruleset <路徑>` | 套用 `.ruleset` 的嚴重度 | `--ruleset Assets/Default.ruleset` |
 | `--editorconfig <路徑>` | 套用 `.editorconfig` 的嚴重度**與** `upa_*` analyzer 選項 | `--editorconfig .editorconfig` |
 | `--additionalfile <路徑>` | 傳入 additional file(例如通用選項檔)。可重複 | `--additionalfile Assets/Rules.UnityPerformanceAnalyzers.additionalfile` |
+| `@<路徑>` | 由檔案供給引數,每行一個,在 `@` 出現的位置展開。一整個組件的引用與 define 放不進 Windows 的命令列 | `upa-cli @args.rsp` |
 | `--unity-dll-dir <目錄>` | 改用真實 Unity 組件目錄,而非內建 stub | `--unity-dll-dir <UnityEditor>/Data/Managed/UnityEngine` |
 | `--all-warn` | 強制所有規則以 warning 開啟,蓋過 ruleset 與 editorconfig | `--all-warn` |
 | `--whole-assembly` | 宣告這組檔案構成完整組件:啟用整組件規則,且編譯錯誤變致命 | `--whole-assembly` |
 | `--fail-on <等級>` | 退出碼 1 的門檻:`none`、`info`、`warning`(預設)、`error` | `--fail-on error` |
+| `--baseline <path>` | 壓下 baseline 檔中已記錄的違規,只回報新增的 | `--baseline upa-baseline.json` |
+| `--write-baseline <path>` | 把目前的違規寫成 baseline。需搭配 `--whole-assembly`;成功時以 0 結束 | `--write-baseline upa-baseline.json --whole-assembly` |
 | `--format <格式>` | `text`(預設)或 `json` | `--format json` |
 | `--list-rules` | 印出這份建置的規則目錄,不做分析 | `upa-cli --list-rules --format json` |
 | `--version` | 印出工具版本 | `upa-cli --version` |
@@ -243,12 +283,56 @@ dotnet run --project src/UnityPerformanceAnalyzers.Cli -- --list-rules
 嚴重度優先序(弱→強):ruleset 的 `<IncludeAll>` 全域動作 → ruleset 的具名條目 →
 `--editorconfig`(可依檔案樣式分別設定)→ `--all-warn`。
 
+### 凍結存量違規
+
+在已經累積幾百個命中的專案裡打開這些規則,是多數導入停下來的地方。
+baseline 記錄「今天有什麼」,之後只回報新增的:
+
+```bash
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --write-baseline upa-baseline.json
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --baseline upa-baseline.json --fail-on warning
+```
+
+當成關卡用時,比對那一行同樣要帶 `--whole-assembly`。沒有它,編譯錯誤就不致命,
+而編譯錯誤正是規則安靜下來的原因——規則以解析後的符號比對,少一個引用只會讓它
+不觸發,而不是報錯。接著 baseline 把剩下的也壓掉,整個執行以 0 結束:一個對著
+「工具其實沒能分析的程式碼」亮綠燈的關卡。若只是拿單一改動檔去對契約,
+不帶 `--whole-assembly` 仍然是對的用法——那不是關卡。
+
+`upa-baseline.json` 要進版控——這是團隊共享的契約,不是本機快取。
+內容是明文,可以在 diff 裡讀、可以審;裡面的路徑相對於它自己所在的目錄,
+所以從哪個工作目錄跑、在哪台機器上跑,結果都一樣。
+
+一筆違規由「檔案 + 規則 + 所在型別與成員 + 空白壓縮後的該行原始碼」識別,
+**刻意不含行號**,所以搬動程式碼或重新排版不會讓存量整批冒出來。
+需要知道的代價:成員更名或搬移會讓它的違規重新算成新增;
+同一個成員裡兩行完全相同的違規共用一筆記錄,修掉一筆又在同成員新增一筆不會被發現。
+
+寫入 baseline 需要 `--whole-assembly`,且在 analyzer 失敗或編譯不過時拒絕寫入——
+一次低報的分析會把它沒看到的存量也一併凍結。
+以部分檔案重生同樣被拒絕;但已被刪除或改名的檔案,其條目會直接移除。
+
 **要當關卡用?** 請帶 `--whole-assembly` 與該組件的完整原始碼集,
 **並為程式碼實際呼叫到的每個套件各給一個 `--reference <DLL 路徑>`**
 (若用到 stub 未涵蓋的 Unity API,再加 `--unity-dll-dir`)。這幾者合起來
 才把「參考用」變成「可信賴」:整組件規則會開始回報,編譯不過則以 exit 2 結束,
 不會回報一份它其實沒能驗證的乾淨結果。少給某個套件 DLL 時,工具會因未解型別
-明確失敗,而不是安靜地少報。
+失敗並逐條列出,而不是安靜地少報。
+
+這些引數的量超過命令列裝得下的。一個真實組件的份量——該專案的原始碼、它的 define、
+每個套件一個引用——動輒數萬字元,而 Windows 的上限是 32,767,所以改用檔案傳:
+
+```bash
+# args.rsp —— 每行一個引數,不加引號,# 開頭為註解
+#   Assets/Scripts/Player.cs
+#   --reference
+#   Library/ScriptAssemblies/SomePackage.dll
+#   --whole-assembly
+upa-cli @args.rsp
+```
+
+這個檔通常由「本來就知道組件輸入是什麼」的東西生成,比手動組裝容易得多。
+引數在 `@file` 出現的位置展開,因此寫在它後面的引數仍然蓋得過檔案裡的設定。
 
 **與 Unity 建置的差異**——最終權威仍是 Unity 自己的編譯:
 

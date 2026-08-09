@@ -64,6 +64,19 @@ internal static class OutputWriter
             });
         }
 
+        var compileErrors = new JsonArray();
+        foreach (var e in result.CompileErrors)
+        {
+            compileErrors.Add(new JsonObject
+            {
+                ["id"] = e.Id,
+                ["message"] = e.Message,
+                ["file"] = e.File,
+                ["line"] = e.Line,
+                ["column"] = e.Column,
+            });
+        }
+
         var document = new JsonObject
         {
             ["schemaVersion"] = SchemaVersion,
@@ -76,9 +89,17 @@ internal static class OutputWriter
                 ["hidden"] = Count(result, "hidden"),
                 ["compileErrorCount"] = result.CompileErrorCount,
                 ["analyzerFailureCount"] = result.AnalyzerFailures.Length,
+                ["baselineSuppressedCount"] = result.BaselineSuppressedCount,
+                // null rather than 0 when the run could not tell: 0 means checked and none
+                // stale, and a consumer acting on a false 0 deletes quota that is still valid.
+                ["baselineStaleCount"] = result.BaselineStaleCount,
             },
             ["excludedRules"] = ToJsonArray(result.ExcludedRules),
             ["analyzerFailures"] = ToJsonArray(result.AnalyzerFailures),
+            // Every compile error, not a sample: this channel is read by tools, which have no
+            // reason to be spared a long list. Separate from diagnostics on purpose - these
+            // are why findings may be missing, not findings themselves.
+            ["compileErrors"] = compileErrors,
             ["diagnostics"] = diagnostics,
         };
 
@@ -113,12 +134,26 @@ internal static class OutputWriter
             summary += $" Not checked without --whole-assembly: {string.Join(", ", result.ExcludedRules)}.";
         }
 
+        if (result.BaselineSuppressedCount > 0)
+        {
+            summary += $" {result.BaselineSuppressedCount} suppressed by the baseline.";
+        }
+
         if (!result.AnalyzerFailures.IsEmpty)
         {
             summary += $" {result.AnalyzerFailures.Length} analyzer(s) failed to run - results are incomplete.";
         }
 
         stdout.WriteLine(summary);
+
+        // Withheld when the analysis was incomplete: a depressed diagnostic count inflates
+        // staleness, and following the advice would delete quota that is still doing its job.
+        if (result.BaselineStaleCount is > 0L and { } stale)
+        {
+            stdout.WriteLine(
+                $"{stale} baseline entr{(stale == 1 ? "y no longer matches" : "ies no longer match")}"
+                + " - regenerate with --write-baseline.");
+        }
     }
 
     public static void WriteRules(TextWriter stdout, ImmutableArray<RuleEntry> rules, OutputFormat format)
@@ -181,6 +216,15 @@ internal static class OutputWriter
         .AppendLine("shell - quote them so they behave the same everywhere. A pattern matching nothing")
         .AppendLine("is an error.")
         .AppendLine()
+        .AppendLine("Any argument may be supplied from a response file. A whole assembly's worth of")
+        .AppendLine("references and defines does not fit on a Windows command line, which caps at")
+        .AppendLine("32767 characters:")
+        .AppendLine("  upa-cli @args.rsp")
+        .AppendLine("One argument per line; blank lines and lines starting with # are ignored. Lines")
+        .AppendLine("are taken literally - no quoting, so a path containing spaces is written plain.")
+        .AppendLine("Arguments expand where the @file appears, so ordering rules are unchanged, and a")
+        .AppendLine("response file cannot reference another one.")
+        .AppendLine()
         .AppendLine("Options:")
         .AppendLine("  --reference <name|path> A name makes the package look present, which is all the")
         .AppendLine("                          package-conditional rules check. A path to a DLL loads the")
@@ -206,6 +250,15 @@ internal static class OutputWriter
         .AppendLine("                          editorconfig. Useful to see what the off-by-default rules say.")
         .AppendLine("  --whole-assembly        Treat the given files as a complete assembly: enables the")
         .AppendLine("                          whole-assembly rules, and makes compile errors fatal.")
+        .AppendLine("  --baseline <path>       Suppress the violations recorded in a baseline file, so only")
+        .AppendLine("                          new ones are reported. Paths inside it are relative to the")
+        .AppendLine("                          baseline's own directory, so it works from anywhere.")
+        .AppendLine("                            --baseline upa-baseline.json")
+        .AppendLine("  --write-baseline <path> Record the current violations as the baseline. Requires")
+        .AppendLine("                          --whole-assembly, and refuses when the analysis was")
+        .AppendLine("                          incomplete or when the existing file covers files this run")
+        .AppendLine("                          did not analyze. Exits 0 on success.")
+        .AppendLine("                            --write-baseline upa-baseline.json --whole-assembly")
         .AppendLine("  --fail-on <level>       Threshold for exit code 1: none|info|warning|error.")
         .AppendLine("                          Default: warning. Use none to report without failing.")
         .AppendLine("  --format <format>       text|json. Default: text. JSON is the only thing on stdout.")

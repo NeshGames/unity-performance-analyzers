@@ -99,7 +99,7 @@ public static class PresetEmitter
         sb.Append('\n');
         sb.Append("# Hot-path classification (IDE only; Unity builds use the built-in defaults)\n");
         sb.Append("# upa_hot_path_messages = Update,FixedUpdate,LateUpdate\n");
-        sb.Append("# upa_hot_path_attributes = HotPath,PerfCritical\n");
+        sb.Append("# upa_hot_path_attributes = HotPath,PerformanceCritical\n");
         sb.Append("# upa_hot_path_include_lambdas = true\n\n");
         sb.Append("# Rule options\n");
         sb.Append("# upa_enum_switch_allow_default = true\n");

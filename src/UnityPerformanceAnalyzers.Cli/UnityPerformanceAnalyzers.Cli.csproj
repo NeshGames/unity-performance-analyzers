@@ -6,10 +6,32 @@
     <AssemblyName>upa-cli</AssemblyName>
     <RootNamespace>UnityPerformanceAnalyzers.Cli</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
-    <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+
+  <!-- Shipped as a dotnet tool so a consumer of the UPM package can actually run the rules
+       outside Unity; before this the only documented invocation was dotnet run against a
+       source checkout. The package id and command name are public identity: once published
+       they cannot be changed without stranding everyone who installed the old one. -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <PackageId>NeshGames.UnityPerformanceAnalyzers.Cli</PackageId>
+    <ToolCommandName>upa-cli</ToolCommandName>
+    <Description>Run the Unity performance analyzers from the command line, without Unity. Same rules as the UPM package, with JSON output and a baseline for freezing existing violations.</Description>
+    <PackageTags>unity;roslyn;analyzers;performance;cli</PackageTags>
+    <PackageProjectUrl>https://github.com/NeshGames/unity-performance-analyzers</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- The tool and the analyzers it runs are one artifact: a version of the command that
+         reports different rules than the package of the same version would be worse than
+         having no version at all. -->
+    <PackageVersion>$(Version)</PackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Same pinned Roslyn as the analyzer project; the analyzer's own reference is

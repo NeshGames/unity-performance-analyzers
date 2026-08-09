@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Restore-only project. It compiles nothing; it exists so `dotnet restore` fetches the
+       exact C# compilers the supported Unity versions ship, into a known directory.
+
+       An analyzer built against a newer Roslyn than the host compiler does not fail the
+       build - the host reports CS8032 and then compiles as if no analyzer were present.
+       Nothing in a normal .NET build catches that, because a normal .NET build uses the
+       compiler from the SDK, not the one inside Unity. These are the ones inside Unity:
+
+         4.3.1   Unity 2022.3 LTS
+         4.10.0  Unity 6
+
+       Keep this list in step with the Unity versions the package claims to support. -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageDownload Include="Microsoft.Net.Compilers.Toolset" Version="[4.3.1];[4.10.0]" />
+    <!-- Reference assemblies to compile the probe against; the probe itself only needs
+         the framework surface plus the Unity stubs built out of src/UnityStubs. -->
+    <PackageDownload Include="NETStandard.Library.Ref" Version="[2.1.0]" />
+  </ItemGroup>
+
+</Project>

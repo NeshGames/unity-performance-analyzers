@@ -1,0 +1,4 @@
+# CI runs these on Linux. A shell script committed with CRLF fails there with an
+# error that names none of that, so the line endings are fixed here rather than
+# left to whatever each contributor's autocrlf setting happens to be.
+*.sh text eol=lf

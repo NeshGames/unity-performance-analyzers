@@ -23,6 +23,31 @@ internal sealed class CliOptions
     public string? UnityDllDir { get; private set; }
     public bool AllWarn { get; private set; }
     public bool WholeAssembly { get; private set; }
+    public string? BaselinePath { get; private set; }
+    public string? WriteBaselinePath { get; private set; }
+
+    /// <summary>True when either baseline path was given, so keys have to be computed.</summary>
+    public bool UsesBaseline => BaselinePath is object || WriteBaselinePath is object;
+
+    /// <summary>
+    /// The directory a baseline key is relative to. The contract defines its own root: anchoring
+    /// to the working directory would key the same file differently depending on where the
+    /// command was run, and a baseline is meant to travel between machines.
+    /// </summary>
+    public string BaselineDirectory
+    {
+        get
+        {
+            var path = BaselinePath ?? WriteBaselinePath;
+            if (path is null)
+            {
+                return Directory.GetCurrentDirectory();
+            }
+
+            var directory = Path.GetDirectoryName(Path.GetFullPath(path));
+            return string.IsNullOrEmpty(directory) ? Directory.GetCurrentDirectory() : directory;
+        }
+    }
     public string FailOn { get; private set; } = "warning";
     public OutputFormat Format { get; private set; } = OutputFormat.Text;
     public bool ListRules { get; private set; }
@@ -35,7 +60,16 @@ internal sealed class CliOptions
     /// </summary>
     public static CliOptions? Parse(string[] args, out string? error)
     {
-        var (options, failure) = ParseCore(args);
+        // Response files expand first and in place, so everything below - including the
+        // precedence rules that depend on argument order - is unaware of where an argument
+        // came from.
+        var expanded = ResponseFile.Expand(args, out error);
+        if (expanded is null)
+        {
+            return null;
+        }
+
+        var (options, failure) = ParseCore(expanded);
         error = failure;
         return options;
     }
@@ -101,6 +135,14 @@ internal sealed class CliOptions
                 case "--editorconfig":
                     if (TakeValue() is not { } editorConfig) return (null, error);
                     options.EditorConfigPath = editorConfig;
+                    break;
+                case "--baseline":
+                    if (TakeValue() is not { } baseline) return (null, error);
+                    options.BaselinePath = baseline;
+                    break;
+                case "--write-baseline":
+                    if (TakeValue() is not { } writeBaseline) return (null, error);
+                    options.WriteBaselinePath = writeBaseline;
                     break;
                 case "--unity-dll-dir":
                     if (TakeValue() is not { } unityDllDir) return (null, error);
@@ -168,6 +210,13 @@ internal sealed class CliOptions
         if (options.Files.Count == 0)
         {
             error = "No input files. Pass one or more .cs paths or patterns, or --list-rules.";
+            return (null, error);
+        }
+
+        if (options.BaselinePath is object && options.WriteBaselinePath is object)
+        {
+            error = "--baseline and --write-baseline cannot be given together: one reads the "
+                + "contract, the other replaces it.";
             return (null, error);
         }
 

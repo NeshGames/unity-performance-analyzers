@@ -63,9 +63,28 @@ internal static class Program
             return 0;
         }
 
+        if (args.Length == 2 && args[0] == "--readme")
+        {
+            try
+            {
+                var files = ReadmeEmitter.WriteAll(args[1]);
+                Console.WriteLine(files.Count == 0
+                    ? "README rule tables already up to date"
+                    : $"Rewrote {files.Count} README file(s)");
+                return 0;
+            }
+            catch (InvalidOperationException failure)
+            {
+                Console.Error.WriteLine("::error::" + failure.Message);
+                return 1;
+            }
+        }
+
         if (args.Length != 1)
         {
-            Console.Error.WriteLine("Usage: RuleManifest <output-path> | RuleManifest --presets <repo-root>");
+            Console.Error.WriteLine(
+                "Usage: RuleManifest <output-path> | RuleManifest --presets <repo-root>"
+                + " | RuleManifest --readme <repo-root>");
             return 1;
         }
 

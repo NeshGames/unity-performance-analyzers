@@ -8,7 +8,7 @@ compile-time checks. Rules adapt automatically to the packages each assembly ref
 
 Distributed as a UPM package. Supports **Unity 2022.3 LTS through Unity 6**.
 
-> **Status: pre-1.0.** All 41 rules are implemented and verified against
+> **Status: pre-1.0.** All <!-- generated:rule-count -->45<!-- /generated:rule-count --> rules are implemented and verified against
 > Unity 2022.3 and Unity 6 sandbox builds. Rule IDs are stable — once released,
 > an ID is never reused.
 
@@ -80,7 +80,7 @@ built-in defaults.
 
 ```ini
 upa_hot_path_messages = Update,FixedUpdate,LateUpdate,OnTriggerEnter
-upa_hot_path_attributes = HotPath,PerfCritical
+upa_hot_path_attributes = HotPath,PerformanceCritical
 upa_hot_path_include_lambdas = true
 upa_enum_switch_allow_default = true
 ```
@@ -99,6 +99,8 @@ its last value. The Rule Manager's Options tab edits this file for you.
 ## Rules
 
 Full documentation per rule: [`docs/rules/`](docs/rules/).
+
+<!-- generated:rules -->
 
 ### Performance (on by default unless noted)
 
@@ -121,7 +123,7 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | [UPA0015](docs/rules/UPA0015.md) | `Camera.main` in per-frame methods *(Info)* | ✓ |
 | [UPA0016](docs/rules/UPA0016.md) | `SendMessage` / `SendMessageUpwards` / `BroadcastMessage` calls | |
 | [UPA0017](docs/rules/UPA0017.md) | Array-returning `GetComponents` overloads (use the `List<T>` overloads) | ✓ |
-| [UPA0018](docs/rules/UPA0018.md) | Allocating array-returning APIs (`Input.touches`, `Animator.parameters`, `Renderer.sharedMaterials`, `Camera.allCameras`) | ✓ |
+| [UPA0018](docs/rules/UPA0018.md) | Allocating array-returning Unity APIs (`Input.touches`, `Animator.parameters`, `Texture2D.GetPixels`, …) | ✓ |
 | [UPA0019](docs/rules/UPA0019.md) | Value types yielded from coroutines (boxing; Unity treats them as `null`) | |
 | [UPA0020](docs/rules/UPA0020.md) | Lambdas in `WaitUntil` / `WaitWhile` construction *(off by default)* | |
 | [UPA0021](docs/rules/UPA0021.md) | `magnitude` / `Distance` compared where `sqrMagnitude` suffices | |
@@ -171,6 +173,22 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 
 Package detection is by referenced assembly name (`UniTask`, `ZString`, `R3`,
 `DOTween`) — per-assembly, automatic, zero configuration.
+<!-- /generated:rules -->
+
+## Code fixes
+
+Three rules ship with an automatic fix, offered by the IDE where the diagnostic appears:
+
+| Rule | Fix |
+|---|---|
+| UPA0019 | `yield return <boxed value>` → `yield return null` |
+| UPA0021 | compare squared magnitudes instead of taking a square root |
+| UPA0022 | `x.HasFlag(y)` → `(x & y) == y`, when `y` is safe to evaluate twice |
+
+The fixes live in a second assembly that ships alongside the analyzer. Unity hands both to
+the compiler; the fixes themselves are IDE-only, since the compiler has no use for them.
+
+UPA0029 deliberately has no fix — see [its documentation](docs/rules/UPA0029.md) for why.
 
 ## Tuning and suppressing
 
@@ -209,22 +227,42 @@ This package itself targets Roslyn 3.8 and loads on every supported Unity versio
 Runs the same analyzers outside Unity, in under a second, so a CI job or a quick local
 check does not need an Editor licence or a full project import.
 
+Install it as a .NET tool — the version tracks the analyzer package, so the command reports
+exactly the rules the package of the same version contains:
+
+```bash
+# per repository, pinned in .config/dotnet-tools.json and committed
+dotnet new tool-manifest
+dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli --version 0.6.0
+dotnet upa-cli --version
+
+# or once per machine
+dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version 0.6.0
+```
+
+That version is the one this page pins for UPM above. Drop `--version` and you get the
+newest CLI, which may know rules the package in your project does not — the command and
+the Editor would then disagree about the same code.
+
+The examples below use the global form. With a manifest, prefix them with `dotnet`.
+
 ```bash
 # analyze some files (exit 1 if anything reaches the fail threshold)
-dotnet run --project src/UnityPerformanceAnalyzers.Cli -- Assets/Scripts/Player.cs
+upa-cli Assets/Scripts/Player.cs
 
 # a CI gate over one assembly's full source set
 # (quote the pattern: the tool expands it, so it behaves the same in every shell)
-dotnet run --project src/UnityPerformanceAnalyzers.Cli -- \
-  "Assets/Scripts/**/*.cs" --whole-assembly --format json --fail-on error
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --format json --fail-on error
 
 # pretend the project references UniTask and targets WebGL
-dotnet run --project src/UnityPerformanceAnalyzers.Cli -- Assets/Scripts/Loader.cs \
-  --reference UniTask --define UPA_TARGET_WEBGL
+upa-cli Assets/Scripts/Loader.cs --reference UniTask --define UPA_TARGET_WEBGL
 
 # what rules does this build know about?
-dotnet run --project src/UnityPerformanceAnalyzers.Cli -- --list-rules
+upa-cli --list-rules
 ```
+
+Building from a checkout instead? Every `upa-cli` below becomes
+`dotnet run --project src/UnityPerformanceAnalyzers.Cli --`.
 
 Exit codes: `0` clean, `1` diagnostics at or above `--fail-on` (default `warning`),
 `2` usage or execution error — which includes an analyzer that failed to run, regardless
@@ -242,10 +280,13 @@ called clean.
 | `--ruleset <path>` | Apply severities from a `.ruleset` | `--ruleset Assets/Default.ruleset` |
 | `--editorconfig <path>` | Apply severities **and** `upa_*` analyzer options from an `.editorconfig` | `--editorconfig .editorconfig` |
 | `--additionalfile <path>` | Pass an additional file, such as the universal options file. Repeatable | `--additionalfile Assets/Rules.UnityPerformanceAnalyzers.additionalfile` |
+| `@<path>` | Read arguments from a file, one per line, expanded where the `@` appears. A whole assembly's references and defines do not fit on a Windows command line | `upa-cli @args.rsp` |
 | `--unity-dll-dir <dir>` | Use a real Unity managed directory instead of the bundled stubs | `--unity-dll-dir <UnityEditor>/Data/Managed/UnityEngine` |
 | `--all-warn` | Force every rule on at warning, overriding ruleset and editorconfig | `--all-warn` |
 | `--whole-assembly` | Declare the files a complete assembly: enables whole-assembly rules and makes compile errors fatal | `--whole-assembly` |
 | `--fail-on <level>` | Threshold for exit code 1: `none`, `info`, `warning` (default), `error` | `--fail-on error` |
+| `--baseline <path>` | Suppress the violations recorded in a baseline file, so only new ones are reported | `--baseline upa-baseline.json` |
+| `--write-baseline <path>` | Record the current violations as the baseline. Needs `--whole-assembly`; exits 0 on success | `--write-baseline upa-baseline.json --whole-assembly` |
 | `--format <format>` | `text` (default) or `json` | `--format json` |
 | `--list-rules` | Print this build's rule catalog instead of analyzing | `upa-cli --list-rules --format json` |
 | `--version` | Print the tool version | `upa-cli --version` |
@@ -255,13 +296,64 @@ Severity precedence, weakest first: a ruleset's `<IncludeAll>` action, then its 
 entries, then `--editorconfig` (which can scope a rule to one file pattern), then
 `--all-warn`.
 
+### Freezing existing violations
+
+Turning these rules on in a project that already has a few hundred hits is where most
+adoptions stop. A baseline records what is there today and reports only what comes after:
+
+```bash
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --write-baseline upa-baseline.json
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --baseline upa-baseline.json --fail-on warning
+```
+
+`--whole-assembly` on the comparison too, when this is a gate. Without it a compile
+error is not fatal, and a compile error is how rules go quiet: they match on resolved
+symbols, so a missing reference produces no findings rather than wrong ones. The baseline
+then suppresses whatever is left and the run exits 0 — a green gate over code the tool
+could not actually analyze. Reading a baseline without `--whole-assembly` is still the
+right thing when checking a single changed file against the contract; it is just not a
+gate.
+
+Commit `upa-baseline.json` — it is a contract the team shares, not a local cache. It is
+plain text so it can be read and reviewed in a diff, and paths inside it are relative to
+its own directory, so it behaves the same from any working directory and on any machine.
+
+A violation is identified by its file, rule, enclosing type and member, and the source
+line with whitespace collapsed — deliberately not by line number, so moving code around
+or reformatting a file does not resurrect everything. The consequence worth knowing:
+renaming or moving a member makes its violations new again, and two identical lines in
+one member share one entry, so fixing one and adding another in the same member goes
+unnoticed.
+
+Writing a baseline requires `--whole-assembly`, and is refused when an analyzer failed or
+the code did not compile: a run that under-reported would freeze debt it never saw.
+Regenerating from a partial file set is refused for the same reason — but entries for
+files you deleted or renamed are simply dropped.
+
 **Using it as a gate?** Pass `--whole-assembly` with an assembly's complete source set,
 **plus a `--reference <path>` for every package that source calls into** (and
 `--unity-dll-dir` if it uses Unity APIs the bundled stubs do not cover). Together those
 turn the run from advisory into authoritative: the whole-assembly rules start reporting,
 and a compilation that does not build exits 2 instead of reporting a clean result it
-could not actually verify. A gate that lacks a package's DLL will fail loudly on the
-unresolved types rather than quietly under-report.
+could not actually verify. A gate that lacks a package's DLL fails on the unresolved
+types, listing them, rather than quietly under-reporting.
+
+That is more arguments than a command line holds. A real assembly's worth — one project's
+sources, its defines, and a reference per package — runs to tens of thousands of
+characters, and Windows stops at 32,767, so pass them in a file instead:
+
+```bash
+# args.rsp — one argument per line, no quoting, # starts a comment
+#   Assets/Scripts/Player.cs
+#   --reference
+#   Library/ScriptAssemblies/SomePackage.dll
+#   --whole-assembly
+upa-cli @args.rsp
+```
+
+Generating that file from whatever already knows the assembly's inputs is usually easier
+than assembling it by hand. Arguments expand where the `@file` appears, so anything after
+it still overrides what is inside.
 
 **Where it differs from a Unity build** — Unity's own compilation stays the source of
 truth:

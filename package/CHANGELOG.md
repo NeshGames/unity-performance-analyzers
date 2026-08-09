@@ -5,6 +5,64 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-08-08
+
+### Added
+
+- The code fix assembly now ships with the package, so the fixes for UPA0019, UPA0021 and
+  UPA0022 reach the IDE instead of existing only in the repository. Verified on Unity
+  2022.3 and Unity 6: both assemblies load as analyzers with no CS8032.
+
+- **Baselines**: `upa-cli --write-baseline <path>` records what a project violates today,
+  and `--baseline <path>` reports only what comes after. An existing project can then fail
+  CI on new violations without first fixing every old one. The file is meant to be
+  committed — it is a contract the team shares, not a local cache. Writing one needs
+  `--whole-assembly`, and is refused when an analyzer failed or the project did not
+  compile, since what would be frozen otherwise is a run that never saw the code.
+
+- **Arguments can come from a file**: `upa-cli @args.rsp`, one argument per line. Using the
+  tool as a gate means passing an assembly's whole source list, its defines, and a
+  reference per package — tens of thousands of characters, where a Windows command line
+  stops at 32,767. Until now the documented setup could not be expressed on Windows at all.
+
+- **Compile errors are listed, not just counted.** They are still not findings and still do
+  not count toward `--fail-on`, but a run refused for compile errors used to report only
+  how many there were, which left nothing to act on: under `--whole-assembly` those errors
+  are fatal and a baseline cannot be written, and knowing *which* type failed to resolve is
+  the whole difference between fixable and not. The text output lists the first twenty and
+  counts the rest; JSON gains a `compileErrors` array with all of them.
+
+- **`upa-cli` installs from NuGet** as a .NET tool, so command-line use no longer means
+  cloning this repository:
+
+  ```bash
+  dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version <version>
+  ```
+
+  Its version tracks the package's: a command that knows a different set of rules than the
+  package in your project would disagree with the Editor about the same code.
+
+### Changed
+
+- The rule tables and rule count in both READMEs are generated from the analyzer assembly
+  and checked on every pull request. They were maintained by hand and had drifted.
+
+- **UPA2000 reports at warning in the `recommended` preset** (was `none`). The rule is
+  deliberately not conditional on ZString so that projects without it still hear about
+  hot-path string building — and leaving it off in the everyday preset meant those
+  projects heard nothing. Expect new warnings on existing code; `Rule Manager` can lower
+  it per project.
+
+### Fixed
+
+- The README claimed 41 rules; the package has 45.
+
+- Every documented example of `upa_hot_path_attributes` named `PerfCritical`, an attribute
+  the analyzers have never recognised. The second built-in name is `PerformanceCritical`.
+  Because the option *replaces* the default set rather than adding to it, anyone who copied
+  the line out of a rule page or a preset comment turned off `[PerformanceCritical]`
+  detection and got no indication that they had.
+
 ## [0.6.0] - 2026-08-08
 
 Four rules for allocations that are invisible at the call site — the cost hides in
@@ -119,6 +177,9 @@ unchanged from 0.3.0.
 - **First code fixes** (IDE-only): `yield return <boxed value>` → `yield return null`
   (UPA0019), squared-threshold rewrite for `magnitude`/`Distance` comparisons against
   numeric literals (UPA0021), and `x.HasFlag(y)` → `(x & y) == y` (UPA0022).
+  *(Correction, 0.7.0: these were built but never shipped — the package carried only the
+  analyzer assembly until 0.7.0. Installing 0.3.0 through 0.6.0 gave you the diagnostics
+  without the fixes.)*
 
 ### Changed
 

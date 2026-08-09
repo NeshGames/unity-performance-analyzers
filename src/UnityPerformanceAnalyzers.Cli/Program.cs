@@ -29,6 +29,76 @@ namespace UnityPerformanceAnalyzers.Cli
             return AnalysisRunner.ShouldFail(result, failOn) ? ExitDiagnostics : ExitClean;
         }
 
+        /// <summary>
+        /// How many compile errors the text channel lists before summarizing the rest. A set of
+        /// compile errors is usually a handful of missing types repeated dozens of times, so a
+        /// score of lines is enough to see the shape without burying the findings above it.
+        /// </summary>
+        private const int CompileErrorsShown = 20;
+
+        /// <summary>
+        /// Lists the compile errors behind the count. Without them the user is told a number
+        /// and left with nowhere to go: under --whole-assembly the run is refused, a baseline
+        /// cannot be written, and which type failed to resolve is the one thing that would
+        /// make it fixable.
+        /// </summary>
+        private static void WriteCompileErrors(TextWriter stderr, AnalysisResult result)
+        {
+            foreach (var error in result.CompileErrors.Take(CompileErrorsShown))
+            {
+                stderr.WriteLine(
+                    $"{error.File}({error.Line},{error.Column}): error {error.Id}: {error.Message}");
+            }
+
+            var remaining = result.CompileErrors.Length - CompileErrorsShown;
+            if (remaining > 0)
+            {
+                stderr.WriteLine($"... and {remaining} more compile errors.");
+            }
+        }
+
+        /// <summary>
+        /// Filters a run through its baseline, if one was given. Reading a baseline places no
+        /// completeness demand on the run: comparing a single changed file against the contract
+        /// is the ordinary way to use this. Only producing the contract requires a full run.
+        /// </summary>
+        private static AnalysisResult ApplyBaseline(AnalysisResult result, CliOptions options)
+        {
+            if (options.BaselinePath is not { } path)
+            {
+                return result;
+            }
+
+            var outcome = BaselineFilter.Apply(
+                result.Diagnostics,
+                BaselineDocument.Read(path),
+                result.AnalyzedFiles,
+                result.IsComplete);
+
+            return result with
+            {
+                Diagnostics = outcome.Reported,
+                BaselineSuppressedCount = outcome.SuppressedCount,
+                BaselineStaleCount = outcome.StaleCount,
+            };
+        }
+
+        /// <summary>Writes the baseline for this run, or throws; returns the entry count.</summary>
+        private static int WriteBaseline(string target, CliOptions options, AnalysisResult result)
+        {
+            BaselineWriter.EnsureRunIsWritable(options, result);
+
+            if (File.Exists(target))
+            {
+                BaselineWriter.EnsureCoversExistingBaseline(
+                    target, BaselineDocument.Read(target), result.AnalyzedFiles);
+            }
+
+            var document = BaselineFilter.Build(result.Diagnostics);
+            BaselineWriter.Write(target, document);
+            return document.Entries.Length;
+        }
+
         public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
         {
             var options = CliOptions.Parse(args, out var parseError);
@@ -59,7 +129,7 @@ namespace UnityPerformanceAnalyzers.Cli
                     return ExitClean;
                 }
 
-                var result = AnalysisRunner.Run(options);
+                var result = ApplyBaseline(AnalysisRunner.Run(options), options);
                 OutputWriter.WriteAnalysis(stdout, result, options.Format);
 
                 if (!result.AnalyzerFailures.IsEmpty)
@@ -85,6 +155,7 @@ namespace UnityPerformanceAnalyzers.Cli
                     // unresolved types and the run stays advisory.
                     stderr.WriteLine(
                         $"{result.CompileErrorCount} compile error(s); analyzer results may be incomplete.");
+                    WriteCompileErrors(stderr, result);
 
                     if (options.WholeAssembly)
                     {
@@ -92,6 +163,17 @@ namespace UnityPerformanceAnalyzers.Cli
                             "Refusing to report success: --whole-assembly declares a complete compilation.");
                         return ExitError;
                     }
+                }
+
+                if (options.WriteBaselinePath is { } target)
+                {
+                    var written = WriteBaseline(target, options, result);
+                    stderr.WriteLine($"Wrote {written} baseline entries to {target}.");
+
+                    // Everything reported is part of the contract as of this moment, so
+                    // --fail-on has nothing left to weigh. Applying it would make freezing
+                    // existing debt an operation that always fails.
+                    return ExitClean;
                 }
 
                 return ResolveExitCode(result, options.FailOn);
