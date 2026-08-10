@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.8.0",
   "upa": [
     {
       "id": "UPA0001",
@@ -216,7 +216,7 @@
       "title": "Enum.HasFlag in per-frame method",
       "category": "Performance",
       "defaultSeverity": "Warning",
-      "enabledByDefault": true,
+      "enabledByDefault": false,
       "hotPath": true,
       "condition": null,
       "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0022.md"
