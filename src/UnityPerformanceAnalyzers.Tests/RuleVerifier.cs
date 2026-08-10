@@ -134,6 +134,21 @@ namespace UnityPerformanceAnalyzers.Tests
             }
 
             Configure(test, harness);
+
+            // The fixed state is compiled too, so anything the test code needs to resolve it
+            // needs as well. Without this a harness source - a package stub, say - makes the
+            // two states differ by a document and the run fails on the count, saying nothing
+            // about the rewrite it was meant to check.
+            foreach (var extraSource in harness.Sources)
+            {
+                test.FixedState.Sources.Add(extraSource);
+            }
+
+            foreach (var (extraName, extraContent) in harness.NamedSources)
+            {
+                test.FixedState.Sources.Add((extraName, extraContent));
+            }
+
             return test.RunAsync();
         }
 

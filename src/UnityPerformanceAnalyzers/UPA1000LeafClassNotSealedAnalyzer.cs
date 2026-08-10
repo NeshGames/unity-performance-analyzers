@@ -7,12 +7,25 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace UnityPerformanceAnalyzers
 {
     /// <summary>
-    /// UPA1000: Reports concrete, non-sealed classes that have no derived types in the
-    /// compilation. Sealing enables devirtualization in the JIT and IL2CPP. Classes declaring
-    /// their own virtual (non-override) members are excluded — sealing them is a compile error
-    /// (CS0549), and an unused extension point may be intentional. Analysis is per-compilation;
-    /// external derivation of public types is a documented limitation.
+    /// UPA1000 (deprecated): reported concrete, non-sealed classes with no derived types in
+    /// the compilation, on the grounds that sealing lets the JIT and IL2CPP devirtualize calls
+    /// on them.
     /// </summary>
+    /// <remarks>
+    /// The measurement cannot resolve that. A first probe with one derived class measured no
+    /// gain at all, but whole-program analysis devirtualizes a single-implementation hierarchy
+    /// whatever the declaration says, so it could not have measured anything else. Widened to
+    /// four derived classes and repeated eight times on IL2CPP, sealed ran at 2.70 ns against
+    /// 3.00 ns unsealed — 0.30 ns inside a 1.28 ns spread, with the ordering reversing once.
+    ///
+    /// That is not "the premise is false", it is "this instrument cannot tell", and shipping a
+    /// warning on it spends the reader's attention to buy something nobody can demonstrate.
+    /// Sealing leaf classes remains reasonable design; it is no longer something this package
+    /// asks for.
+    ///
+    /// Left registered and disabled: ids are never recycled, and a project that has the rule
+    /// in its ruleset keeps the behaviour it had.
+    /// </remarks>
     [CompilationWideRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA1000LeafClassNotSealedAnalyzer : UpaAnalyzer

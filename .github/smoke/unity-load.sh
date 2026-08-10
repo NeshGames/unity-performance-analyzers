@@ -64,9 +64,7 @@ rm -f "$project/Assets"/*.cs "$project/Assets"/*.cs.meta "$project/Assets"/*.rul
 # manifest with its default package set. Those defaults are downloads this test does not
 # need and does not want to depend on. Declaring the editor version is what stops that -
 # the project is then an existing one, and Unity leaves the manifest alone.
-cp "$project/Packages/manifest.template.json" "$project/Packages/manifest.json"
-mkdir -p "$project/ProjectSettings"
-printf 'm_EditorVersion: %s\n' "$label" > "$project/ProjectSettings/ProjectVersion.txt"
+bash "$here/pin-editor.sh" "$project" "$label"
 
 # One copy of the probe, shared with the pinned-compiler smoke test. Two copies would
 # drift, and the drift would show up as one layer quietly testing less than the other.

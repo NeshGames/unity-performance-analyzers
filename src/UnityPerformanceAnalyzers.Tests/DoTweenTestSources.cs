@@ -36,6 +36,7 @@ namespace DG.Tweening
     {
         public static T SetLoops<T>(this T t, int loops) where T : Tween => t;
         public static T SetEase<T>(this T t, int ease) where T : Tween => t;
+        public static Sequence AppendCallback(this Sequence sequence, System.Action callback) => sequence;
         public static T SetLink<T>(this T t, UnityEngine.GameObject gameObject) where T : Tween => t;
         public static T SetId<T>(this T t, object objectId) where T : Tween => t;
         public static T SetAutoKill<T>(this T t, bool autoKillOnCompletion) where T : Tween => t;

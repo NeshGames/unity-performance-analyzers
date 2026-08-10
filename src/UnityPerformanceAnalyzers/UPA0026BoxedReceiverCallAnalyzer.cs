@@ -6,15 +6,21 @@ using System.Collections.Immutable;
 namespace UnityPerformanceAnalyzers
 {
     /// <summary>
-    /// UPA0026: Reports hot-path calls that box a value-type receiver because they resolve to
-    /// a method inherited from <c>Object</c>/<c>ValueType</c>/<c>Enum</c> —
-    /// <c>ToString</c>/<c>GetHashCode</c>/<c>Equals(object)</c> the value type does not
-    /// override, plus <c>GetType()</c> (never overridable, always boxes a value type). Types
-    /// that override the member resolve to their own implementation and are naturally
-    /// excluded; type-parameter receivers are skipped because boxing there depends on the
-    /// instantiation. The .NET 5+ optimizations that remove some of this boxing do not apply
-    /// to Unity's Mono runtime.
+    /// UPA0026: Reports hot-path <c>GetType()</c> calls on a value-type receiver. The method
+    /// is declared on <c>Object</c> and cannot be overridden, so the receiver is boxed to
+    /// reach it — and the answer was known when the code was compiled.
     /// </summary>
+    /// <remarks>
+    /// The rule used to name <c>ToString</c>, <c>GetHashCode</c> and <c>Equals(object)</c>
+    /// as well. Measured on IL2CPP with the argument boxed once outside the loop, so the
+    /// receiver was the only thing left that could allocate, all three read 0.00 B/op on
+    /// both supported editors: there is no receiver box to report. What did allocate in the
+    /// Equals case was the argument, which is a different conversion in a different place,
+    /// and UPA0006 reports it there.
+    ///
+    /// Type-parameter receivers are still skipped: whether a box happens depends on the
+    /// instantiation, which one method body cannot see.
+    /// </remarks>
     [HotPathRule]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0026BoxedReceiverCallAnalyzer : UpaAnalyzer
@@ -67,48 +73,21 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var advice = method.Name == "GetType"
-                ? Strings.ResourceManager.GetString(Strings.UPA0026AdviceGetType)
-                : receiverType.TypeKind == TypeKind.Enum
-                    ? Strings.ResourceManager.GetString(Strings.UPA0026AdviceEnum)
-                    : Strings.ResourceManager.GetString(Strings.UPA0026AdviceStruct);
-
             context.ReportDiagnostic(UpaDiagnostics.Create(
                 Rule,
-                invocation.Syntax.GetLocation(),
-                method.Name,
-                method.ContainingType.Name,
-                advice));
+                invocation.Syntax.GetLocation()));
         }
 
         /// <summary>
-        /// True for ToString()/GetHashCode()/Equals(object)/GetType() declared on
-        /// Object, ValueType, or Enum. A value type that overrides one of these resolves to
-        /// its own declaration, whose containing type is the value type itself — so matching
-        /// on the containing type excludes overridden members without extra work.
+        /// True for <c>GetType()</c> as declared on <c>Object</c>. The containing-type check
+        /// is kept even though <c>GetType</c> cannot be overridden, so that a user-defined
+        /// method of the same name on some other type is not matched by name alone.
         /// </summary>
         private static bool IsInheritedObjectMethod(IMethodSymbol method)
         {
-            var containerSpecialType = method.ContainingType.SpecialType;
-            if (containerSpecialType != SpecialType.System_Object &&
-                containerSpecialType != SpecialType.System_ValueType &&
-                containerSpecialType != SpecialType.System_Enum)
-            {
-                return false;
-            }
-
-            switch (method.Name)
-            {
-                case "ToString":
-                case "GetHashCode":
-                case "GetType":
-                    return method.Parameters.IsEmpty;
-                case "Equals":
-                    return method.Parameters.Length == 1 &&
-                        method.Parameters[0].Type.SpecialType == SpecialType.System_Object;
-                default:
-                    return false;
-            }
+            return method.Name == "GetType" &&
+                method.Parameters.IsEmpty &&
+                method.ContainingType.SpecialType == SpecialType.System_Object;
         }
     }
 }

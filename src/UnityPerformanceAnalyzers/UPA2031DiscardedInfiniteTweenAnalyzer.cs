@@ -108,9 +108,19 @@ namespace UnityPerformanceAnalyzers
             return false;
         }
 
+        /// <summary>
+        /// Whether the fluent chain itself calls <c>SetLink</c>, walking the receiver spine
+        /// rather than every descendant.
+        /// </summary>
+        /// <remarks>
+        /// Descendants include the bodies of lambdas passed as arguments, so
+        /// <c>DOTween.Sequence().AppendCallback(() =&gt; other.SetLink(gameObject)).SetLoops(-1)</c>
+        /// looked linked while the tween that is actually discarded was not. Raised by a
+        /// pre-push review. The spine is the only place a SetLink can be binding this chain.
+        /// </remarks>
         private static bool ChainContainsSetLink(SyntaxNode outermostChainNode)
         {
-            foreach (var node in outermostChainNode.DescendantNodesAndSelf())
+            for (var node = outermostChainNode; node is object; node = Receiver(node))
             {
                 if (node is InvocationExpressionSyntax chained &&
                     chained.Expression is MemberAccessExpressionSyntax memberAccess &&
@@ -121,6 +131,25 @@ namespace UnityPerformanceAnalyzers
             }
 
             return false;
+        }
+
+        /// <summary>The next node inward along the fluent chain, or null at its start.</summary>
+        private static SyntaxNode? Receiver(SyntaxNode node)
+        {
+            switch (node)
+            {
+                case InvocationExpressionSyntax invocation:
+                    return invocation.Expression;
+                case MemberAccessExpressionSyntax memberAccess:
+                    return memberAccess.Expression;
+
+                // Parentheses are part of how the chain is written, not the end of it:
+                // (t.DORotate(v, 1f).SetLink(go)).SetLoops(-1) is still linked.
+                case ParenthesizedExpressionSyntax parenthesized:
+                    return parenthesized.Expression;
+                default:
+                    return null;
+            }
         }
 
     }

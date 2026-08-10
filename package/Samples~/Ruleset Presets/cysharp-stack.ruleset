@@ -28,7 +28,7 @@
     <Rule Id="UPA0019" Action="Error" />
     <Rule Id="UPA0020" Action="Error" />
     <Rule Id="UPA0021" Action="Error" />
-    <Rule Id="UPA0022" Action="Error" />
+    <Rule Id="UPA0022" Action="None" />
     <Rule Id="UPA0023" Action="Warning" />
     <Rule Id="UPA0024" Action="Error" />
     <Rule Id="UPA0025" Action="Error" />
@@ -38,7 +38,7 @@
     <Rule Id="UPA0029" Action="Warning" />
     <Rule Id="UPA0030" Action="Error" />
     <Rule Id="UPA0031" Action="Error" />
-    <Rule Id="UPA1000" Action="Warning" />
+    <Rule Id="UPA1000" Action="None" />
     <Rule Id="UPA2000" Action="Error" />
     <Rule Id="UPA2010" Action="Error" />
     <Rule Id="UPA2011" Action="Error" />

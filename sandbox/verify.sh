@@ -53,9 +53,7 @@ status=0
 for version in "${versions[@]}"; do
   echo
   echo "== $version"
-  cp "$project/Packages/manifest.template.json" "$project/Packages/manifest.json"
-  rm -f "$project/Packages/packages-lock.json"
-  printf 'm_EditorVersion: %s\n' "$version" > "$project/ProjectSettings/ProjectVersion.txt"
+  bash "$here/pin-sandbox.sh" "$project" "$version"
   rm -rf "$project/Library/Bee"
 
   log=$root/sandbox/verify-$version.log

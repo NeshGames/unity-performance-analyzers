@@ -5,6 +5,90 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-08-10
+
+Everything here comes from re-checking the rules' performance premises against IL2CPP, the
+backend a shipped game runs, rather than against what the IL says should happen.
+
+### Removed
+
+- **UPA0022 (`Enum.HasFlag` in per-frame methods) is deprecated** and every preset now sets
+  it to `none`. The call allocates nothing on any supported runtime — Mono has replaced the
+  same-type call with a bitwise AND since 4.0 and IL2CPP since Unity 2021.2 — and on IL2CPP
+  it runs *faster* than the rewrite this rule's code fix used to produce. The fix is gone
+  with it. The id stays registered and disabled, so a project that names it in a ruleset
+  keeps the behaviour it had.
+
+- **UPA1000 (leaf class not sealed) is deprecated**, same treatment. Sealing a leaf class was
+  supposed to let the runtime devirtualize calls on it. Measured against a probe with four
+  derived classes and repeated eight times, sealed ran at 2.70 ns against 3.00 ns unsealed —
+  a 0.30 ns difference inside a 1.28 ns spread, with the ordering reversing once. That is not
+  a refutation, it is a measurement that cannot resolve the question, and a rule that reports
+  at type granularity across a whole codebase should be able to show what it buys.
+
+### Changed
+
+- **UPA0026 reports only `GetType()` now.** It used to name `ToString`, `GetHashCode` and
+  `Equals(object)` as well, on the grounds that reaching an inherited method boxes the
+  receiver. With the argument boxed once outside the loop, so the receiver was the only thing
+  left that could allocate, all three measured no allocation at all on both supported
+  editors. `GetType` does allocate, and since it returns an existing `Type` there is nothing
+  else the number could be.
+
+- **UPA0006 no longer reports `Enum.HasFlag`'s argument** when that argument is a plain load:
+  a constant, a local, a parameter, a field or a property. IL boxes there at every call site,
+  and the runtime removes the box along with the call. A conditional written inline at the
+  call site still allocates, and is still reported.
+
+- **UPA2000's page now says what ZString actually buys.** Measured on IL2CPP: with a
+  non-string operand (`"score: " + score`) ZString allocates about 1.75× less, because the
+  `+` form boxes the operand and builds an intermediate string. With two strings it buys
+  nothing at all — `"a" + "b"` already allocates once. And the only genuinely free form is
+  ZString's builder with its result never turned into a string. The fallback advice for
+  projects without ZString, a reused `StringBuilder`, is better than `+` and still not free.
+
+- **UPA0012's premise is now measured rather than quoted.** Assigning `text` from a number
+  allocates 4.51 B per assignment on Unity 2022.3 and 4.92 B on Unity 6 (IL2CPP); the same
+  value through `SetText("{0}", score)` allocates nothing at all. Both pages carry the table.
+  The sandbox now references TextMeshPro, so the rule is also exercised against the real
+  assembly in a Unity compilation for the first time.
+
+- UPA0001's page no longer claims `TryGetComponent` avoids a managed allocation in a build.
+  Unity documents that allocation as editor-only, and an IL2CPP player measures zero for both
+  forms. The rule and its reason are unchanged: both forms cross into native code and search
+  the component list, which is the cost worth caching away.
+
+### Added
+
+- **Three new code fixes.** UPA0026 rewrites `x.GetType()` to `typeof(T)`; UPA0009 hoists
+  `list.Count` into a local declared before the loop; UPA0029 replaces a copy loop with
+  `AddRange` when the source is an array. Each is limited to the shapes where the rewrite
+  provably changes nothing else: a receiver that can be dropped without changing what runs,
+  a loop the analyzer has already cleared of aliasing, and a source that cannot be the list
+  being appended to.
+
+- **UPA2000 gets a code fix**, bounded by the measurement above: `"score: " + score` becomes
+  `ZString.Concat("score: ", score)` when at least one operand is not a string and the project
+  has ZString, with the `using` added if the file lacks it. A chain becomes one call. Nothing
+  is offered when every operand is already a string, because there the two forms allocate the
+  same, and nothing is offered for `+=` or interpolation.
+
+- **Two more code fixes**, both pure additions to an existing expression: UPA2031 appends
+  `.SetLink(gameObject)` to a discarded infinite tween, and UPA2012 appends `.Forget()` to an
+  unawaited call returning a UniTask type, adding the `using` when the file lacks it. Neither
+  is offered where it would not compile — outside a `Component` or in a static method for the
+  first, on a `Task` or an `async void` declaration for the second.
+
+- UPA1001 will not get a fix, and its page now says so. Your IDE already offers the same
+  edit through `IDE0010` and `IDE0072`, without needing a diagnostic first.
+
+- **Every rule now records why it has or has not got a fix.** Twenty-five said nothing at
+  all, which reads as an oversight rather than a decision. Two of those entries are worth
+  repeating here: UPA0012's obvious rewrite (`text = a + b` to `SetText(a + b)`) leaves the
+  concatenation exactly where it was and buys nothing, and UPA2000's ZString rewrite is held
+  until the premise behind it has been measured on IL2CPP — a code fix makes a wrong premise
+  more expensive, not less, which is what UPA0022 cost.
+
 ## [0.7.0] - 2026-08-09
 
 Three version lines of work released as one. 0.7.0 and 0.8.0 were developed and their code
@@ -47,6 +131,17 @@ under those numbers; collapsing them costs nobody a version they had.
   defect (the UPA0009 change below), so it is worth knowing it happened.
 
 ### Changed
+
+- **Where IL2CPP and Mono disagree, these rules follow IL2CPP and say so.** `Enum.HasFlag`'s
+  argument and the receiver box of an inherited `ToString` / `GetHashCode` / `Equals(object)`
+  cost nothing on IL2CPP and do allocate on Mono — 0.2 to 2.5 B per call depending on version.
+  UPA0006 and UPA0026 stay quiet about them, and their pages now carry the numbers so a Mono
+  build's profiler does not contradict the documentation without explanation.
+
+- **UPA0009 also checks the loop's initializer and incrementor**, not only its body. It
+  advises hoisting `Count` out of the loop, and the initializer runs before the hoisted read
+  would — so `for (int i = Reset(items); i < items.Count; i++)` would iterate a different
+  number of times after following the advice. Found by the review before this release.
 
 - **UPA0009 reports less, on purpose.** It advises hoisting `Count` out of a loop, which is
   only correct while the collection does not change, and it decided that by comparing

@@ -29,13 +29,27 @@ public class LightbulbProbe : MonoBehaviour
     [SerializeField]
     private Vector3 b;
 
-    // UPA0022 — Enum.HasFlag in a per-frame method.
-    // Expected fix: rewrite to a bitwise check, (active & Layers.Water) == Layers.Water.
+    [SerializeField]
+    private int[] seed = new int[0];
+
+    private readonly System.Collections.Generic.List<int> items = new System.Collections.Generic.List<int>();
+
+    private int total;
+
+    private string label;
+
+    // UPA0026 — GetType on a value-type receiver in a per-frame method.
+    // Expected fix: typeof(Layers).
     //
-    // This line also reports UPA0006 for the boxing, which has no fix by design. A warning
-    // with no lightbulb is not a failure here; see the README.
+    // The HasFlag line below it is deliberately here and must stay silent: UPA0022 is
+    // deprecated and UPA0006 does not report the argument box either, because the runtime
+    // removes it with the call. A lightbulb - or a warning at all - on that line is a
+    // failure of this probe.
     private void Update()
     {
+        var kind = active.GetType();
+        _ = kind;
+
         if (active.HasFlag(Layers.Water))
         {
             enabled = true;
@@ -67,6 +81,57 @@ public class LightbulbProbe : MonoBehaviour
     private IEnumerator WaitOneFrame()
     {
         yield return 0;
+    }
+
+    // UPA0009 — Count re-read on every iteration of a per-frame loop. The rule is hot-path
+    // only, so this has to sit in Update to report; the recommended preset the probe installs
+    // turns it on.
+    // Expected fix: int itemsCount = items.Count; declared before the loop.
+    private void LateUpdate()
+    {
+        for (int i = 0; i < items.Count; i++)
+        {
+            total += items[i];
+        }
+    }
+
+    // UPA0029 — a copy loop whose source is an array, the one source that cannot be the
+    // list being appended to.
+    // Expected fix: items.AddRange(seed).
+    private void Seed()
+    {
+        foreach (var value in seed)
+        {
+            items.Add(value);
+        }
+    }
+
+    // UPA2031 — an infinite tween nothing holds, so nothing can ever kill it.
+    // Expected fix: append .SetLink(gameObject).
+    private void Spin()
+    {
+        transform.DORotate(spin, 2f).SetLoops(-1);
+    }
+
+    // UPA2000 — string building on a per-frame path, with an operand that is not a string:
+    // the shape the measurement says ZString helps with. The rule is hot-path scoped, so this
+    // has to be a per-frame method to report at all.
+    // Expected fix: ZString.Concat("score: ", total).
+    private void FixedUpdate()
+    {
+        label = "score: " + total;
+    }
+
+    // UPA2012 — a UniTask nobody awaits, so its exceptions go nowhere.
+    // Expected fix: append .Forget().
+    private void FireAndForget()
+    {
+        LoadAsync();
+    }
+
+    private Cysharp.Threading.Tasks.UniTask LoadAsync()
+    {
+        return default;
     }
 
     private void Start()

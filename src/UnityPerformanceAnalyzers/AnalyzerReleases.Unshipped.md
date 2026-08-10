@@ -26,7 +26,7 @@ UPA0018 | Performance | Warning | Allocating array-returning Unity API in per-fr
 UPA0019 | Performance | Warning | Boxed value yielded from coroutine
 UPA0020 | Performance | Disabled | Lambda in WaitUntil / WaitWhile construction
 UPA0021 | Performance | Warning | magnitude or Distance compared where sqrMagnitude suffices
-UPA0022 | Performance | Warning | Enum.HasFlag in per-frame method
+UPA0022 | Performance | Disabled | Enum.HasFlag in per-frame method (deprecated)
 UPA0023 | Performance | Disabled | OnGUI declared in player code
 UPA0024 | Performance | Disabled | Resources.Load in per-frame method
 UPA0025 | Performance | Warning | Finalizer declared in runtime code
@@ -36,7 +36,7 @@ UPA0028 | Performance | Warning | Value type used as collection key without IEqu
 UPA0029 | Performance | Warning | Sequential Add replaceable with AddRange
 UPA0030 | Performance | Warning | Known-allocating BCL API in per-frame method
 UPA0031 | Performance | Warning | Instantiate or Destroy in per-frame method
-UPA1000 | Correctness | Disabled | Leaf class not sealed
+UPA1000 | Correctness | Disabled | Leaf class not sealed (deprecated)
 UPA1001 | Correctness | Warning | Non-exhaustive enum switch
 UPA2000 | Ecosystem | Disabled | String concatenation in per-frame method
 UPA2010 | Ecosystem | Disabled | User-authored async method returns Task

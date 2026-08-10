@@ -31,6 +31,33 @@ namespace UnityPerformanceAnalyzers.Tests
             return RuleVerifier.CreateTest<UPA2000StringConcatenationAnalyzer>(source, harness);
         }
 
+        private const string ZStringStub = @"
+namespace Cysharp.Text
+{
+    public static class ZString
+    {
+        public static string Concat<T1, T2>(T1 arg1, T2 arg2) => string.Empty;
+
+        public static string Concat<T1, T2, T3>(T1 arg1, T2 arg2, T3 arg3) => string.Empty;
+    }
+}
+";
+
+        // Same text on both sides asserts the diagnostic is reported and no fix is offered.
+        private static Task VerifyFixAsync(string source, string fixedSource, bool referenceZString = true)
+        {
+            var harness = new RuleHarness { EnabledRules = { "UPA2000" } };
+            if (referenceZString)
+            {
+                harness.PackageAssemblies.Add(UpaProfile.ZStringAssemblyName);
+                harness.Sources.Add(ZStringStub);
+            }
+
+            return RuleVerifier.VerifyCodeFixAsync<
+                UPA2000StringConcatenationAnalyzer,
+                CodeFixes.UPA2000ZStringCodeFixProvider>(source, fixedSource, harness);
+        }
+
         // UPA2000 test case 1 — concatenation without ZString suggests StringBuilder
         [Fact]
         public Task Concatenation_WithoutZString_TriggersWithStringBuilderAdvice()
@@ -182,6 +209,271 @@ class C : MonoBehaviour
             var descriptor = Assert.Single(
                 new UPA2000StringConcatenationAnalyzer().SupportedDiagnostics);
             Assert.False(descriptor.IsEnabledByDefault);
+        }
+
+        // UPA2000 test case 7 - the shape the measurement says ZString helps with
+        [Fact]
+        public Task ConcatenationWithNonStringOperand_CodeFix_UsesZString()
+        {
+            return VerifyFixAsync(@"
+using Cysharp.Text;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int score;
+    string label;
+
+    void Update()
+    {
+        label = {|UPA2000:""score: "" + score|};
+    }
+}", @"
+using Cysharp.Text;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int score;
+    string label;
+
+    void Update()
+    {
+        label = ZString.Concat(""score: "", score);
+    }
+}");
+        }
+
+        // UPA2000 test case 8 - the call site need never have named ZString
+        [Fact]
+        public Task ConcatenationWithNonStringOperand_CodeFix_AddsMissingUsing()
+        {
+            return VerifyFixAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int score;
+    string label;
+
+    void Update()
+    {
+        label = {|UPA2000:""score: "" + score|};
+    }
+}", @"
+using UnityEngine;
+using Cysharp.Text;
+
+class C : MonoBehaviour
+{
+    int score;
+    string label;
+
+    void Update()
+    {
+        label = ZString.Concat(""score: "", score);
+    }
+}");
+        }
+
+        // UPA2000 test case 9 - two strings measured the same either way, so no bulb
+        [Fact]
+        public Task ConcatenationOfStrings_Triggers_WithoutFix()
+        {
+            const string Source = @"
+using Cysharp.Text;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    string first;
+    string second;
+    string label;
+
+    void Update()
+    {
+        label = {|UPA2000:first + second|};
+    }
+}";
+            return VerifyFixAsync(Source, Source);
+        }
+
+        // UPA2000 test case 10 - without the type the rewrite would not compile
+        [Fact]
+        public Task Concatenation_WithoutZString_Triggers_WithoutFix()
+        {
+            const string Source = @"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int score;
+    string label;
+
+    void Update()
+    {
+        label = {|UPA2000:""score: "" + score|};
+    }
+}";
+            return VerifyFixAsync(Source, Source, referenceZString: false);
+        }
+
+        // UPA2000 test case 11 - a compound assignment wants a builder, not a call
+        [Fact]
+        public Task CompoundAssignment_Triggers_WithoutFix()
+        {
+            const string Source = @"
+using Cysharp.Text;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int score;
+    string label = string.Empty;
+
+    void Update()
+    {
+        {|UPA2000:label += score|};
+    }
+}";
+            return VerifyFixAsync(Source, Source);
+        }
+
+        // UPA2000 test case 12 - interpolation holes can carry format specifiers
+        [Fact]
+        public Task Interpolation_Triggers_WithoutFix()
+        {
+            const string Source = @"
+using Cysharp.Text;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int score;
+    string label;
+
+    void Update()
+    {
+        label = {|UPA2000:$""score: {score}""|};
+    }
+}";
+            return VerifyFixAsync(Source, Source);
+        }
+
+        // UPA2000 test case 13 - a chain becomes one call, not nested ones
+        [Fact]
+        public Task ConcatenationChain_CodeFix_ProducesOneCall()
+        {
+            return VerifyFixAsync(@"
+using Cysharp.Text;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int score;
+    string suffix;
+    string label;
+
+    void Update()
+    {
+        label = {|UPA2000:""score: "" + score + suffix|};
+    }
+}", @"
+using Cysharp.Text;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int score;
+    string suffix;
+    string label;
+
+    void Update()
+    {
+        label = ZString.Concat(""score: "", score, suffix);
+    }
+}");
+        }
+
+        // UPA2000 test case 14 - a local named ZString shadows the type, and the added using
+        // does not help: lexical scope resolves first
+        [Fact]
+        public Task ShadowedZString_Triggers_WithoutFix()
+        {
+            const string Source = @"
+using Cysharp.Text;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    int score;
+    string label;
+
+    void Update()
+    {
+        var ZString = ""shadow"";
+        label = {|UPA2000:""score: "" + score|};
+        _ = ZString;
+    }
+}";
+            return VerifyFixAsync(Source, Source);
+        }
+
+        // UPA2000 test case 15 - a using in another namespace does not reach this one, so the
+        // rewrite still needs its own import
+        [Fact]
+        public Task ImportInAnotherNamespace_CodeFix_StillAddsUsing()
+        {
+            return VerifyFixAsync(@"
+using UnityEngine;
+
+namespace Unrelated
+{
+    using Cysharp.Text;
+
+    class Ignored
+    {
+    }
+}
+
+namespace Consumer
+{
+    class C : MonoBehaviour
+    {
+        int score;
+        string label;
+
+        void Update()
+        {
+            label = {|UPA2000:""score: "" + score|};
+        }
+    }
+}", @"
+using UnityEngine;
+using Cysharp.Text;
+
+namespace Unrelated
+{
+    using Cysharp.Text;
+
+    class Ignored
+    {
+    }
+}
+
+namespace Consumer
+{
+    class C : MonoBehaviour
+    {
+        int score;
+        string label;
+
+        void Update()
+        {
+            label = ZString.Concat(""score: "", score);
+        }
+    }
+}");
         }
     }
 }

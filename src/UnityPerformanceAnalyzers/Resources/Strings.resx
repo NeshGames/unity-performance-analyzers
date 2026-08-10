@@ -115,10 +115,10 @@
     <value>Leaf class not sealed</value>
   </data>
   <data name="UPA1000MessageFormat" xml:space="preserve">
-    <value>'{0}' has no derived types in this compilation and can be sealed. Sealed classes enable devirtualization in the JIT and IL2CPP.</value>
+    <value>This rule is deprecated: sealing '{0}' measured no gain that could be told apart from noise on IL2CPP.</value>
   </data>
   <data name="UPA1000Description" xml:space="preserve">
-    <value>When a class is sealed, the runtime and the IL2CPP compiler can replace virtual dispatch on it with direct calls and enable further inlining, because no derived type can exist. For a concrete class with no derived types, adding sealed is a zero-semantic-cost improvement that also states design intent. Classes that declare their own virtual members are not reported: sealing them would be a compile error, and an unused extension point may be intentional. The analysis is scoped to one compilation; public types could in principle be derived from other assemblies.</value>
+    <value>Deprecated and off by default. This rule reported concrete classes with no derived types on the grounds that sealing them lets the runtime and IL2CPP replace virtual dispatch with direct calls. Measured against a probe with four derived classes and repeated eight times, sealed ran at 2.70 ns against 3.00 ns unsealed, a difference of 0.30 ns inside a spread of 1.28 ns, with the ordering reversing once. That is not a refutation of the premise; it is a measurement that cannot resolve it, and a rule whose payoff cannot be measured spends attention to buy something nobody can show. Sealing a leaf class is still reasonable design; it is no longer something this package warns about.</value>
   </data>
   <data name="UPA0005Title" xml:space="preserve">
     <value>Direct UnityEngine.Debug logging call</value>
@@ -289,10 +289,10 @@
     <value>Enum.HasFlag in per-frame method</value>
   </data>
   <data name="UPA0022MessageFormat" xml:space="preserve">
-    <value>'HasFlag' boxes its operands on Unity's Mono runtime. Use a bitwise check like '(x &amp; flag) == flag' instead.</value>
+    <value>This rule is deprecated: 'HasFlag' does not box and is not slower than a bitwise check on any supported Unity runtime.</value>
   </data>
   <data name="UPA0022Description" xml:space="preserve">
-    <value>Enum.HasFlag boxes both operands on Unity's Mono runtime and allocates on every call. The .NET 5+ intrinsic that removes this boxing does not apply to Unity's Mono, and IL2CPP behavior varies by version. Use an explicit bitwise check such as '(x &amp; flag) == flag'. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
+    <value>Deprecated and off by default. This rule reported Enum.HasFlag on the grounds that it boxes its operands. It does not: Mono has replaced the same-type call with a bitwise AND since 4.0 and IL2CPP since Unity 2021.2, measured at no allocation on every supported configuration, and on IL2CPP the call runs faster than the rewrite this rule used to suggest. The argument box IL emits goes with the call for a plain load - a constant, local, parameter, field or property - and survives only when a conditional is written inline at the call site, which UPA0006 reports.</value>
   </data>
   <data name="UPA0023Title" xml:space="preserve">
     <value>OnGUI declared in player code</value>
@@ -325,19 +325,10 @@
     <value>Value type boxed by inherited method call</value>
   </data>
   <data name="UPA0026MessageFormat" xml:space="preserve">
-    <value>'{0}' resolves to an implementation inherited from {1} and boxes this value-type receiver on every call. {2}</value>
+    <value>'GetType' is inherited from Object, so calling it on a value type boxes the receiver. The type is known at compile time — use typeof instead.</value>
   </data>
   <data name="UPA0026Description" xml:space="preserve">
-    <value>When a struct or enum calls ToString, GetHashCode, or Equals(object) without overriding it — or calls GetType(), which cannot be overridden — the runtime boxes the receiver to dispatch the inherited Object/ValueType/Enum implementation, allocating on every call; the inherited ValueType.Equals and GetHashCode additionally fall back to reflection for non-blittable structs. The optimizations in modern .NET that remove some of this boxing do not apply to Unity's Mono runtime. Override the member on the struct (implement IEquatable&lt;T&gt; for equality), use non-boxing alternatives for enums, or move the call off the hot path. Receivers whose type is a generic type parameter are not reported — whether they box depends on the instantiated type. Only per-frame Unity messages and methods marked with a hot-path attribute are checked.</value>
-  </data>
-  <data name="UPA0026AdviceGetType" xml:space="preserve">
-    <value>The result is known at compile time — use typeof instead.</value>
-  </data>
-  <data name="UPA0026AdviceEnum" xml:space="preserve">
-    <value>Cache or precompute the result outside the hot path; for equality, compare with == instead.</value>
-  </data>
-  <data name="UPA0026AdviceStruct" xml:space="preserve">
-    <value>Override it on the struct (for Equals, also implement IEquatable&lt;T&gt;), or move the call off the hot path.</value>
+    <value>GetType is declared on Object and cannot be overridden, so calling it on a struct or enum boxes the receiver to reach it. The type is a compile-time fact, so typeof gives the same answer for nothing. Only per-frame Unity messages and methods marked with a hot-path attribute are checked. ToString, GetHashCode and Equals(object) were reported here until they were measured on IL2CPP and found to box no receiver.</value>
   </data>
   <data name="UPA2030Title" xml:space="preserve">
     <value>Tween created in per-frame method</value>

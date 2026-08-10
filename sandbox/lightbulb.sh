@@ -34,9 +34,16 @@ cp "$root/src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/Uni
 cp "$project/Packages/manifest.template.json" "$project/Packages/manifest.json"
 
 # The recommended preset, copied in the way the documentation tells a consumer to install it.
-# All four rules with fixes are on by default and would report without it, but a probe that
-# skips the step every real project takes is checking a setup nobody has.
+# Not every rule with a fix is on by default - UPA0009 is not - so the preset is doing real
+# work here, and a probe that skips the step every real project takes is checking a setup
+# nobody has.
 cp "$root/package/Samples~/Ruleset Presets/recommended.ruleset" "$project/Assets/Default.ruleset"
+
+# One override on top: UPA2012 is none in the recommended preset (it is an ecosystem rule,
+# on only in cysharp-stack), and this probe exists to see every shipping fix. Raising the one
+# rule is smaller than installing a whole different preset, which would also turn several
+# rules up to error and stop the project compiling.
+sed -i 's|<Rule Id="UPA2012" Action="None" />|<Rule Id="UPA2012" Action="Warning" />|'   "$project/Assets/Default.ruleset"
 rm -f "$project/Packages/packages-lock.json"
 
 echo

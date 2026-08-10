@@ -40,6 +40,19 @@ namespace Cysharp.Threading.Tasks
             return RuleVerifier.CreateTest<UPA2012FireAndForgetAnalyzer>(source, harness);
         }
 
+        // Same text on both sides asserts the diagnostic is reported and no fix is offered.
+        private static Task VerifyFixAsync(string source, string fixedSource) =>
+            RuleVerifier.VerifyCodeFixAsync<
+                UPA2012FireAndForgetAnalyzer,
+                CodeFixes.UPA2012ForgetCodeFixProvider>(source, fixedSource, new RuleHarness
+                {
+                    UnityStubs = false,
+                    EnabledRules = { "UPA2012" },
+                    MarkupOptions = MarkupOptions.UseFirstDescriptor,
+                    PackageAssemblies = { UpaProfile.UniTaskAssemblyName },
+                    Sources = { UniTaskStub },
+                });
+
         // UPA2012 test case 1 — form A
         [Fact]
         public Task AsyncVoidMethod_Triggers()
@@ -223,6 +236,125 @@ class C
                 Assert.Equal(UPA2012FireAndForgetAnalyzer.DiagnosticId, d.Id);
                 Assert.False(d.IsEnabledByDefault);
             });
+        }
+
+        // UPA2012 test case 8 - Forget is what UniTask offers for exactly this, and appending
+        // it changes nothing else in the statement
+        [Fact]
+        public Task UnawaitedUniTask_CodeFix_AppendsForget()
+        {
+            return VerifyFixAsync(@"
+using Cysharp.Threading.Tasks;
+
+class C
+{
+    UniTask FooAsync() => default;
+
+    void M()
+    {
+        {|UPA2012:FooAsync()|};
+    }
+}", @"
+using Cysharp.Threading.Tasks;
+
+class C
+{
+    UniTask FooAsync() => default;
+
+    void M()
+    {
+        FooAsync().Forget();
+    }
+}");
+        }
+
+        // UPA2012 test case 9 - the call site need never have named UniTask, and Forget is an
+        // extension method, so the using has to come with the rewrite
+        [Fact]
+        public Task UnawaitedUniTask_CodeFix_AddsMissingUsing()
+        {
+            return VerifyFixAsync(@"
+class C
+{
+    Cysharp.Threading.Tasks.UniTask FooAsync() => default;
+
+    void M()
+    {
+        {|UPA2012:FooAsync()|};
+    }
+}", @"using Cysharp.Threading.Tasks;
+
+class C
+{
+    Cysharp.Threading.Tasks.UniTask FooAsync() => default;
+
+    void M()
+    {
+        FooAsync().Forget();
+    }
+}");
+        }
+
+        // UPA2012 test case 10 - UniTask defines Forget on its own types; Task has none
+        [Fact]
+        public Task UnawaitedTask_Triggers_WithoutFix()
+        {
+            const string Source = @"
+using System.Threading.Tasks;
+
+class C
+{
+    Task FooAsync() => Task.CompletedTask;
+
+    void M()
+    {
+        {|UPA2012:FooAsync()|};
+    }
+}";
+            return VerifyFixAsync(Source, Source);
+        }
+
+        // UPA2012 test case 11 - form A is fixed by changing a signature, which reaches every
+        // caller
+        [Fact]
+        public Task AsyncVoid_Triggers_WithoutFix()
+        {
+            const string Source = @"
+using System.Threading.Tasks;
+
+class C
+{
+    async void {|UPA2012:Fire|}()
+    {
+        await Task.Yield();
+    }
+}";
+            return VerifyFixAsync(Source, Source);
+        }
+
+        // UPA2012 test case 12 - another Forget on the same receiver is in scope, so appending
+        // one decides nothing about which it binds to
+        [Fact]
+        public Task CompetingForgetExtension_Triggers_WithoutFix()
+        {
+            const string Source = @"
+using Cysharp.Threading.Tasks;
+
+static class Rival
+{
+    public static void Forget(this UniTask task) { }
+}
+
+class C
+{
+    UniTask FooAsync() => default;
+
+    void M()
+    {
+        {|UPA2012:FooAsync()|};
+    }
+}";
+            return VerifyFixAsync(Source, Source);
         }
     }
 }

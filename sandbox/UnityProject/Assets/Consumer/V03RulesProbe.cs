@@ -32,12 +32,20 @@ public class V03RulesProbe : MonoBehaviour
         {
         }
 
-        if (_state.HasFlag(ProbeState.Dead))                      // UPA0022
+        // Negative now, and deliberately kept: UPA0022 is deprecated (HasFlag allocates
+        // nothing on any supported runtime) and UPA0006 does not report the argument box
+        // either, because the runtime removes it along with the call.
+        if (_state.HasFlag(ProbeState.Dead))                      // no diagnostic
         {
         }
 
-        var stateLabel = _state.ToString();                       // UPA0026 (enum receiver)
+        // Also negative since UPA0026 narrowed to GetType: the receiver box measured 0.00
+        // B/op for ToString on IL2CPP.
+        var stateLabel = _state.ToString();                       // no diagnostic
         _ = stateLabel;
+
+        var stateType = _state.GetType();                         // UPA0026 (enum receiver)
+        _ = stateType;
 
         var icon = Resources.Load<TextAsset>("missing");          // UPA0024
         var hud = $"touches {touchCount}";                        // UPA0006 (interpolation hole boxing)

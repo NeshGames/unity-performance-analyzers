@@ -503,6 +503,14 @@ jobs:
     # gate. That chain is what makes "nothing is published that Unity has not compiled"
     # a property of the workflow rather than a habit.
     needs: prepare-release
+    # always(), for the same reason prepare-release needs it and one step further along: a
+    # skip travels down the whole needs graph, not just to the job that declared the
+    # dependency. unity-smoke is skipped whenever no editor licence is held - the ordinary
+    # state - and prepare-release stepped over that for itself while this job kept
+    # inheriting it. v0.7.0 was tagged with no GitHub Release because of exactly this: the
+    # tag is permanent and the guard above refuses to cut it again, so the half that was
+    # skipped could not simply be run afterwards.
+    if: always() && needs.prepare-release.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # As above, restating contents is not redundant: this job creates the GitHub Release.

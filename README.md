@@ -9,8 +9,9 @@ compile-time checks. Rules adapt automatically to the packages each assembly ref
 Distributed as a UPM package. Supports **Unity 2022.3 LTS through Unity 6**.
 
 > **Status: pre-1.0.** All <!-- generated:rule-count -->46<!-- /generated:rule-count --> rules are implemented and verified against
-> Unity 2022.3 and Unity 6 sandbox builds. Rule IDs are stable — once released,
-> an ID is never reused.
+> Unity 2022.3 and Unity 6 sandbox builds. Two of them — UPA0022 and UPA1000 — are
+> deprecated and report nothing unless a project asks them to; their pages say why.
+> Rule IDs are stable — once released, an ID is never reused.
 
 ## Install
 
@@ -127,7 +128,7 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 | [UPA0019](docs/rules/UPA0019.md) | Value types yielded from coroutines (boxing; Unity treats them as `null`) | |
 | [UPA0020](docs/rules/UPA0020.md) | Lambdas in `WaitUntil` / `WaitWhile` construction *(off by default)* | |
 | [UPA0021](docs/rules/UPA0021.md) | `magnitude` / `Distance` compared where `sqrMagnitude` suffices | |
-| [UPA0022](docs/rules/UPA0022.md) | `Enum.HasFlag` in per-frame methods (boxes on Unity's Mono) | ✓ |
+| [UPA0022](docs/rules/UPA0022.md) | `Enum.HasFlag` in per-frame methods *(off by default; deprecated: the call allocates nothing on any supported runtime)* | ✓ |
 | [UPA0023](docs/rules/UPA0023.md) | `OnGUI` declared in player code *(Info, off by default)* | |
 | [UPA0024](docs/rules/UPA0024.md) | `Resources.Load` in per-frame methods *(off by default)* | ✓ |
 | [UPA0025](docs/rules/UPA0025.md) | Finalizers declared in runtime code | |
@@ -146,7 +147,7 @@ Full documentation per rule: [`docs/rules/`](docs/rules/).
 
 | ID | Reports |
 |---|---|
-| [UPA1000](docs/rules/UPA1000.md) | Leaf classes not sealed *(off by default)* |
+| [UPA1000](docs/rules/UPA1000.md) | Leaf classes not sealed *(off by default; deprecated: the gain measured smaller than the noise on IL2CPP)* |
 | [UPA1001](docs/rules/UPA1001.md) | Enum switches missing declared members |
 
 ### Ecosystem (all off by default; advice adapts to referenced packages)
@@ -178,18 +179,25 @@ Package detection is by referenced assembly name (`UniTask`, `ZString`, `R3`,
 
 ## Code fixes
 
-Three rules ship with an automatic fix, offered by the IDE where the diagnostic appears:
+Eight rules ship with an automatic fix, offered by the IDE where the diagnostic appears:
 
 | Rule | Fix |
 |---|---|
 | UPA0019 | `yield return <boxed value>` → `yield return null` |
 | UPA0021 | compare squared magnitudes instead of taking a square root |
-| UPA0022 | `x.HasFlag(y)` → `(x & y) == y`, when `y` is safe to evaluate twice |
+| UPA0026 | `x.GetType()` → `typeof(T)`, when the receiver can be dropped without changing what runs |
+| UPA0009 | hoist `list.Count` into a local declared before the loop |
+| UPA0029 | replace an array copy loop with `AddRange`, where no aliasing is possible |
+| UPA2031 | append `.SetLink(gameObject)` to a discarded infinite tween |
+| UPA2012 | append `.Forget()` to an unawaited UniTask call |
+| UPA2000 | `"a: " + n` → `ZString.Concat("a: ", n)`, where an operand is not a string |
 
 The fixes live in a second assembly that ships alongside the analyzer. Unity hands both to
 the compiler; the fixes themselves are IDE-only, since the compiler has no use for them.
 
-UPA0029 deliberately has no fix — see [its documentation](docs/rules/UPA0029.md) for why.
+UPA0029's fix is offered only where the source is an array: two `List<T>` references can be
+the same list at runtime, and the rewrite would change what a self-copy does. See
+[its documentation](docs/rules/UPA0029.md).
 
 ## Tuning and suppressing
 
@@ -359,7 +367,9 @@ it still overrides what is inside.
 truth:
 
 - The file list you pass is not an assembly boundary, so rules that judge the whole
-  assembly (currently UPA1000) are skipped unless you pass `--whole-assembly`.
+  assembly are skipped unless you pass `--whole-assembly`. UPA1000 is the only one, and it
+  is deprecated, so today the flag matters mainly for writing a baseline and for treating
+  compile errors as fatal.
 - `--reference <name>` only makes a package *look* present, which is enough to activate
   its rules but leaves that package's APIs unresolved. Pass the DLL by path when the code
   actually calls into it — `--reference Assets/Plugins/DOTween/DOTween.dll`.

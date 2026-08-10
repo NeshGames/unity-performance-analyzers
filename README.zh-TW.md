@@ -9,7 +9,8 @@ assembly 引用的套件(UniTask、ZString、R3、DOTween)以及專案是否以 
 以 UPM package 形式發佈。支援 **Unity 2022.3 LTS ~ Unity 6**。
 
 > **狀態:pre-1.0。** 全部 <!-- generated:rule-count -->46<!-- /generated:rule-count --> 條規則已實作,並在 Unity 2022.3 與 Unity 6 的
-> sandbox 建置實測通過。rule ID 一經發佈即穩定,永不重用。
+> sandbox 建置實測通過。其中兩條——UPA0022 與 UPA1000——已廢止,除非專案自行開啟否則
+> 不回報任何東西,理由寫在各自的規則頁。rule ID 一經發佈即穩定,永不重用。
 
 ## 安裝
 
@@ -119,7 +120,7 @@ upa_enum_switch_allow_default = true
 | [UPA0019](docs/rules/UPA0019.zh-TW.md) | coroutine 內 yield 實值型別(裝箱;Unity 視同 `null`) | |
 | [UPA0020](docs/rules/UPA0020.zh-TW.md) | `WaitUntil` / `WaitWhile` 建構時傳入 lambda *(預設關閉)* | |
 | [UPA0021](docs/rules/UPA0021.zh-TW.md) | 可用 `sqrMagnitude` 取代的 `magnitude` / `Distance` 比較 | |
-| [UPA0022](docs/rules/UPA0022.zh-TW.md) | 逐幀方法內的 `Enum.HasFlag`(Unity Mono 上會裝箱) | ✓ |
+| [UPA0022](docs/rules/UPA0022.zh-TW.md) | 逐幀方法內的 `Enum.HasFlag` *(預設關閉;已廢止:該呼叫在任何支援的執行環境上都不配置)* | ✓ |
 | [UPA0023](docs/rules/UPA0023.zh-TW.md) | player 程式碼中宣告 `OnGUI` *(Info,預設關閉)* | |
 | [UPA0024](docs/rules/UPA0024.zh-TW.md) | 逐幀方法內的 `Resources.Load` *(預設關閉)* | ✓ |
 | [UPA0025](docs/rules/UPA0025.zh-TW.md) | runtime 程式碼中宣告 finalizer | |
@@ -138,7 +139,7 @@ upa_enum_switch_allow_default = true
 
 | ID | 回報內容 |
 |---|---|
-| [UPA1000](docs/rules/UPA1000.zh-TW.md) | 葉端類別未 `sealed` *(預設關閉)* |
+| [UPA1000](docs/rules/UPA1000.zh-TW.md) | 葉端類別未 `sealed` *(預設關閉;已廢止:IL2CPP 上量到的差距小於雜訊)* |
 | [UPA1001](docs/rules/UPA1001.zh-TW.md) | enum switch 漏列宣告成員 |
 
 ### 生態(全部預設關閉;建議內容依引用套件調整)
@@ -170,18 +171,24 @@ per-assembly、全自動、零設定。
 
 ## Code fix
 
-三條規則附自動修正,由 IDE 在診斷出現處提供:
+八條規則附自動修正,由 IDE 在診斷出現處提供:
 
 | 規則 | 修正 |
 |---|---|
 | UPA0019 | `yield return <裝箱值>` → `yield return null` |
 | UPA0021 | 改比較平方長度,免去開根號 |
-| UPA0022 | `x.HasFlag(y)` → `(x & y) == y`,僅在 `y` 可安全求值兩次時提供 |
+| UPA0026 | `x.GetType()` → `typeof(T)`,僅在丟掉接收者不改變執行內容時提供 |
+| UPA0009 | 把 `list.Count` 提升為迴圈前宣告的區域變數 |
+| UPA0029 | 把複製陣列的迴圈換成 `AddRange`,僅在不可能別名時提供 |
+| UPA2031 | 在被丟棄的無限 tween 後附加 `.SetLink(gameObject)` |
+| UPA2012 | 在未 await 的 UniTask 呼叫後附加 `.Forget()` |
+| UPA2000 | `"a: " + n` → `ZString.Concat("a: ", n)`,僅在有非字串運算元時提供 |
 
 修正位於隨 analyzer 一同散布的第二顆組件。Unity 會把兩顆都交給編譯器;
 修正本身是 IDE 專用的,編譯器用不到。
 
-UPA0029 刻意不附修正——理由見[該規則文件](docs/rules/UPA0029.zh-TW.md)。
+UPA0029 的修正只在來源為陣列時提供:兩個 `List<T>` 參考可能在執行期是同一個 list,
+那時改寫會改變自我複製的行為。理由見[該規則文件](docs/rules/UPA0029.zh-TW.md)。
 
 ## 調校與抑制
 
@@ -335,8 +342,9 @@ upa-cli @args.rsp
 
 **與 Unity 建置的差異**——最終權威仍是 Unity 自己的編譯:
 
-- 傳入的檔案清單不等於 assembly 邊界,因此需要整個組件才能判定的規則
-  (目前是 UPA1000)預設略過,要跑請加 `--whole-assembly`。
+- 傳入的檔案清單不等於 assembly 邊界,因此需要整個組件才能判定的規則預設略過,
+  要跑請加 `--whole-assembly`。這樣的規則只有 UPA1000,而它已廢止,
+  所以這個旗標現在主要影響的是寫 baseline、以及編譯錯誤是否致命。
 - `--reference <名稱>` 只讓套件「看起來存在」,足以啟用該套件的規則,
   但該套件的 API 仍無法解析。程式碼真的有呼叫時,請改給 DLL 路徑——
   `--reference Assets/Plugins/DOTween/DOTween.dll`。

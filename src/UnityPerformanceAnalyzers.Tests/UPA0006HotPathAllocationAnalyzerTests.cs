@@ -282,5 +282,113 @@ class C : MonoBehaviour
     }
 }");
         }
+
+        // UPA0006 test case 16 — HasFlag boxes its argument in IL, and both Mono and IL2CPP
+        // remove that box along with the call. Measured at 0.00 B/op on both editors against a
+        // control that allocates in the same loop.
+        [Fact]
+        public Task HasFlagWithConstantArgument_InUpdate_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System;
+using UnityEngine;
+
+[Flags]
+enum Rights { None = 0, Read = 1, Write = 2 }
+
+class C : MonoBehaviour
+{
+    Rights rights;
+
+    void Update()
+    {
+        if (rights.HasFlag(Rights.Read))
+        {
+        }
+    }
+}");
+        }
+
+        // UPA0006 test case 17
+        [Fact]
+        public Task HasFlagWithLocalOrFieldArgument_InUpdate_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System;
+using UnityEngine;
+
+[Flags]
+enum Rights { None = 0, Read = 1, Write = 2 }
+
+class C : MonoBehaviour
+{
+    Rights rights;
+    Rights wanted;
+
+    void Update()
+    {
+        var local = Rights.Read;
+        if (rights.HasFlag(local))
+        {
+        }
+
+        if (rights.HasFlag(wanted))
+        {
+        }
+    }
+}");
+        }
+
+        // UPA0006 test case 18 — the elision needs the box to sit next to the call. Written
+        // inline, a conditional puts branches in between and the box survives: measured at
+        // 0.12 B/op on 2022.3 and 0.39 on Unity 6, with collections running in both.
+        [Fact]
+        public Task HasFlagWithConditionalArgument_InUpdate_Triggers()
+        {
+            return VerifyAsync(@"
+using System;
+using UnityEngine;
+
+[Flags]
+enum Rights { None = 0, Read = 1, Write = 2 }
+
+class C : MonoBehaviour
+{
+    Rights rights;
+    bool toggle;
+
+    void Update()
+    {
+        if (rights.HasFlag({|UPA0006:toggle ? Rights.Read : Rights.Write|}))
+        {
+        }
+    }
+}");
+        }
+
+        // UPA0006 test case 19 — the exclusion is bound to System.Enum.HasFlag, not to the name
+        [Fact]
+        public Task UserDefinedHasFlag_InUpdate_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+struct Mask
+{
+    public bool HasFlag(object flag) => flag != null;
+}
+
+class C : MonoBehaviour
+{
+    Mask mask;
+
+    void Update()
+    {
+        if (mask.HasFlag({|UPA0006:1|}))
+        {
+        }
+    }
+}");
+        }
     }
 }

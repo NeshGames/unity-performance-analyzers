@@ -70,7 +70,8 @@ namespace UnityPerformanceAnalyzers
                     // array around it, and UPA0027 already reports both together while naming
                     // the call. Reporting it here too would put two diagnostics on one line
                     // for one allocation.
-                    allocationDescription = IsInsideParamsExpansion(conversion)
+                    allocationDescription = IsInsideParamsExpansion(conversion) ||
+                            IsElidedHasFlagArgument(conversion)
                         ? null
                         : DescribeBoxing(conversion);
                     break;
@@ -129,6 +130,66 @@ namespace UnityPerformanceAnalyzers
             conversion.Parent is IArrayInitializerOperation initializer &&
             initializer.Parent is IArrayCreationOperation arrayCreation &&
             arrayCreation.IsImplicit;
+
+        /// <summary>
+        /// True when this conversion is the argument box of an <c>Enum.HasFlag</c> call that
+        /// the runtime removes along with the call itself.
+        /// </summary>
+        /// <remarks>
+        /// <c>HasFlag</c> takes a <c>System.Enum</c>, so IL boxes the argument at every call
+        /// site; Mono since 4.0 and IL2CPP since Unity 2021.2 replace the same-type call with a
+        /// bitwise AND and the box goes with it. Measured on IL2CPP against a control that
+        /// allocates in the same loop — so the zeros are not a hoisted box — the elision holds
+        /// for a constant, a local, a parameter, a field and a property argument on both
+        /// supported editors, and fails for a conditional written inline at the call site,
+        /// which allocates on both.
+        ///
+        /// The line is drawn exactly where the measurement is. Shapes nobody has measured, an
+        /// argument that is itself a call among them, keep being reported: a report that is
+        /// wrong can be removed by a later measurement, and a silence that is wrong cannot be
+        /// noticed at all.
+        /// </remarks>
+        private static bool IsElidedHasFlagArgument(IConversionOperation conversion)
+        {
+            if (!(conversion.Parent is IArgumentOperation argument) ||
+                !(argument.Parent is IInvocationOperation invocation))
+            {
+                return false;
+            }
+
+            var method = invocation.TargetMethod;
+            if (method.Name != "HasFlag" ||
+                method.ContainingType?.SpecialType != SpecialType.System_Enum)
+            {
+                return false;
+            }
+
+            return IsSimpleLoad(conversion.Operand);
+        }
+
+        /// <summary>
+        /// True for the operand shapes the measurement covered: the argument is loaded and
+        /// nothing branches between the load and the call.
+        /// </summary>
+        private static bool IsSimpleLoad(IOperation operand)
+        {
+            if (operand.ConstantValue.HasValue)
+            {
+                return true;
+            }
+
+            switch (operand)
+            {
+                case ILocalReferenceOperation _:
+                case IParameterReferenceOperation _:
+                case IFieldReferenceOperation _:
+                case IPropertyReferenceOperation _:
+                case IInstanceReferenceOperation _:
+                    return true;
+                default:
+                    return false;
+            }
+        }
 
         private static string? DescribeBoxing(IConversionOperation conversion)
         {

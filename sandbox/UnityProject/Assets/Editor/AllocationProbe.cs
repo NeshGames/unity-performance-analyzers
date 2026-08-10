@@ -26,6 +26,9 @@ public static class AllocationProbe
     {
         try
         {
+            // Without TMP's settings asset the TMP section measures the exception path.
+            TmpEssentials.EnsureImported();
+
             var apiLevel = PlayerSettings.GetApiCompatibilityLevel(BuildTargetGroup.Standalone);
             var backend = PlayerSettings.GetScriptingBackend(BuildTargetGroup.Standalone);
 

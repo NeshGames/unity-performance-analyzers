@@ -4,7 +4,7 @@
 === environment ===
 [MEASURE] unity | 2022.3.62f2
 [MEASURE] platform | WindowsEditor
-[MEASURE] runtime | Mono 6.13.0 (Visual Studio built mono)
+[MEASURE] runtime | Mono / class library reports: 6.13.0 (Visual Studio built mono)
 [MEASURE] is64bit | True
 
 === A1 comparer identity ===
@@ -20,24 +20,104 @@
 [MEASURE] Dictionary<ByteEnum,int>.ContainsKey (no comparer) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
 [MEASURE] Dictionary<int,int>.ContainsKey (control) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
 [MEASURE] Dictionary<IntEnum,int>.ContainsKey (explicit comparer) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
-[MEASURE] Dictionary<PlainKey,int>.ContainsKey (no IEquatable) | 331776 bytes over 200000 iterations | 1.66 bytes/op | gen0 collections: 19 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Dictionary<PlainKey,int>.ContainsKey (no IEquatable) | 348160 bytes over 200000 iterations | 1.74 bytes/op | gen0 collections: 15 | allocates (lower bound: a collection ran mid-measurement)
 [MEASURE] Dictionary<EquatableKey,int>.ContainsKey (IEquatable) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
 
 === A3 known-allocating API candidates ===
-[MEASURE] String.Split(char) | 184320 bytes over 20000 iterations | 9.22 bytes/op | gen0 collections: 3 | allocates (lower bound: a collection ran mid-measurement)
-[MEASURE] String.ToCharArray() | 290816 bytes over 20000 iterations | 14.54 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
-[MEASURE] String.Substring(int,int) | 610304 bytes over 20000 iterations | 30.52 bytes/op | gen0 collections: 0 | allocates
-[MEASURE] String.ToLowerInvariant() | 290816 bytes over 20000 iterations | 14.54 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
-[MEASURE] String.ToUpperInvariant() | 290816 bytes over 20000 iterations | 14.54 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] String.Split(char) | 552960 bytes over 20000 iterations | 27.65 bytes/op | gen0 collections: 2 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] String.ToCharArray() | 8192 bytes over 20000 iterations | 0.41 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] String.Substring(int,int) | 557056 bytes over 20000 iterations | 27.85 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] String.ToLowerInvariant() | 8192 bytes over 20000 iterations | 0.41 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] String.ToUpperInvariant() | 8192 bytes over 20000 iterations | 0.41 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
 [MEASURE] String.Trim() (nothing to trim) | 0 bytes over 20000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
-[MEASURE] String.Trim() (whitespace present) | 954368 bytes over 20000 iterations | 47.72 bytes/op | gen0 collections: 0 | allocates
-[MEASURE] Enum.GetValues(typeof(IntEnum)) | 475136 bytes over 20000 iterations | 23.76 bytes/op | gen0 collections: 4 | allocates (lower bound: a collection ran mid-measurement)
-[MEASURE] Enum.GetNames(typeof(IntEnum)) | 278528 bytes over 20000 iterations | 13.93 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
-[MEASURE] Texture2D.GetPixels() | 688128 bytes over 2000 iterations | 344.06 bytes/op | gen0 collections: 8 | allocates (lower bound: a collection ran mid-measurement)
-[MEASURE] Texture2D.GetPixels32() | 712704 bytes over 2000 iterations | 356.35 bytes/op | gen0 collections: 2 | allocates (lower bound: a collection ran mid-measurement)
-[MEASURE] Texture2D.GetRawTextureData() (non-generic) | 716800 bytes over 2000 iterations | 358.40 bytes/op | gen0 collections: 2 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] String.Trim() (whitespace present) | 905216 bytes over 20000 iterations | 45.26 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] Enum.GetValues(typeof(IntEnum)) | 581632 bytes over 20000 iterations | 29.08 bytes/op | gen0 collections: 3 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Enum.GetNames(typeof(IntEnum)) | 12288 bytes over 20000 iterations | 0.61 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Texture2D.GetPixels() | 1548288 bytes over 2000 iterations | 774.14 bytes/op | gen0 collections: 6 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Texture2D.GetPixels32() | 118784 bytes over 2000 iterations | 59.39 bytes/op | gen0 collections: 2 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] Texture2D.GetRawTextureData() (non-generic) | 122880 bytes over 2000 iterations | 61.44 bytes/op | gen0 collections: 2 | allocates (lower bound: a collection ran mid-measurement)
 [MEASURE] Texture2D.GetRawTextureData<byte>() (generic) | 0 bytes over 2000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
 [MEASURE] Animator.runtimeAnimatorController | MeasurementController
 [MEASURE] Animator clip count on layer 0 | 1
-[MEASURE] Animator.GetCurrentAnimatorClipInfo(int) (array overload) | 90112 bytes over 2000 iterations | 45.06 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] Animator.GetCurrentAnimatorClipInfo(int) (array overload) | 45056 bytes over 2000 iterations | 22.53 bytes/op | gen0 collections: 0 | allocates
 [MEASURE] Animator.GetCurrentAnimatorClipInfo(int, List<T>) (list overload) | 0 bytes over 2000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+
+=== A4 Enum.HasFlag ===
+[MEASURE] Rights.HasFlag(Rights) (same type) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] ByteRights.HasFlag(ByteRights) (same type, byte-backed) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] ((Enum)rights).HasFlag(Rights) (receiver already boxed) | 49152 bytes over 200000 iterations | 0.25 bytes/op | gen0 collections: 5 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] (a & b) == b (control: what the code fix emits) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] Rights.HasFlag(Rights) | 1.14 ms over 200000 iterations | 5.70 ns/op
+[MEASURE] (a & b) == b | 0.90 ms over 200000 iterations | 4.52 ns/op
+[MEASURE] sink (non-zero means the calls actually ran) | 1206000
+
+=== A5 boxing by inherited method call (UPA0026) ===
+[MEASURE] IntEnum.GetHashCode() (inherited from Enum) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] PlainKey.GetHashCode() (inherited from ValueType) | 49152 bytes over 200000 iterations | 0.25 bytes/op | gen0 collections: 5 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] EquatableKey.GetHashCode() (overridden: control) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] IntEnum.Equals(object) (inherited) | 180224 bytes over 200000 iterations | 0.90 bytes/op | gen0 collections: 10 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] PlainKey.GetType() (inherited from Object) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] PlainKey.ToString() (inherited) | 557056 bytes over 20000 iterations | 27.85 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] OverridingKey.ToString() (overridden: control) | 0 bytes over 20000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] PlainKey.Equals(pre-boxed) (inherited) | 45056 bytes over 200000 iterations | 0.23 bytes/op | gen0 collections: 5 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] EquatableKey.Equals(pre-boxed) (overridden: control) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] IntEnum.Equals(pre-boxed) (inherited) | 45056 bytes over 200000 iterations | 0.23 bytes/op | gen0 collections: 5 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] IntEnum.GetType() (inherited from Object) | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] HasFlag with a constant argument | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] HasFlag with a variable argument | 172032 bytes over 200000 iterations | 0.86 bytes/op | gen0 collections: 10 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] HasFlag with a computed argument | 172032 bytes over 200000 iterations | 0.86 bytes/op | gen0 collections: 10 | allocates (lower bound: a collection ran mid-measurement)
+
+=== A6 advice whose payoff is time, not bytes ===
+[MEASURE] Vector3.Distance(a,b) < 5f | 7.29 ms over 200000 iterations | 36.43 ns/op
+[MEASURE] (a-b).sqrMagnitude < 25f | 6.71 ms over 200000 iterations | 33.57 ns/op
+[MEASURE] for (i < list.Count) over 64 items | 1.54 ms over 3125 iterations | 493.41 ns/op
+[MEASURE] for (i < count) hoisted, 64 items | 1.02 ms over 3125 iterations | 326.62 ns/op
+[MEASURE] one subclass: call through the base type | 1.24 ms over 200000 iterations | 6.19 ns/op
+[MEASURE] one subclass: call on the sealed leaf | 1.06 ms over 200000 iterations | 5.32 ns/op
+[MEASURE] four subclasses: call through the base type | 2.58 ms over 200000 iterations | 12.89 ns/op
+[MEASURE] four subclasses: call on the sealed leaf | 1.06 ms over 200000 iterations | 5.29 ns/op
+[MEASURE] four subclasses: call on the unsealed leaf | 1.01 ms over 200000 iterations | 5.07 ns/op
+[MEASURE] four subclasses: sealed leaf via the base type | 1.19 ms over 200000 iterations | 5.93 ns/op
+
+=== A7 remaining allocation premises ===
+[MEASURE] UPA0001 GetComponent<Animator>() | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] UPA0001 TryGetComponent<Animator>() | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] UPA0002 gameObject.name | 638976 bytes over 50000 iterations | 12.78 bytes/op | gen0 collections: 2 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] UPA0002 gameObject.tag | 1093632 bytes over 50000 iterations | 21.87 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] UPA0002 CompareTag (control) | 0 bytes over 50000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] UPA0006 $"x{value}" (interpolation hole) | 8192 bytes over 20000 iterations | 0.41 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] UPA0006 new List<int>() per call | 704512 bytes over 20000 iterations | 35.23 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] UPA0007 capturing lambda constructed per call | 581632 bytes over 20000 iterations | 29.08 bytes/op | gen0 collections: 2 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] UPA0007 non-capturing lambda (control) | 0 bytes over 20000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] UPA0013 numbers.Any(n => n > 30) | 700416 bytes over 20000 iterations | 35.02 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] UPA0013 hand-written loop (control) | 0 bytes over 20000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] UPA0019 boxing an int to object | 40960 bytes over 200000 iterations | 0.20 bytes/op | gen0 collections: 5 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] UPA0027 Mathf.Max(a, b, c) (params expansion) | 901120 bytes over 20000 iterations | 45.06 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] UPA0027 Mathf.Max(a, b) (arity-2 overload) | 0 bytes over 20000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] UPA0029 32 x Add into a fresh List | 561152 bytes over 2000 iterations | 280.58 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] UPA0029 AddRange of the same 32 | 303104 bytes over 2000 iterations | 151.55 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] UPA2000 text + ": " + value | 196608 bytes over 20000 iterations | 9.83 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+
+=== A8 argument boxing: elided per call, or hoisted out of the loop? ===
+[MEASURE] control: TakeEnum(constant) - box cannot be elided | 40960 bytes over 200000 iterations | 0.20 bytes/op | gen0 collections: 5 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] control: TakeEnum(variable) - box cannot be elided | 40960 bytes over 200000 iterations | 0.20 bytes/op | gen0 collections: 5 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] control: TakeEnum(computed) - box cannot be hoisted | 36864 bytes over 200000 iterations | 0.18 bytes/op | gen0 collections: 5 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] HasFlag(constant) per call, varying receiver | 0 bytes over 200000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] HasFlag(variable) per call, varying receiver | 167936 bytes over 200000 iterations | 0.84 bytes/op | gen0 collections: 10 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] HasFlag(computed) per call, varying receiver | 167936 bytes over 200000 iterations | 0.84 bytes/op | gen0 collections: 10 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] HasFlag(static readonly field) per call | 167936 bytes over 200000 iterations | 0.84 bytes/op | gen0 collections: 10 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] HasFlag(instance field) per call | 163840 bytes over 200000 iterations | 0.82 bytes/op | gen0 collections: 10 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] HasFlag(property) per call | 163840 bytes over 200000 iterations | 0.82 bytes/op | gen0 collections: 10 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] HasFlag(ternary written inline) per call | 163840 bytes over 200000 iterations | 0.82 bytes/op | gen0 collections: 10 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] HasFlag(constant) per call | 1.45 ms over 200000 iterations | 7.24 ns/op
+[MEASURE] (a & b) == b per call | 1.36 ms over 200000 iterations | 6.79 ns/op
+[MEASURE] TakeEnum(constant) per call | 7.78 ms over 200000 iterations | 38.92 ns/op
+[MEASURE] sink (non-zero means the calls actually ran) | -1636832558
+
+=== A9 TextMeshPro: text assignment against SetText (UPA0012) ===
+[MEASURE] control: score.ToString() into an opaque call | 630784 bytes over 20000 iterations | 31.54 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] label.text = score.ToString() | 630784 bytes over 20000 iterations | 31.54 bytes/op | gen0 collections: 0 | allocates
+[MEASURE] label.SetText("{0}", score) | 335872 bytes over 20000 iterations | 16.79 bytes/op | gen0 collections: 1 | allocates (lower bound: a collection ran mid-measurement)
+[MEASURE] label.text = a constant string | 0 bytes over 20000 iterations | 0.00 bytes/op | gen0 collections: 0 | no measurable allocation
+[MEASURE] sink (non-zero means the calls actually ran) | -1636730998
+[MEASURE] text length after the run | 5

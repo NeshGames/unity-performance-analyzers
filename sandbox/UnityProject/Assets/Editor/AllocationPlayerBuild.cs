@@ -29,6 +29,10 @@ public static class AllocationPlayerBuild
     {
         try
         {
+            // The player carries whatever is in the project, so the essentials have to be here
+            // before the build, not before the run.
+            TmpEssentials.EnsureImported();
+
             PlayerSettings.SetScriptingBackend(BuildTargetGroup.Standalone, ScriptingImplementation.IL2CPP);
             PlayerSettings.SetApiCompatibilityLevel(BuildTargetGroup.Standalone, ApiCompatibilityLevel.NET_Standard_2_0);
 

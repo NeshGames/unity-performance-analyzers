@@ -2,7 +2,8 @@
     "name": "Consumer",
     "rootNamespace": "",
     "references": [
-        "DOTween"
+        "DOTween",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

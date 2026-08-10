@@ -64,7 +64,11 @@ public static class ReadmeEmitter
         ["UPA0019"] = new("Value types yielded from coroutines (boxing; Unity treats them as `null`)", "coroutine 內 yield 實值型別(裝箱;Unity 視同 `null`)"),
         ["UPA0020"] = new("Lambdas in `WaitUntil` / `WaitWhile` construction", "`WaitUntil` / `WaitWhile` 建構時傳入 lambda"),
         ["UPA0021"] = new("`magnitude` / `Distance` compared where `sqrMagnitude` suffices", "可用 `sqrMagnitude` 取代的 `magnitude` / `Distance` 比較"),
-        ["UPA0022"] = new("`Enum.HasFlag` in per-frame methods (boxes on Unity's Mono)", "逐幀方法內的 `Enum.HasFlag`(Unity Mono 上會裝箱)"),
+        ["UPA0022"] = new(
+            "`Enum.HasFlag` in per-frame methods",
+            "逐幀方法內的 `Enum.HasFlag`",
+            "deprecated: the call allocates nothing on any supported runtime",
+            "已廢止:該呼叫在任何支援的執行環境上都不配置"),
         ["UPA0023"] = new("`OnGUI` declared in player code", "player 程式碼中宣告 `OnGUI`"),
         ["UPA0024"] = new("`Resources.Load` in per-frame methods", "逐幀方法內的 `Resources.Load`"),
         ["UPA0025"] = new("Finalizers declared in runtime code", "runtime 程式碼中宣告 finalizer"),
@@ -76,7 +80,11 @@ public static class ReadmeEmitter
 
         ["UPA0031"] = new("`Instantiate` or `Destroy` in per-frame methods", "逐幀方法內的 `Instantiate` / `Destroy`"),
 
-        ["UPA1000"] = new("Leaf classes not sealed", "葉端類別未 `sealed`"),
+        ["UPA1000"] = new(
+            "Leaf classes not sealed",
+            "葉端類別未 `sealed`",
+            "deprecated: the gain measured smaller than the noise on IL2CPP",
+            "已廢止:IL2CPP 上量到的差距小於雜訊"),
         ["UPA1001"] = new("Enum switches missing declared members", "enum switch 漏列宣告成員"),
 
         ["UPA2000"] = new("String building in per-frame methods", "逐幀方法內的字串建構", null, null, "ZString switches the advice", "ZString 切換建議句"),

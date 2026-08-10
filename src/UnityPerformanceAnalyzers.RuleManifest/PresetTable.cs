@@ -41,7 +41,11 @@ public static class PresetTable
         new("UPA0019", "none", "warning", "error", "error"),
         new("UPA0020", "none", "none", "warning", "error"),
         new("UPA0021", "none", "warning", "error", "error"),
-        new("UPA0022", "none", "warning", "error", "error"),
+        // Deprecated: HasFlag does not box on any supported runtime and the
+        // bitwise rewrite measures slower on IL2CPP. Held at none everywhere rather than
+        // dropped from the table, so a preset actively silences it instead of leaving it
+        // to whatever the descriptor happens to say.
+        new("UPA0022", "none", "none", "none", "none"),
         new("UPA0023", "none", "none", "info", "warning"),
         new("UPA0024", "none", "none", "warning", "error"),
         new("UPA0025", "none", "warning", "error", "error"),
@@ -53,7 +57,11 @@ public static class PresetTable
         new("UPA0029", "none", "warning", "warning", "warning"),
         new("UPA0030", "none", "warning", "error", "error"),
         new("UPA0031", "none", "warning", "error", "error"),
-        new("UPA1000", "none", "info", "warning", "warning"),
+        // Deprecated: sealing a leaf class measured 2.70 ns against 3.00 ns
+        // unsealed on IL2CPP, a difference the spread of the same eight runs swallows. Held
+        // at none for the reason UPA0022 is: a preset that silences it says so, where a
+        // dropped row leaves the answer to whatever the descriptor happens to say.
+        new("UPA1000", "none", "none", "none", "none"),
         // recommended is deliberately not "none": the rule was made unconditional so that
         // projects without ZString would still hear about hot-path string building, and
         // leaving it off in the everyday preset put that motivation right back where it
@@ -107,6 +115,10 @@ public static class PresetTable
     /// </summary>
     public static readonly Dictionary<string, string> SandboxOverrides = new()
     {
+        // Off in every preset, and the sandbox is where it finally has something to report:
+        // TextMeshPro is in the measurement project as of the A4 measurement, so the rule
+        // registers there for the first time.
+        ["UPA0012"] = "warning",
         ["UPA0015"] = "warning",
         ["UPA0020"] = "warning",
         ["UPA0023"] = "warning",

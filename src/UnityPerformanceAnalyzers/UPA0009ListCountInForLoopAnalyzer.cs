@@ -84,7 +84,7 @@ namespace UnityPerformanceAnalyzers
                     continue;
                 }
 
-                if (BodyMayReachReceiver(forStatement.Statement, receiverName))
+                if (LoopMayReachReceiver(forStatement, receiverName))
                 {
                     continue;
                 }
@@ -119,10 +119,49 @@ namespace UnityPerformanceAnalyzers
         }
 
         /// <summary>
-        /// Whether anything in the loop body could reach the collection other than by reading
-        /// it. Hoisting Count is only correct while the collection does not change, so this
-        /// errs towards silence: a report that is wrong here does not merely add noise, it
-        /// tells someone to make a change that breaks their program.
+        /// Whether anything in the loop - body, initializer or incrementor - could reach the
+        /// collection other than by reading it. Hoisting Count is only correct while the
+        /// collection does not change, so this errs towards silence: a report that is wrong
+        /// here does not merely add noise, it tells someone to make a change that breaks their
+        /// program.
+        /// </summary>
+        /// <remarks>
+        /// The initializer runs before the hoisted read would, so
+        /// <c>for (int i = Reset(items); i &lt; items.Count; i++)</c> iterates a different
+        /// number of times once Count is lifted out. The incrementor runs between iterations
+        /// and can do the same. Neither was scanned until a pre-push review pointed at the
+        /// initializer, and the rule - not the code fix - is where that belongs: if the advice
+        /// cannot be followed safely, the advice is what is wrong.
+        /// </remarks>
+        private static bool LoopMayReachReceiver(ForStatementSyntax loop, string receiverName)
+        {
+            if (loop.Declaration is { } declaration && MayReachReceiver(declaration, receiverName))
+            {
+                return true;
+            }
+
+            foreach (var initializer in loop.Initializers)
+            {
+                if (MayReachReceiver(initializer, receiverName))
+                {
+                    return true;
+                }
+            }
+
+            foreach (var incrementor in loop.Incrementors)
+            {
+                if (MayReachReceiver(incrementor, receiverName))
+                {
+                    return true;
+                }
+            }
+
+            return MayReachReceiver(loop.Statement, receiverName);
+        }
+
+        /// <summary>
+        /// Whether this fragment of the loop could reach the collection other than by reading
+        /// it.
         /// </summary>
         /// <remarks>
         /// Three ways an alias appears, and all three are the receiver used as a bare
@@ -135,9 +174,9 @@ namespace UnityPerformanceAnalyzers
         /// rule page states this.
         /// </para>
         /// </remarks>
-        private static bool BodyMayReachReceiver(StatementSyntax body, string receiverName)
+        private static bool MayReachReceiver(SyntaxNode scope, string receiverName)
         {
-            foreach (var node in body.DescendantNodes())
+            foreach (var node in scope.DescendantNodesAndSelf())
             {
                 switch (node)
                 {

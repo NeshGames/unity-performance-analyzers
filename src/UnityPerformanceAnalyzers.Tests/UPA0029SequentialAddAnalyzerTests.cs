@@ -11,6 +11,15 @@ namespace UnityPerformanceAnalyzers.Tests
                 UnityStubs = false,
             });
 
+        // Same text on both sides asserts the diagnostic is reported and no fix is offered.
+        private static Task VerifyFixAsync(string source, string fixedSource) =>
+            RuleVerifier.VerifyCodeFixAsync<
+                UPA0029SequentialAddAnalyzer,
+                CodeFixes.UPA0029AddRangeCodeFixProvider>(source, fixedSource, new RuleHarness
+                {
+                    UnityStubs = false,
+                });
+
         // UPA0029 test case 1
         [Fact]
         public Task ForEachOverList_Triggers()
@@ -440,6 +449,78 @@ class C
     {
         for (int i = 1; i < source.Count; i++)
             target.Add(source[i]);
+    }
+}");
+        }
+
+        // UPA0029 test case 10 - an array cannot be the List being appended to, so the
+        // aliasing that withdrew this fix cannot happen for this source
+        [Fact]
+        public Task ForEachOverArray_CodeFix_UsesAddRange()
+        {
+            return VerifyFixAsync(@"
+using System.Collections.Generic;
+
+class C
+{
+    void Copy(int[] source, List<int> target)
+    {
+        {|UPA0029:foreach (var item in source)
+            target.Add(item);|}
+    }
+}", @"
+using System.Collections.Generic;
+
+class C
+{
+    void Copy(int[] source, List<int> target)
+    {
+        target.AddRange(source);
+    }
+}");
+        }
+
+        // UPA0029 test case 11 - two List references can be the same list at runtime, and
+        // nothing here can rule it out. Reported, not fixed.
+        [Fact]
+        public Task ForEachOverList_Triggers_WithoutFix()
+        {
+            const string Source = @"
+using System.Collections.Generic;
+
+class C
+{
+    void Copy(List<int> source, List<int> target)
+    {
+        {|UPA0029:foreach (var item in source)
+            target.Add(item);|}
+    }
+}";
+            return VerifyFixAsync(Source, Source);
+        }
+
+        // UPA0029 test case 12 - the indexed form of the same copy
+        [Fact]
+        public Task IndexedForOverArray_CodeFix_UsesAddRange()
+        {
+            return VerifyFixAsync(@"
+using System.Collections.Generic;
+
+class C
+{
+    void Copy(int[] source, List<int> target)
+    {
+        {|UPA0029:for (int i = 0; i < source.Length; i++)
+            target.Add(source[i]);|}
+    }
+}", @"
+using System.Collections.Generic;
+
+class C
+{
+    void Copy(int[] source, List<int> target)
+    {
+        target.AddRange(source);
     }
 }");
         }

@@ -145,9 +145,6 @@ namespace UnityPerformanceAnalyzers
         internal const string UPA0026Title = nameof(UPA0026Title);
         internal const string UPA0026MessageFormat = nameof(UPA0026MessageFormat);
         internal const string UPA0026Description = nameof(UPA0026Description);
-        internal const string UPA0026AdviceGetType = nameof(UPA0026AdviceGetType);
-        internal const string UPA0026AdviceEnum = nameof(UPA0026AdviceEnum);
-        internal const string UPA0026AdviceStruct = nameof(UPA0026AdviceStruct);
 
         internal const string UPA2030Title = nameof(UPA2030Title);
         internal const string UPA2030MessageFormat = nameof(UPA2030MessageFormat);
