@@ -575,41 +575,20 @@ jobs:
       #
       # --all-warn because UPA0005 is off by default, and a probe that cannot fail proves
       # nothing. Exit 1 is the success case here: it means violations were found.
+      # Starting is not the same as working, and the difference is exactly the failure the
+      # step above is shaped to avoid: a binary that resolves no reference assemblies still
+      # prints its version happily and reports nothing on every file it is given.
+      #
+      # The decision lives in a script with its own self-test, which the pull request workflow
+      # runs. Inline, it ran under the runner's `bash -e` -- which `set -uo pipefail` does not
+      # clear -- and upa-cli exiting 1 on the violations it was asked to find aborted the step
+      # instead of passing it. That took out all three platforms on the 0.8.1 run.
       - name: The published binary analyzes a file
         shell: bash
-        env:
-          VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
-          set -uo pipefail
           exe="publish/${{ matrix.rid }}/upa-cli"
-          [ -f "$exe.exe" ] && exe="$exe.exe"
-
-          reported=$("$exe" --version)
-          if [ "$reported" != "$VERSION" ]; then
-            echo "::error::published binary reports '$reported', expected '$VERSION'"
-            exit 1
-          fi
-
-          mkdir -p "$RUNNER_TEMP/probe"
-          printf '%s\n' \
-            'using UnityEngine;' \
-            '' \
-            'public sealed class Probe : MonoBehaviour' \
-            '{' \
-            '    private void Update()' \
-            '    {' \
-            '        Debug.Log("hello");' \
-            '    }' \
-            '}' > "$RUNNER_TEMP/probe/Probe.cs"
-
-          output=$("$exe" "$RUNNER_TEMP/probe/Probe.cs" --all-warn)
-          status=$?
-          printf '%s\n' "$output"
-
-          if [ "$status" -ne 1 ] || ! printf '%s' "$output" | grep -q 'warning UPA0005'; then
-            echo "::error::the ${{ matrix.rid }} binary did not report UPA0005 on a file that violates it (exit $status). It starts, so this is the reference assemblies failing to resolve, not a broken command line."
-            exit 1
-          fi
+          [ -f "$exe.exe" ] && exe="$exe.exe" || true
+          bash .github/release/verify-cli-binary.sh "$exe" "${{ needs.prepare-release.outputs.version }}"
 
       # Archived on the machine that built it, because the artifact upload does not carry
       # file modes: a Unix binary round-tripped through it loses its executable bit, and the

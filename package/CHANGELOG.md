@@ -5,6 +5,27 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-08-11
+
+0.8.1 with a fixed release workflow, and nothing else. No rule, option, preset or message
+changed between the two.
+
+### Fixed
+
+- **The command-line binaries are attached again.** 0.8.1 is tagged and installs correctly
+  from UPM — it carries the analyzer, the code fixes and the Traditional Chinese satellite —
+  but the job that builds `upa-cli` for each platform failed on all three, so that release
+  has no release page and no binaries. The check it failed on was the one asserting every
+  platform's archive arrived, which did its job.
+
+  The cause: a release step ran under the runner's `bash -e`, and `upa-cli` exits 1 when it
+  finds the violations the check asks it to find, so the step aborted on its own success
+  condition. That decision now lives in a script with its own self-test, which runs on every
+  pull request — a child shell has its own options, so the runner's cannot reach it.
+
+If you installed 0.8.1 through the Package Manager, nothing is missing and there is no need
+to move. If you wanted the command-line binaries, they are on this release.
+
 ## [0.8.1] - 2026-08-10
 
 A patch by the letter of this project's own versioning policy: no rule was added, widened,
