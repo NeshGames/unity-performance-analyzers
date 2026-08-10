@@ -1,6 +1,6 @@
 {
   "name": "com.neshgames.unity-performance-analyzers",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "displayName": "Unity Performance Analyzers",
   "description": "Roslyn analyzers that enforce Unity performance and correctness conventions at compile time. Rules adapt automatically to the packages your assembly references (UniTask, ZString, R3) and to whether your project targets WebGL.",
   "unity": "2022.3",
