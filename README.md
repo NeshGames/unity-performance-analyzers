@@ -31,7 +31,7 @@ which of them can fail a build.
 Package Manager > *Add package from git URL…*:
 
 ```
-https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.8.1
+https://github.com/NeshGames/unity-performance-analyzers.git?path=/package#v0.8.2
 ```
 
 The analyzer applies to **every assembly in the project** automatically — no asmdef
