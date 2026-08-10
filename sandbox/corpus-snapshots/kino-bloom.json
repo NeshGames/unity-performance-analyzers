@@ -1,0 +1,16 @@
+{
+  "project": "kino-bloom",
+  "licence": "MIT License",
+  "kind": "effects",
+  "commit": "0a04c43fa47de12bb52edb325c8d3c0125d0b4ca",
+  "files": 12,
+  "compileErrors": 0,
+  "analyzerFailures": 0,
+  "total": 28,
+  "byRule": {
+    "UPA0003": 20,
+    "UPA0006": 6,
+    "UPA0023": 1,
+    "UPA2000": 1
+  }
+}

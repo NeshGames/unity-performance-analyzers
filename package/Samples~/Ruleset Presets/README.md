@@ -42,6 +42,27 @@ Then add `UPA_TARGET_WEBGL` to **Project Settings > Player > Scripting Define Sy
 for every build target — the rules stay active during day-to-day development instead of
 only when the active build target is WebGL.
 
+## Deferring to another tool
+
+If your project already runs Rider, Microsoft.Unity.Analyzers or UniTask's own analyzer,
+some rules here report what one of those already reports. The `*-coexist` files defer them.
+
+| File | Defers to | Includes |
+|---|---|---|
+| `rider-coexist` | Rider's Unity performance inspections | `recommended` |
+| `vs-coexist` | Microsoft.Unity.Analyzers | `recommended` |
+| `unitask-coexist` | `UniTask.Analyzer` | `cysharp-stack` |
+
+**Reach for the `.editorconfig` variant first.** Unity does not read `.editorconfig`, so it
+removes the duplicate squiggle in the IDE — which is where the duplication actually is —
+while the rule keeps reporting in Unity builds and stays gateable in CI. Append it to your
+project `.editorconfig`.
+
+Use the `.ruleset` only if you want the rules gone from builds too. Copy it **and its base
+preset** into `Assets/`, then rename the coexist file `Default.ruleset`. It includes the base
+rather than being included by it, because a rule entry in the including file wins: written
+the other way round it would silence nothing while looking entirely correct.
+
 ## Editor tooling
 
 Rulesets cannot scope by path. Copy `editor-relaxed.ruleset` into each Editor asmdef

@@ -1,10 +1,16 @@
 namespace UnityPerformanceAnalyzers.Cli;
 
-/// <summary>Output format. The sarif value is reserved by the contract, not implemented.</summary>
+/// <summary>Output format.</summary>
 internal enum OutputFormat
 {
     Text,
     Json,
+
+    /// <summary>SARIF 2.1.0, the format every code-scanning service reads.</summary>
+    Sarif,
+
+    /// <summary>GitHub workflow commands, which become inline annotations with no upload.</summary>
+    Github,
 }
 
 /// <summary>
@@ -25,6 +31,15 @@ internal sealed class CliOptions
     public bool WholeAssembly { get; private set; }
     public string? BaselinePath { get; private set; }
     public string? WriteBaselinePath { get; private set; }
+
+    /// <summary>Rewrite the baseline with unused quota removed, then exit.</summary>
+    public bool PruneBaseline { get; private set; }
+
+    /// <summary>List the unused entries rather than only counting them.</summary>
+    public bool ReportStaleBaseline { get; private set; }
+
+    /// <summary>Exit 1 when the baseline holds quota this run did not use.</summary>
+    public bool FailOnStale { get; private set; }
 
     /// <summary>True when either baseline path was given, so keys have to be computed.</summary>
     public bool UsesBaseline => BaselinePath is object || WriteBaselinePath is object;
@@ -51,6 +66,12 @@ internal sealed class CliOptions
     public string FailOn { get; private set; } = "warning";
     public OutputFormat Format { get; private set; } = OutputFormat.Text;
     public bool ListRules { get; private set; }
+
+    /// <summary>Where to write the generated response file, or null outside that mode.</summary>
+    public string? InitArgsPath { get; private set; }
+
+    /// <summary>The Unity project root that --init-args reads. Only meaningful in that mode.</summary>
+    public string ProjectDirectory { get; private set; } = ".";
     public bool ShowHelp { get; private set; }
     public bool ShowVersion { get; private set; }
 
@@ -105,6 +126,23 @@ internal sealed class CliOptions
                     break;
                 case "--list-rules":
                     options.ListRules = true;
+                    break;
+                case "--init-args":
+                    if (TakeValue() is not { } initArgsPath) return (null, error);
+                    options.InitArgsPath = initArgsPath;
+                    break;
+                case "--project":
+                    if (TakeValue() is not { } projectDirectory) return (null, error);
+                    options.ProjectDirectory = projectDirectory;
+                    break;
+                case "--prune-baseline":
+                    options.PruneBaseline = true;
+                    break;
+                case "--report-stale-baseline":
+                    options.ReportStaleBaseline = true;
+                    break;
+                case "--fail-on-stale":
+                    options.FailOnStale = true;
                     break;
                 case "--all-warn":
                     options.AllWarn = true;
@@ -169,12 +207,13 @@ internal sealed class CliOptions
                             options.Format = OutputFormat.Json;
                             break;
                         case "sarif":
-                            // Reserved by the contract so adding it later is not a
-                            // breaking change; giving it today is a usage error.
-                            error = "--format sarif is reserved and not implemented yet.";
-                            return (null, error);
+                            options.Format = OutputFormat.Sarif;
+                            break;
+                        case "github":
+                            options.Format = OutputFormat.Github;
+                            break;
                         default:
-                            error = $"--format expects text|json, got '{format}'.";
+                            error = $"--format expects text|json|sarif|github, got '{format}'.";
                             return (null, error);
                     }
 
@@ -196,11 +235,35 @@ internal sealed class CliOptions
             return (options, null);
         }
 
+        if (options.InitArgsPath is object)
+        {
+            // Each of the three modes answers a different question, and a command line that
+            // asks two of them has no defensible answer to pick.
+            if (options.Files.Count > 0 || options.ListRules)
+            {
+                error = "--init-args generates a response file, so it takes neither input "
+                    + "files nor --list-rules.";
+                return (null, error);
+            }
+
+            return (options, null);
+        }
+
         if (options.ListRules)
         {
             if (options.Files.Count > 0)
             {
                 error = "--list-rules does not take input files.";
+                return (null, error);
+            }
+
+            // SARIF and the workflow commands describe findings, and the catalog mode produces
+            // none. Rendering text instead would be a silent substitution in a mode whose whole
+            // purpose is machine consumption.
+            if (options.Format is OutputFormat.Sarif or OutputFormat.Github)
+            {
+                error = "--list-rules supports --format text|json only: "
+                    + "sarif and github describe findings, not a rule catalog.";
                 return (null, error);
             }
 
@@ -210,6 +273,31 @@ internal sealed class CliOptions
         if (options.Files.Count == 0)
         {
             error = "No input files. Pass one or more .cs paths or patterns, or --list-rules.";
+            return (null, error);
+        }
+
+        // Each of the three needs a baseline to act on, and each fails in a different
+        // direction without one: pruning would have nothing to rewrite, the report nothing to
+        // list, and the gate would pass every run for want of anything to check.
+        foreach (var (given, flag) in new[]
+                 {
+                     (options.PruneBaseline, "--prune-baseline"),
+                     (options.ReportStaleBaseline, "--report-stale-baseline"),
+                     (options.FailOnStale, "--fail-on-stale"),
+                 })
+        {
+            if (given && options.BaselinePath is null)
+            {
+                error = $"{flag} needs --baseline <path>: it acts on an existing baseline.";
+                return (null, error);
+            }
+        }
+
+        if (options.PruneBaseline && options.WriteBaselinePath is object)
+        {
+            error = "--prune-baseline and --write-baseline cannot be given together: one "
+                + "removes quota the run did not use, the other replaces the contract with "
+                + "everything this run found.";
             return (null, error);
         }
 

@@ -180,6 +180,11 @@ jobs:
           dotnet build UnityPerformanceAnalyzers.sln -c Release
           cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
           cp src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll package/Analyzers/
+          # The satellite travels next to the analyzer: the resource loader probes relative
+          # to the assembly's own location, so a package without it reports in English on
+          # the machines that would otherwise read Chinese.
+          mkdir -p package/Analyzers/zh-Hant
+          cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/zh-Hant/UnityPerformanceAnalyzers.resources.dll package/Analyzers/zh-Hant/
 
       # Records a verdict rather than just passing or failing, because the two ways this
       # can fail are not the same thing. "The package is wrong" must block the release.
@@ -357,6 +362,16 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
 
+      # Before the build, not after, so the build is what validates the file this release
+      # will ship: the release-tracking analyzer reads both files as AdditionalFiles, and a
+      # malformed section promoted afterwards would first be reported on somebody's next
+      # build, with the tag already permanent.
+      #
+      # The decision itself lives in a script with its own self-test, which the pull request
+      # workflow runs. This step runs once per release, in the half that cannot be undone.
+      - name: Promote the unshipped analyzer release notes
+        run: bash .github/release/promote-analyzer-releases.sh "${{ steps.version.outputs.version }}"
+
       - name: Build
         run: dotnet build UnityPerformanceAnalyzers.sln -c Release
 
@@ -379,6 +394,11 @@ jobs:
         run: |
           cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
           cp src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll package/Analyzers/
+          # The satellite travels next to the analyzer: the resource loader probes relative
+          # to the assembly's own location, so a package without it reports in English on
+          # the machines that would otherwise read Chinese.
+          mkdir -p package/Analyzers/zh-Hant
+          cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/zh-Hant/UnityPerformanceAnalyzers.resources.dll package/Analyzers/zh-Hant/
 
       # The committed catalog may go stale during development; the released tag never does.
       - name: Regenerate the rule catalog for the Rule Manager window
@@ -457,8 +477,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package/package.json package/Editor/rules.json README.md README.zh-TW.md
+          # The promotion above is only real if it travels in the tag: the shipped file is
+          # what a consumer reads to find out which version a rule arrived in.
+          git add src/UnityPerformanceAnalyzers/AnalyzerReleases.Shipped.md
+          git add src/UnityPerformanceAnalyzers/AnalyzerReleases.Unshipped.md
           git add -f package/Analyzers/UnityPerformanceAnalyzers.dll
           git add -f package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
+          git add -f package/Analyzers/zh-Hant/UnityPerformanceAnalyzers.resources.dll
 
           # How a release was verified says so on the commit it tags. A job summary is gone
           # in a fortnight; whoever asks later why a version misbehaves reads the history.
@@ -493,6 +518,128 @@ jobs:
           # there is no local branch of that name to push.
           git push --atomic origin HEAD:refs/heads/main "refs/tags/v${{ steps.version.outputs.version }}"
 
+  # A runnable binary per platform, so anything downstream can use the runner without a
+  # checkout, a build, or a .NET install - a CI job downloads one archive and runs it.
+  #
+  # Built on the platform it targets rather than cross-published from one runner, because
+  # the only check worth having here is that the binary actually starts and analyzes
+  # something, and that check cannot be performed on a binary for another operating system.
+  #
+  # Reachable only after prepare-release, and it builds from the tag: an archive that does
+  # not match the tag it hangs off is worse than no archive, because nothing about the
+  # download says which commit it came from.
+  cli-binaries:
+    needs: prepare-release
+    if: always() && needs.prepare-release.result == 'success'
+    strategy:
+      fail-fast: false   # one platform failing must not hide whether the others work
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+          - os: macos-latest
+            rid: osx-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.prepare-release.outputs.version }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # Self-contained, so the archive runs on a machine with no .NET installed - which is
+      # the whole point of attaching it rather than pointing at the tool package.
+      #
+      # Deliberately not PublishSingleFile, and the reason belongs here because a smaller
+      # download is the obvious thing for someone to try next: the runner resolves the
+      # reference assemblies it compiles against through Assembly.Location, which a
+      # single-file bundle defines as the empty string. The SDK refuses that outright
+      # (IL3000) rather than shipping something that starts and then finds no references,
+      # so this is a decision the build already enforces - not a preference.
+      - name: Publish upa-cli for ${{ matrix.rid }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet publish src/UnityPerformanceAnalyzers.Cli -c Release \
+            -r ${{ matrix.rid }} --self-contained true -o "publish/${{ matrix.rid }}"
+
+      # Starting is not the same as working, and the difference is exactly the failure the
+      # step above is shaped to avoid: a binary that resolves no reference assemblies still
+      # prints its version happily and reports nothing on every file it is given. Only
+      # analyzing real source tells the two apart.
+      #
+      # --all-warn because UPA0005 is off by default, and a probe that cannot fail proves
+      # nothing. Exit 1 is the success case here: it means violations were found.
+      - name: The published binary analyzes a file
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -uo pipefail
+          exe="publish/${{ matrix.rid }}/upa-cli"
+          [ -f "$exe.exe" ] && exe="$exe.exe"
+
+          reported=$("$exe" --version)
+          if [ "$reported" != "$VERSION" ]; then
+            echo "::error::published binary reports '$reported', expected '$VERSION'"
+            exit 1
+          fi
+
+          mkdir -p "$RUNNER_TEMP/probe"
+          printf '%s\n' \
+            'using UnityEngine;' \
+            '' \
+            'public sealed class Probe : MonoBehaviour' \
+            '{' \
+            '    private void Update()' \
+            '    {' \
+            '        Debug.Log("hello");' \
+            '    }' \
+            '}' > "$RUNNER_TEMP/probe/Probe.cs"
+
+          output=$("$exe" "$RUNNER_TEMP/probe/Probe.cs" --all-warn)
+          status=$?
+          printf '%s\n' "$output"
+
+          if [ "$status" -ne 1 ] || ! printf '%s' "$output" | grep -q 'warning UPA0005'; then
+            echo "::error::the ${{ matrix.rid }} binary did not report UPA0005 on a file that violates it (exit $status). It starts, so this is the reference assemblies failing to resolve, not a broken command line."
+            exit 1
+          fi
+
+      # Archived on the machine that built it, because the artifact upload does not carry
+      # file modes: a Unix binary round-tripped through it loses its executable bit, and the
+      # download then looks like a corrupt release rather than a packaging mistake.
+      # The formats differ by platform for the same reason the binaries do - a .tar.gz is
+      # what preserves the bit, and a .zip is what a Windows user can open.
+      - name: Archive the binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/cli | Out-Null
+          Compress-Archive -Path "publish/${{ matrix.rid }}/*" `
+            -DestinationPath "artifacts/cli/upa-cli-${{ needs.prepare-release.outputs.version }}-${{ matrix.rid }}.zip"
+
+      - name: Archive the binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/cli
+          tar czf "artifacts/cli/upa-cli-${{ needs.prepare-release.outputs.version }}-${{ matrix.rid }}.tar.gz" \
+            -C "publish/${{ matrix.rid }}" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.rid }}
+          path: artifacts/cli
+          if-no-files-found: error
+          retention-days: 14
+
   # Publishing is its own job on purpose. The tag pushed above is permanent and the guard
   # in prepare-release rejects every rerun of that version, so a NuGet outage or a GitHub
   # API failure in the same job would strand the release with no way to finish it. Split
@@ -502,7 +649,11 @@ jobs:
     # Reachable only through prepare-release, which is reachable only through the smoke
     # gate. That chain is what makes "nothing is published that Unity has not compiled"
     # a property of the workflow rather than a habit.
-    needs: prepare-release
+    # cli-binaries is a dependency for ordering and artifacts only. It is deliberately not
+    # allowed to hold up the half of this job that cannot be retried: always() below lets
+    # the NuGet push proceed even when a platform build failed, and the assertion further
+    # down is what refuses to create a release with a platform silently missing.
+    needs: [prepare-release, cli-binaries]
     # always(), for the same reason prepare-release needs it and one step further along: a
     # skip travels down the whole needs graph, not just to the job that declared the
     # dependency. unity-smoke is skipped whenever no editor licence is held - the ordinary
@@ -555,6 +706,7 @@ jobs:
           test "$VERSION" = "$catalog"
           test -f package/Analyzers/UnityPerformanceAnalyzers.dll
           test -f package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
+          test -f package/Analyzers/zh-Hant/UnityPerformanceAnalyzers.resources.dll
 
       - name: Pack upa-cli from the tag
         run: |
@@ -617,7 +769,41 @@ jobs:
       - name: Say that the CLI was not published
         if: needs.prepare-release.outputs.nuget != 'yes'
         run: |
-          echo "The CLI was built, packed and started, but not pushed: a NuGet id and every version under it are permanent, so publishing begins at 1.0. The .nupkg is attached to the release." >> "$GITHUB_STEP_SUMMARY"
+          echo "The CLI was built, packed and started, but not pushed: a NuGet id and every version under it are permanent, so publishing begins at 1.0. The .nupkg and a ready-to-run binary for each platform are attached to the release." >> "$GITHUB_STEP_SUMMARY"
+
+      # continue-on-error for the same reason the smoke verdicts use it: a download that
+      # fails leaves no files, and the step below reads that as "not built", which is the
+      # direction a mistake should fall in. merge-multiple, so the three archives land in
+      # one directory rather than one directory each.
+      - name: Collect the CLI binaries
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cli-*
+          path: ${{ runner.temp }}/cli
+          merge-multiple: true
+
+      # Named one at a time rather than globbed into the asset list. A glob attaches
+      # whatever happens to be present, so a platform whose build failed would produce a
+      # release that merely has fewer downloads on it - and nothing anywhere would say
+      # which platform is missing, or that one is.
+      - name: Every platform's binary arrived
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in \
+            "upa-cli-$VERSION-linux-x64.tar.gz" \
+            "upa-cli-$VERSION-osx-arm64.tar.gz" \
+            "upa-cli-$VERSION-win-x64.zip"
+          do
+            if [ ! -f "$RUNNER_TEMP/cli/$name" ]; then
+              echo "::error::$name is missing. Re-run the failed cli-binaries job and then re-run this one; the tag already exists and every step here is idempotent."
+              missing=1
+            fi
+          done
+          test "$missing" -eq 0
 
       - name: Create or update the GitHub Release
         env:
@@ -646,12 +832,26 @@ jobs:
               "It is not on NuGet until 1.0 - an id and every version under it are permanent.")
           fi
 
+          # Said once, under both branches: the archives need no .NET and no NuGet, which is
+          # what makes them the answer for a CI job rather than a convenience.
+          notes=$(printf '%s\n' "$notes" "" \
+            "Ready-to-run binaries (self-contained, no .NET install needed):" \
+            "  upa-cli-$VERSION-linux-x64.tar.gz" \
+            "  upa-cli-$VERSION-osx-arm64.tar.gz" \
+            "  upa-cli-$VERSION-win-x64.zip")
+
           # Taken from the package directory rather than a fresh build: those are the exact
           # bytes the tag ships to Unity, so an asset can never differ from what UPM resolves.
+          # The binaries come from the platform runners that built and ran them, for the same
+          # reason - attaching a rebuild would attach something nothing has started.
           assets=(
             package/Analyzers/UnityPerformanceAnalyzers.dll
             package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
+            package/Analyzers/zh-Hant/UnityPerformanceAnalyzers.resources.dll
             "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.$VERSION.nupkg"
+            "$RUNNER_TEMP/cli/upa-cli-$VERSION-linux-x64.tar.gz"
+            "$RUNNER_TEMP/cli/upa-cli-$VERSION-osx-arm64.tar.gz"
+            "$RUNNER_TEMP/cli/upa-cli-$VERSION-win-x64.zip"
           )
 
           if gh release view "$TAG" > /dev/null 2>&1; then

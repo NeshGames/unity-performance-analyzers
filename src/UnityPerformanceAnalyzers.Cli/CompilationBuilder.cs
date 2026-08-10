@@ -42,9 +42,24 @@ internal static class CompilationBuilder
             // and the package's rules see actual symbols. A bare name only makes the
             // package look present, which is all the activation checks need but leaves
             // its APIs unresolved.
-            references.Add(File.Exists(reference)
-                ? MetadataReference.CreateFromFile(Path.GetFullPath(reference))
-                : FakeAssembly(reference));
+            if (File.Exists(reference))
+            {
+                references.Add(MetadataReference.CreateFromFile(Path.GetFullPath(reference)));
+                continue;
+            }
+
+            // A path that has gone missing is not a package name. Treating it as one is how
+            // a generated argument file goes quiet after the project moves on: the fake
+            // assembly satisfies the activation check, nothing from that package resolves,
+            // and the rules that needed it simply stop reporting.
+            if (LooksLikeAPath(reference))
+            {
+                throw new CliException(
+                    $"Reference not found: {reference}. If the arguments were generated, "
+                    + "regenerate them - the project has changed since.");
+            }
+
+            references.Add(FakeAssembly(reference));
         }
 
         var editorConfig = EditorConfigOptionsProvider.Create(options.EditorConfigPath, trees);
@@ -93,6 +108,15 @@ internal static class CompilationBuilder
         return new RulesetSeverities(severities.ToImmutable(), ruleSet.GeneralDiagnosticOption);
     }
 
+    /// <summary>
+    /// Whether a --reference value was meant as a file rather than a package name. Assembly
+    /// names contain neither separators nor an extension, so either mark is enough.
+    /// </summary>
+    private static bool LooksLikeAPath(string reference) =>
+        reference.Contains('/')
+        || reference.Contains('\\')
+        || reference.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
+
     private static IEnumerable<MetadataReference> RuntimeReferences()
     {
         var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
@@ -114,6 +138,10 @@ internal static class CompilationBuilder
                      "System.Net.Sockets.dll",
                      "System.IO.FileSystem.dll",
                      "System.Diagnostics.Process.dll",
+
+                     // Added after a real Unity assembly failed to resolve IBufferWriter<T>
+                     // through ZString: the list grows only when a measured run needs it.
+                     "System.Memory.dll",
                  })
         {
             var path = Path.Combine(runtimeDir, name);

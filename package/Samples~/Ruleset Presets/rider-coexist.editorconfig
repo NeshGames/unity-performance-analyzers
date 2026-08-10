@@ -1,0 +1,16 @@
+# unity-performance-analyzers coexistence: defers to Rider's Unity performance inspections (IDE only).
+# Append to your project .editorconfig. Unity does not read .editorconfig
+# (verified 2022.3/6000.5), so these rules keep reporting in Unity builds and in
+# upa-cli: you lose the duplicate squiggle and keep the gate. Use the .ruleset of
+# the same name only if you want them gone from builds too.
+# GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;
+# regenerate via the RuleManifest presets mode.
+[*.cs]
+# Avoid usage of Debug.Log methods in performance critical context
+dotnet_diagnostic.UPA0005.severity = none
+# Avoid usage of Find methods in performance critical context, with quick-fixes
+dotnet_diagnostic.UPA0014.severity = none
+# Camera.main is inefficient in frequently called methods, with a cache-to-Awake action
+dotnet_diagnostic.UPA0015.severity = none
+# Avoid using string based Method Invocation
+dotnet_diagnostic.UPA0016.severity = none

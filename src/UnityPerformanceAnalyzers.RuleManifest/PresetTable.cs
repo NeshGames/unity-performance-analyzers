@@ -126,6 +126,80 @@ public static class PresetTable
         ["UPA2032"] = "warning",
     };
 
+    /// <summary>
+    /// One coexistence overlay: the rules to silence because another tool in the same
+    /// project already reports them.
+    /// </summary>
+    /// <param name="Name">File stem, written as <c>{Name}-coexist.ruleset</c>.</param>
+    /// <param name="Defers">The tool being deferred to, named in the file's header.</param>
+    /// <param name="Base">The preset this file includes. Chosen per overlay, because a
+    /// rule the base already silences makes the entry inert.</param>
+    /// <param name="Rules">Rule ids to silence, with the reason for each.</param>
+    /// <param name="Caveat">The cost of using this file, stated in the file itself.</param>
+    public sealed record Coexist(
+        string Name,
+        string Defers,
+        string Base,
+        (string Id, string Why)[] Rules,
+        string Caveat);
+
+    /// <summary>
+    /// Coexistence overlays. Each generated file <em>includes</em> the base preset and then
+    /// overrides it, which is the only direction that works: a ruleset entry in the parent
+    /// beats the same entry in an included file, so a file meant to be included cannot
+    /// silence anything the base preset already grades. Measured on 2026-08-10 with this
+    /// repository's own CLI — the inverted arrangement left the rule reporting.
+    /// <para>
+    /// What is deliberately absent matters as much as what is here. Rider's coverage of
+    /// UPA0001, UPA0002 and UPA0003 is narrower than the rule it would silence, and UPA0001
+    /// is the single rule most worth gating, so none of the three is in the Rider file.
+    /// </para>
+    /// </summary>
+    public static readonly Coexist[] Coexists =
+    {
+        new(
+            "rider",
+            "Rider's Unity performance inspections",
+            "recommended",
+            new[]
+            {
+                // Inert under the recommended base, which already holds UPA0005 at none.
+                // Kept so switching the Include to strict or cysharp-stack still defers it.
+                ("UPA0005", "Avoid usage of Debug.Log methods in performance critical context"),
+                ("UPA0014", "Avoid usage of Find methods in performance critical context, with quick-fixes"),
+                ("UPA0015", "Camera.main is inefficient in frequently called methods, with a cache-to-Awake action"),
+                ("UPA0016", "Avoid using string based Method Invocation"),
+            },
+            "Rider's indicators carry no severity and cannot fail a build. This file removes "
+            + "these rules from Unity compiles and from upa-cli as well, which leaves a tool "
+            + "that cannot gate as your only coverage. The .editorconfig variant next to this "
+            + "file silences them in the IDE only, and is the better default."),
+        new(
+            "vs",
+            "Microsoft.Unity.Analyzers",
+            "recommended",
+            new[]
+            {
+                ("UPA0003", "UNT0041 covers repeated string-based property access via Animator.StringToHash"),
+            },
+            "Small on purpose: Microsoft.Unity.Analyzers is mostly correctness rules and "
+            + "suppressors, so the performance overlap is one rule. UNT0041 needs the call to "
+            + "repeat before it reports and UPA0003 does not, so this trades some coverage."),
+        new(
+            "unitask",
+            // cysharp-stack rather than recommended: UPA2012 is off in every other preset,
+            // so an overlay over recommended would silence something already silent.
+            "UniTask.Analyzer",
+            "cysharp-stack",
+            new[]
+            {
+                ("UPA2012", "UniTask ships an analyzer that detects unawaited UniTask-returning calls"),
+            },
+            "UPA2012 is off by default and only the cysharp-stack preset turns it on, which "
+            + "is why this file includes that preset rather than recommended. Silencing it "
+            + "also gives up the .Forget() code fix, which UniTask.Analyzer does not offer."),
+    };
+
     /// <summary>Canonical severity → ruleset Action attribute value.</summary>
     public static string ToRulesetAction(string severity) => severity switch
     {

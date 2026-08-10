@@ -62,7 +62,48 @@ internal sealed class BaselineSession
             Diagnostics = outcome.Reported,
             BaselineSuppressedCount = outcome.SuppressedCount,
             BaselineStaleCount = outcome.StaleCount,
+            BaselineStale = outcome.Stale,
         };
+    }
+
+    /// <summary>
+    /// Rewrites the baseline with unused quota removed, returning how many entries remain, or
+    /// null when this run was not asked to prune.
+    /// </summary>
+    /// <remarks>
+    /// The preconditions are the write path's, for the write path's reasons, plus one that
+    /// matters more here than there: the run has to cover every file the baseline names that
+    /// is still on disk. Pruning from a single changed file would find no occurrences for
+    /// every other file and take that for debt paid off, clearing the whole contract in one
+    /// command reached for precisely because it sounds safer than regenerating.
+    /// </remarks>
+    public int? Prune(AnalysisResult result)
+    {
+        if (!_options.PruneBaseline || _options.BaselinePath is not { } path)
+        {
+            return null;
+        }
+
+        BaselineWriter.EnsureRunIsPrunable(_options, result);
+        BaselineWriter.EnsureNotSymbolicLink(path);
+
+        var existing = BaselineDocument.Read(path);
+        BaselineWriter.EnsureCoversExistingBaseline(path, existing, result.AnalyzedFiles);
+
+        var directory = Path.GetDirectoryName(Path.GetFullPath(path));
+        var root = string.IsNullOrEmpty(directory) ? Directory.GetCurrentDirectory() : directory;
+
+        // The diagnostics the filter already suppressed are the occurrences that matched, so
+        // pruning has to see the unfiltered set. Reported plus suppressed is not recoverable
+        // after the fact, which is why this takes the pre-filter result.
+        var pruned = BaselineFilter.Prune(
+            existing,
+            result.Diagnostics,
+            result.AnalyzedFiles,
+            file => File.Exists(Path.Combine(root, file)));
+
+        BaselineWriter.Write(path, pruned);
+        return pruned.Entries.Length;
     }
 
     /// <summary>

@@ -1,0 +1,13 @@
+{
+  "project": "klak",
+  "licence": "MIT License",
+  "kind": "library",
+  "commit": "b38ec4dbc0c614fd6fba08c44ddef80783855c02",
+  "files": 107,
+  "compileErrors": 86,
+  "analyzerFailures": 0,
+  "total": 4,
+  "byRule": {
+    "UPA1001": 4
+  }
+}

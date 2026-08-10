@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- unity-performance-analyzers coexistence ruleset: defers to UniTask.Analyzer.
+
+     Copy this file and cysharp-stack.ruleset into Assets/, then rename
+     this one Default.ruleset. To defer from a different base preset, change the
+     Include path below to another preset name.
+
+     The base is included from here rather than the reverse because the including
+     file wins: an entry in a preset overrides the same entry in a file that preset
+     includes, so the disables have to sit in the parent to take effect.
+
+     UPA2012 is off by default and only the cysharp-stack preset turns it on,
+     which is why this file includes that preset rather than recommended.
+     Silencing it also gives up the .Forget() code fix, which UniTask.Analyzer
+     does not offer.
+     GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;
+     regenerate via the RuleManifest presets mode. -->
+<RuleSet Name="UPA unitask-coexist" ToolsVersion="10.0">
+  <Include Path="cysharp-stack.ruleset" Action="Default" />
+  <Rules AnalyzerId="UnityPerformanceAnalyzers" RuleNamespace="UnityPerformanceAnalyzers">
+    <!-- UniTask ships an analyzer that detects unawaited UniTask-returning calls -->
+    <Rule Id="UPA2012" Action="None" />
+  </Rules>
+</RuleSet>

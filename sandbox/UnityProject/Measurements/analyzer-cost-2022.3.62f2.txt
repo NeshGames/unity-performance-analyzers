@@ -1,0 +1,18 @@
+Unity 2022.3.62f2, sandbox project, 16 assembly compiles
+  compiler-reported analyzer time, summed: 1.117 s
+  per-analyzer CPU time, all vendors:      1.326 s
+  of which ours (43 analyzers):            1.326 s  (100%)
+
+  by vendor:
+      1.326 s  UnityPerformanceAnalyzers
+
+  our most expensive rules:
+      0.327 s  UPA0001ComponentLookupAnalyzer
+      0.215 s  UPA0028ValueTypeCollectionKeyAnalyzer
+      0.103 s  UPA0006HotPathAllocationAnalyzer
+      0.102 s  UPA3000WebGlUnsupportedApiAnalyzer
+      0.053 s  UPA0003StringPropertyAccessAnalyzer
+      0.034 s  UPA0018AllocatingArrayApiAnalyzer
+      0.029 s  UPA0027ParamsArrayAllocationAnalyzer
+      0.028 s  UPA1001NonExhaustiveEnumSwitchAnalyzer
+    median rule: 0.0120 s

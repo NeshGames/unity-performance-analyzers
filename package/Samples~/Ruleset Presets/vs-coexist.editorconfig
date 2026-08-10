@@ -1,0 +1,10 @@
+# unity-performance-analyzers coexistence: defers to Microsoft.Unity.Analyzers (IDE only).
+# Append to your project .editorconfig. Unity does not read .editorconfig
+# (verified 2022.3/6000.5), so these rules keep reporting in Unity builds and in
+# upa-cli: you lose the duplicate squiggle and keep the gate. Use the .ruleset of
+# the same name only if you want them gone from builds too.
+# GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;
+# regenerate via the RuleManifest presets mode.
+[*.cs]
+# UNT0041 covers repeated string-based property access via Animator.StringToHash
+dotnet_diagnostic.UPA0003.severity = none

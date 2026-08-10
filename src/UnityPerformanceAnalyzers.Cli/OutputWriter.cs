@@ -29,16 +29,174 @@ internal static class OutputWriter
     };
 
     public static void WriteAnalysis(TextWriter stdout, AnalysisResult result, OutputFormat format)
+        => WriteAnalysis(stdout, result, format, listStale: false);
+
+    public static void WriteAnalysis(
+        TextWriter stdout,
+        AnalysisResult result,
+        OutputFormat format,
+        bool listStale)
     {
-        if (format == OutputFormat.Json)
+        switch (format)
         {
-            WriteAnalysisJson(stdout, result);
-        }
-        else
-        {
-            WriteAnalysisText(stdout, result);
+            case OutputFormat.Json:
+                WriteAnalysisJson(stdout, result);
+                break;
+            case OutputFormat.Sarif:
+                WriteAnalysisSarif(stdout, result);
+                break;
+            case OutputFormat.Github:
+                WriteAnalysisGithub(stdout, result);
+                break;
+            default:
+                WriteAnalysisText(stdout, result, listStale);
+                break;
         }
     }
+
+    /// <summary>
+    /// SARIF 2.1.0 — what GitHub code scanning, Azure DevOps, Sonar and Qodana all read. The
+    /// tool's own JSON has no consumers but this one; that is the whole reason it exists.
+    /// </summary>
+    /// <remarks>
+    /// Findings a baseline suppressed are absent rather than carried in <c>suppressions</c>.
+    /// They are filtered before the result is built, so nothing downstream ever sees them —
+    /// carrying them here would mean rebuilding what was dropped, and a baseline exists to
+    /// make old debt invisible rather than to re-report it under a flag. The count is still
+    /// reported, so a run that hides a thousand findings says so.
+    /// </remarks>
+    private static void WriteAnalysisSarif(TextWriter stdout, AnalysisResult result)
+    {
+        var rules = new JsonArray();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var d in result.Diagnostics)
+        {
+            if (!seen.Add(d.Id))
+            {
+                continue;
+            }
+
+            rules.Add(new JsonObject
+            {
+                ["id"] = d.Id,
+                ["name"] = d.Id,
+                ["shortDescription"] = new JsonObject { ["text"] = d.Title },
+                ["helpUri"] = d.HelpUri,
+                ["defaultConfiguration"] = new JsonObject { ["level"] = SarifLevel(d.Severity) },
+            });
+        }
+
+        var results = new JsonArray();
+        foreach (var d in result.Diagnostics)
+        {
+            results.Add(new JsonObject
+            {
+                ["ruleId"] = d.Id,
+                ["level"] = SarifLevel(d.Severity),
+                ["message"] = new JsonObject { ["text"] = d.Message },
+                ["locations"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["physicalLocation"] = new JsonObject
+                        {
+                            ["artifactLocation"] = new JsonObject
+                            {
+                                ["uri"] = SarifUri(d.File),
+                            },
+                            ["region"] = new JsonObject
+                            {
+                                ["startLine"] = d.Line,
+                                ["startColumn"] = d.Column,
+                                ["endLine"] = d.EndLine,
+                                ["endColumn"] = d.EndColumn,
+                            },
+                        },
+                    },
+                },
+            });
+        }
+
+        var log = new JsonObject
+        {
+            ["$schema"] = "https://json.schemastore.org/sarif-2.1.0.json",
+            ["version"] = "2.1.0",
+            ["runs"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["tool"] = new JsonObject
+                    {
+                        ["driver"] = new JsonObject
+                        {
+                            ["name"] = "unity-performance-analyzers",
+                            ["informationUri"] = "https://github.com/NeshGames/unity-performance-analyzers",
+                            ["semanticVersion"] = UpaRuleCatalog.Version,
+                            ["rules"] = rules,
+                        },
+                    },
+                    ["results"] = results,
+                },
+            },
+        };
+
+        stdout.WriteLine(log.ToJsonString(s_json));
+    }
+
+    /// <summary>
+    /// GitHub workflow commands. No upload step, no token, no SARIF plumbing: printing these
+    /// puts the findings on the pull request's diff.
+    /// </summary>
+    private static void WriteAnalysisGithub(TextWriter stdout, AnalysisResult result)
+    {
+        foreach (var d in result.Diagnostics)
+        {
+            // The command syntax is line-based, so anything spanning lines would end the
+            // command early and print the rest as ordinary log text.
+            var message = Escape(d.Message + " (" + d.HelpUri + ")");
+
+            // Forward slashes here for the same reason as SARIF: the annotation is matched
+            // against the repository's paths, and a Windows runner would otherwise report
+            // findings against files GitHub cannot locate.
+            stdout.WriteLine(
+                $"::{GithubCommand(d.Severity)} file={Escape(SarifUri(d.File))},line={d.Line},col={d.Column}," +
+                $"endLine={d.EndLine},endColumn={d.EndColumn},title={Escape(d.Id + ": " + d.Title)}::{message}");
+        }
+    }
+
+    /// <summary>SARIF has three levels below error; ours map straight onto them.</summary>
+    private static string SarifLevel(string severity) => severity switch
+    {
+        "error" => "error",
+        "warning" => "warning",
+        "info" => "note",
+        _ => "none",
+    };
+
+    private static string GithubCommand(string severity) => severity switch
+    {
+        "error" => "error",
+        "warning" => "warning",
+        _ => "notice",
+    };
+
+    /// <summary>
+    /// SARIF artifact URIs are relative with forward slashes; a Windows path with backslashes
+    /// uploads without error and then matches no file in the repository.
+    /// </summary>
+    private static string SarifUri(string file) => file.Replace('\\', '/');
+
+    /// <summary>
+    /// The workflow-command escapes. Without them a message containing a comma or a newline
+    /// silently truncates the annotation at that character.
+    /// </summary>
+    private static string Escape(string value) => value
+        .Replace("%", "%25", StringComparison.Ordinal)
+        .Replace("\r", "%0D", StringComparison.Ordinal)
+        .Replace("\n", "%0A", StringComparison.Ordinal)
+        .Replace(":", "%3A", StringComparison.Ordinal)
+        .Replace(",", "%2C", StringComparison.Ordinal);
 
     private static void WriteAnalysisJson(TextWriter stdout, AnalysisResult result)
     {
@@ -80,6 +238,20 @@ internal static class OutputWriter
             });
         }
 
+        var stale = new JsonArray();
+        foreach (var entry in result.BaselineStale)
+        {
+            stale.Add(new JsonObject
+            {
+                ["file"] = entry.Key.File,
+                ["id"] = entry.Key.Rule,
+                ["type"] = entry.Key.Type,
+                ["member"] = entry.Key.Member,
+                ["recorded"] = entry.Recorded,
+                ["observed"] = entry.Observed,
+            });
+        }
+
         var document = new JsonObject
         {
             ["schemaVersion"] = SchemaVersion,
@@ -97,6 +269,10 @@ internal static class OutputWriter
                 // stale, and a consumer acting on a false 0 deletes quota that is still valid.
                 ["baselineStaleCount"] = result.BaselineStaleCount,
             },
+            // Always present, and empty whenever the count is null. Which of the two a null
+            // means is the count field's job to say; encoding it twice invites the two
+            // disagreeing.
+            ["baselineStale"] = stale,
             ["excludedRules"] = ToJsonArray(result.ExcludedRules),
             ["analyzerFailures"] = ToJsonArray(result.AnalyzerFailures),
             // Every compile error, not a sample: this channel is read by tools, which have no
@@ -109,7 +285,7 @@ internal static class OutputWriter
         stdout.WriteLine(document.ToJsonString(s_json));
     }
 
-    private static void WriteAnalysisText(TextWriter stdout, AnalysisResult result)
+    private static void WriteAnalysisText(TextWriter stdout, AnalysisResult result, bool listStale)
     {
         foreach (var d in result.Diagnostics)
         {
@@ -155,7 +331,18 @@ internal static class OutputWriter
         {
             stdout.WriteLine(
                 $"{stale} baseline entr{(stale == 1 ? "y no longer matches" : "ies no longer match")}"
-                + " - regenerate with --write-baseline.");
+                + " - remove the unused quota with --prune-baseline.");
+
+            if (listStale)
+            {
+                foreach (var entry in result.BaselineStale)
+                {
+                    var member = string.IsNullOrEmpty(entry.Key.Member) ? "(file)" : entry.Key.Member;
+                    stdout.WriteLine(
+                        $"  {entry.Key.File}({entry.Key.Rule}, {member}): "
+                        + $"{entry.Recorded} -> {entry.Observed}");
+                }
+            }
         }
     }
 
@@ -265,6 +452,7 @@ internal static class OutputWriter
         .AppendLine("Usage:")
         .AppendLine("  upa-cli <file...> [options]")
         .AppendLine("  upa-cli --list-rules [--format text|json]")
+        .AppendLine("  upa-cli --init-args <out.rsp> [--project <dir>] [--assembly-name <name>]")
         .AppendLine("  upa-cli --version | --help")
         .AppendLine()
         .AppendLine("Input files accept * ? and ** patterns, expanded by this tool rather than the")
@@ -314,10 +502,25 @@ internal static class OutputWriter
         .AppendLine("                          incomplete or when the existing file covers files this run")
         .AppendLine("                          did not analyze. Exits 0 on success.")
         .AppendLine("                            --write-baseline upa-baseline.json --whole-assembly")
+        .AppendLine("  --prune-baseline        With --baseline: remove quota this run did not use, then")
+        .AppendLine("                          exit 0. Only ever subtracts, so violations introduced")
+        .AppendLine("                          since keep reporting instead of being frozen in. Same")
+        .AppendLine("                          preconditions as --write-baseline.")
+        .AppendLine("  --report-stale-baseline List the unused entries rather than only counting them.")
+        .AppendLine("  --fail-on-stale         Exit 1 when the baseline holds unused quota; exit 2 when")
+        .AppendLine("                          the run was too incomplete to tell.")
         .AppendLine("  --fail-on <level>       Threshold for exit code 1: none|info|warning|error.")
         .AppendLine("                          Default: warning. Use none to report without failing.")
-        .AppendLine("  --format <format>       text|json. Default: text. JSON is the only thing on stdout.")
+        .AppendLine("  --format <format>       text|json|sarif|github. Default: text. In json and")
+        .AppendLine("                          sarif the document is the only thing on stdout.")
+        .AppendLine("                            sarif   SARIF 2.1.0, for code scanning services")
+        .AppendLine("                            github  workflow commands, which become inline")
+        .AppendLine("                                    pull-request annotations with no upload")
         .AppendLine("  --list-rules            Print the rule catalog of this build instead of analyzing.")
+        .AppendLine("  --init-args <path>      Generate a response file for one Unity assembly from")
+        .AppendLine("                          what Unity compiled it with, then exit. Needs the")
+        .AppendLine("                          project to have compiled in Unity at least once.")
+        .AppendLine("  --project <dir>         Unity project root for --init-args. Default: current.")
         .AppendLine("  --version               Print the tool version.")
         .AppendLine("  --help, -h              Print this help.")
         .AppendLine()
@@ -325,6 +528,7 @@ internal static class OutputWriter
         .AppendLine("  upa-cli Assets/Scripts/Player.cs")
         .AppendLine("  upa-cli \"Assets/Scripts/**/*.cs\" --whole-assembly --format json --fail-on error")
         .AppendLine("  upa-cli Loader.cs --reference UniTask --define UPA_TARGET_WEBGL")
+        .AppendLine("  upa-cli --init-args upa-args.rsp --project . && upa-cli @upa-args.rsp")
         .AppendLine("  upa-cli Tween.cs --reference Assets/Plugins/DOTween/DOTween.dll")
         .AppendLine("  upa-cli Player.cs --ruleset Assets/Default.ruleset --all-warn")
         .AppendLine("  upa-cli --list-rules --format json")

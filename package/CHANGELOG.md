@@ -5,6 +5,49 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-08-10
+
+A patch by the letter of this project's own versioning policy: no rule was added, widened,
+narrowed or re-graded, and no preset a project may already have copied was touched. What
+changed is what surrounds the rules.
+
+### Added
+
+- **Traditional Chinese diagnostics actually ship.** The translation and the satellite
+  assembly were written after 0.8.0 and were not in that tag, so the package could not have
+  shown Chinese to anyone yet. From this release it does, in whichever language the IDE runs
+  in. Unity's Console stays English regardless — Unity fixes the compiler's language itself
+  and a project cannot override it.
+- **A code fix for UPA0003.** Where the property name is a string literal, the IDE offers to
+  cache it in a `static readonly int` on the type that makes the call and switch to the
+  integer overload. Fix All shares one field per name per type. The field is named after the
+  literal, and takes an `Id` suffix when that name already means something where the call
+  sits — `"_Color"` becomes `ColorId` rather than shadowing `UnityEngine.Color`.
+- **Coexistence presets** for Rider, Visual Studio and UniTask's own analyzer, as `.ruleset`
+  and `.editorconfig` pairs in the Ruleset Presets sample. They defer the rules another tool
+  in the project already reports. Existing presets are untouched; these are new files
+  alongside them.
+- **Documents that were missing:** a contribution guide, a versioning and rule-governance
+  policy, a migration guide from UnityEngineAnalyzer, and a page on where each rule overlaps
+  with Rider, Microsoft.Unity.Analyzers, Project Auditor and package-native analyzers. All
+  bilingual, all linked from the README.
+- **Ready-to-run `upa-cli` binaries** attached to each release for linux-x64, osx-arm64 and
+  win-x64. Self-contained: no .NET install, no clone, no build. Each is built on the platform
+  it targets and made to analyze a file there before the release is created.
+
+### Changed
+
+- UPA0003's message no longer says to cache the id "in a static class". It says
+  `static readonly int`, which is what the fix produces and what the rule page now shows.
+- The analyzer release history is filled in. Every version from 0.1.0 onward now records
+  which rules it added, removed or re-graded, reconstructed from the tags themselves. Before
+  this, every rule read as never released.
+
+### Fixed
+
+- The code fix inserts its field using the line ending and the indentation the file already
+  uses, rather than whichever this machine or that IDE is configured for.
+
 ## [0.8.0] - 2026-08-10
 
 Everything here comes from re-checking the rules' performance premises against IL2CPP, the

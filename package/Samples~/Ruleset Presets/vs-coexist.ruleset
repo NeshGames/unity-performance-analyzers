@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- unity-performance-analyzers coexistence ruleset: defers to Microsoft.Unity.Analyzers.
+
+     Copy this file and recommended.ruleset into Assets/, then rename
+     this one Default.ruleset. To defer from a different base preset, change the
+     Include path below to another preset name.
+
+     The base is included from here rather than the reverse because the including
+     file wins: an entry in a preset overrides the same entry in a file that preset
+     includes, so the disables have to sit in the parent to take effect.
+
+     Small on purpose: Microsoft.Unity.Analyzers is mostly correctness rules
+     and suppressors, so the performance overlap is one rule. UNT0041 needs the
+     call to repeat before it reports and UPA0003 does not, so this trades some
+     coverage.
+     GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;
+     regenerate via the RuleManifest presets mode. -->
+<RuleSet Name="UPA vs-coexist" ToolsVersion="10.0">
+  <Include Path="recommended.ruleset" Action="Default" />
+  <Rules AnalyzerId="UnityPerformanceAnalyzers" RuleNamespace="UnityPerformanceAnalyzers">
+    <!-- UNT0041 covers repeated string-based property access via Animator.StringToHash -->
+    <Rule Id="UPA0003" Action="None" />
+  </Rules>
+</RuleSet>

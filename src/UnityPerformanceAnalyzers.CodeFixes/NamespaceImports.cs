@@ -54,7 +54,7 @@ namespace UnityPerformanceAnalyzers.CodeFixes
         /// Whether the namespace is imported at this node: the enclosing namespace
         /// declarations first, then the compilation unit.
         /// </summary>
-        private static bool IsImportedAt(SyntaxNode context, string namespaceName)
+        public static bool IsImportedAt(SyntaxNode context, string namespaceName)
         {
             for (var node = context; node is object; node = node.Parent)
             {

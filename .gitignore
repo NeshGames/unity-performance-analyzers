@@ -8,7 +8,7 @@ TestResults/
 .idea/
 
 # Analyzer DLL is placed into the package by the release workflow (git add -f)
-package/Analyzers/*.dll
+package/Analyzers/**/*.dll
 
 # Unity sandbox project (generated state)
 sandbox/UnityProject/[Ll]ibrary/

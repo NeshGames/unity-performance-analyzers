@@ -48,6 +48,11 @@ cp "$root/src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerforma
    "$root/package/Analyzers/"
 cp "$root/src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll" \
    "$root/package/Analyzers/"
+# The Traditional Chinese satellite. It has to sit beside the analyzer for the resource
+# loader to find it, which is the whole reason it is installed rather than merely built.
+mkdir -p "$root/package/Analyzers/zh-Hant"
+cp "$root/src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/zh-Hant/UnityPerformanceAnalyzers.resources.dll" \
+   "$root/package/Analyzers/zh-Hant/"
 
 status=0
 for version in "${versions[@]}"; do

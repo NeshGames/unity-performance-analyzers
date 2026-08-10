@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- unity-performance-analyzers coexistence ruleset: defers to Rider's Unity performance inspections.
+
+     Copy this file and recommended.ruleset into Assets/, then rename
+     this one Default.ruleset. To defer from a different base preset, change the
+     Include path below to another preset name.
+
+     The base is included from here rather than the reverse because the including
+     file wins: an entry in a preset overrides the same entry in a file that preset
+     includes, so the disables have to sit in the parent to take effect.
+
+     Rider's indicators carry no severity and cannot fail a build. This file
+     removes these rules from Unity compiles and from upa-cli as well, which
+     leaves a tool that cannot gate as your only coverage. The .editorconfig
+     variant next to this file silences them in the IDE only, and is the better
+     default.
+     GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;
+     regenerate via the RuleManifest presets mode. -->
+<RuleSet Name="UPA rider-coexist" ToolsVersion="10.0">
+  <Include Path="recommended.ruleset" Action="Default" />
+  <Rules AnalyzerId="UnityPerformanceAnalyzers" RuleNamespace="UnityPerformanceAnalyzers">
+    <!-- Avoid usage of Debug.Log methods in performance critical context -->
+    <Rule Id="UPA0005" Action="None" />
+    <!-- Avoid usage of Find methods in performance critical context, with quick-fixes -->
+    <Rule Id="UPA0014" Action="None" />
+    <!-- Camera.main is inefficient in frequently called methods, with a cache-to-Awake action -->
+    <Rule Id="UPA0015" Action="None" />
+    <!-- Avoid using string based Method Invocation -->
+    <Rule Id="UPA0016" Action="None" />
+  </Rules>
+</RuleSet>

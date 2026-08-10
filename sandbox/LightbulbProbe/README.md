@@ -32,11 +32,17 @@ Then open `sandbox/LightbulbProbe` in Unity Hub, let the import finish, and choo
 
 ## What to check
 
-Open `Assets/LightbulbProbe.cs`. Nine spans should be underlined. On each, press
+`Assets/PlayerHealthBar.cs` sits beside the probe and is **not** part of the walkthrough. It
+exists for the README's screenshots: the same rules firing on code that reads like a game
+rather than on a file that names the rules it is testing.
+
+Open `Assets/LightbulbProbe.cs`. Eleven spans should be underlined. On each, press
 **Alt+Enter** (Rider) or **Ctrl+.** (Visual Studio):
 
 | Line | Rule | The fix should offer |
 |---|---|---|
+| `mat.SetFloat("_Alpha", 0.5f)` | UPA0003 | a `private static readonly int Alpha` on this type, and the integer overload |
+| `mat.SetFloat("_Alpha", 1f)` | UPA0003 | the same — and **Fix All in document** should add one field, not two |
 | `active.GetType()` | UPA0026 | `typeof(Layers)` |
 | `v.magnitude < 5f` | UPA0021 | squaring both sides — `v.sqrMagnitude < 25f` |
 | `Vector3.Distance(a, b) <= 5f` | UPA0021 | `(a - b).sqrMagnitude <= 25f` |
@@ -49,9 +55,21 @@ Open `Assets/LightbulbProbe.cs`. Nine spans should be underlined. On each, press
 
 Applying a fix should leave the file compiling and the warning gone.
 
+## When a span the ruleset enables shows nothing
+
+The IDE reads `Default.ruleset` through `CodeAnalysisRuleSet` in the generated `.csproj`,
+and it takes that at project load. Change the ruleset after Unity wrote the `.csproj` — which
+`lightbulb.sh` does, since it copies the preset in and then raises UPA2012 — and an editor
+already holding the solution keeps the severities it started with. UPA2012 showed no
+squiggle for exactly this reason on 2026-08-10, and the rule was fine: the same file, the
+same ruleset and the command-line runner reported it.
+
+**Edit ▸ Preferences ▸ External Tools ▸ Regenerate project files**, then reload the IDE.
+Check that before concluding a rule is broken; the two look identical from the editor.
+
 ## Reading the result
 
-**All nine offer their fix.** The chain works, and the one claim this project could not
+**All eleven offer their fix.** The chain works, and the one claim this project could not
 make about itself can be made.
 
 **Warnings appear, no lightbulb on any of them.** The analyzer assembly reached the compiler
@@ -65,7 +83,7 @@ analyzer built against a newer Roslyn than its host is not an error, it is a sin
 followed by a compile with no analyzers at all. `sandbox/verify.sh` checks for exactly this
 in both editors and would normally have caught it first.
 
-**Warnings appear but one span has no lightbulb.** Note which. The nine rows in the table
+**Warnings appear but one span has no lightbulb.** Note which. The eleven rows in the table
 above are the ones that must offer something.
 
 The `"score: " + total` line also reports UPA0006 for the boxing, which has no fix by
@@ -79,5 +97,11 @@ there means an older analyzer assembly is loaded.
 **A fix produces code that does not compile, or changes behaviour.** Say what you did and
 what came out. That is worth more than the other outcomes.
 
-Until someone has run this, the package documentation stays cautious about what the code
-fixes do in an IDE — a check no machine here can run is not a check that has passed.
+Walked on 2026-08-10 in **Visual Studio** and **Rider**, both against Unity 2022.3.62f2:
+all eleven spans offered their fix, the HasFlag line stayed silent, UPA2000 and UPA2012
+each added the `using` their rewrite needs, and UPA0003's Fix All across the project
+turned three call sites in two types into two fields. Diagnostics came back in Traditional
+Chinese in both editors.
+
+Re-run it when a fix is added or changed. A check no machine here can run is not a check
+that stays passed.

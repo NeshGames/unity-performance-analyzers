@@ -1,0 +1,11 @@
+{
+  "project": "zstring",
+  "licence": "MIT License",
+  "kind": "library",
+  "commit": "604dc1eb5ada260a7be546d3d647482dc5bd0578",
+  "files": 47,
+  "compileErrors": 79,
+  "analyzerFailures": 0,
+  "total": 0,
+  "byRule": {}
+}

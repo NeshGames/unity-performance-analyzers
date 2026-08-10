@@ -48,6 +48,7 @@ public static class PresetEmitter
         Write(Path.Combine(presetDir, "webgl-addon.ruleset"), WebGlRuleset());
         Write(Path.Combine(presetDir, "webgl-addon.editorconfig"), WebGlEditorconfig());
         Write(sandboxRuleset, SandboxRuleset());
+        written.AddRange(CoexistEmitter.Write(presetDir));
         return written;
     }
 

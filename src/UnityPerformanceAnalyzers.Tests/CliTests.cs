@@ -30,6 +30,21 @@ public class Probe : MonoBehaviour
     }
 }";
 
+        /// <summary>
+        /// Reports UPA0016, whose message contains commas — which the workflow-command syntax
+        /// treats as a property separator.
+        /// </summary>
+        private const string CommaBearingViolation = @"
+using UnityEngine;
+
+public class Messenger : MonoBehaviour
+{
+    void Update()
+    {
+        SendMessage(""Ping"");
+    }
+}";
+
         private const string Clean = @"
 using UnityEngine;
 
@@ -234,14 +249,122 @@ public class Worker
 
         // Case 12
         [Fact]
-        public void ReservedSarifFormat_IsAUsageError()
+        public void UnknownFormat_IsAUsageError()
         {
             var file = Write("Probe.cs", HotPathViolation);
 
-            var (exitCode, _, stderr) = Run(file, "--format", "sarif");
+            var (exitCode, _, stderr) = Run(file, "--format", "xml");
 
             Assert.Equal(2, exitCode);
-            Assert.Contains("sarif", stderr);
+            Assert.Contains("text|json|sarif|github", stderr);
+        }
+
+        // Case 12e - the catalog has no findings to render, and silently substituting text in
+        // a mode chosen for machine consumption is worse than refusing.
+        [Fact]
+        public void ListRules_RejectsTheFindingFormats()
+        {
+            foreach (var format in new[] { "sarif", "github" })
+            {
+                var (exitCode, stdout, stderr) = Run("--list-rules", "--format", format);
+
+                Assert.Equal(2, exitCode);
+                Assert.Contains("--list-rules supports --format text|json only", stderr);
+                Assert.Equal(string.Empty, stdout.Trim());
+            }
+        }
+
+        // Case 12b - SARIF is what every code-scanning service reads; the tool's own JSON has
+        // no consumers but this repository.
+        [Fact]
+        public void SarifFormat_CarriesTheRequiredShape()
+        {
+            var file = Write("Probe.cs", HotPathViolation);
+
+            var (exitCode, stdout, _) = Run(file, "--format", "sarif");
+            var root = ParseJson(stdout);
+
+            Assert.Equal(1, exitCode);
+            Assert.Equal("2.1.0", root.GetProperty("version").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("$schema").GetString()));
+
+            var run = root.GetProperty("runs")[0];
+            var driver = run.GetProperty("tool").GetProperty("driver");
+            Assert.Equal("unity-performance-analyzers", driver.GetProperty("name").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(driver.GetProperty("semanticVersion").GetString()));
+
+            var rule = driver.GetProperty("rules")[0];
+            Assert.Equal("UPA0001", rule.GetProperty("id").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(
+                rule.GetProperty("shortDescription").GetProperty("text").GetString()));
+            Assert.Contains("UPA0001.md", rule.GetProperty("helpUri").GetString());
+            Assert.Equal("warning", rule.GetProperty("defaultConfiguration").GetProperty("level").GetString());
+
+            var result = run.GetProperty("results")[0];
+            Assert.Equal("UPA0001", result.GetProperty("ruleId").GetString());
+            Assert.Equal("warning", result.GetProperty("level").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(result.GetProperty("message").GetProperty("text").GetString()));
+
+            var region = result.GetProperty("locations")[0]
+                .GetProperty("physicalLocation").GetProperty("region");
+            Assert.True(region.GetProperty("startLine").GetInt32() > 0);
+            Assert.True(region.GetProperty("startColumn").GetInt32() > 0);
+        }
+
+        // Case 12c - a Windows path uploads without error and then matches no file in the
+        // repository, so the separator is part of the contract. Asserted end to end rather
+        // than on the writer: input paths are already forward-slashed by the pattern expander,
+        // so breaking the writer alone leaves this green. What must not regress is the shape
+        // that leaves the tool, whichever layer produces it.
+        [Fact]
+        public void SarifUris_UseForwardSlashes()
+        {
+            var file = Write("Probe.cs", HotPathViolation);
+            if (Path.DirectorySeparatorChar == '\\')
+            {
+                // Non-vacuity: on Windows the path this test hands in genuinely has separators
+                // to normalize. On POSIX there is nothing to convert and the assertion below
+                // only pins that nothing introduces one.
+                Assert.Contains(@"\", file);
+            }
+
+            var (_, stdout, _) = Run(file, "--format", "sarif");
+            var uri = ParseJson(stdout).GetProperty("runs")[0].GetProperty("results")[0]
+                .GetProperty("locations")[0].GetProperty("physicalLocation")
+                .GetProperty("artifactLocation").GetProperty("uri").GetString();
+
+            Assert.DoesNotContain(@"\", uri);
+        }
+
+        // Case 12d - the workflow-command syntax is line based and comma separated, so an
+        // unescaped message truncates the annotation at the first comma or newline. The probe
+        // reports UPA0016, whose message contains commas: a rule whose wording happens to have
+        // none would let this pass with no escaping at all.
+        [Fact]
+        public void GithubFormat_EmitsEscapedWorkflowCommands()
+        {
+            var file = Write("Probe.cs", CommaBearingViolation);
+
+            var (exitCode, stdout, _) = Run(file, "--format", "github");
+            var (_, json, _) = Run(file, "--format", "json");
+
+            Assert.Equal(1, exitCode);
+            var line = stdout
+                .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+                .First(l => l.StartsWith("::", StringComparison.Ordinal));
+            Assert.StartsWith("::warning file=", line);
+            Assert.Contains("line=", line);
+            Assert.Contains("title=UPA0016", line);
+
+            // Non-vacuity: the same finding rendered as JSON carries both characters raw.
+            var raw = ParseJson(json).GetProperty("diagnostics")[0].GetProperty("message").GetString()!;
+            Assert.Contains(",", raw);
+
+            var message = line.Split("::")[2];
+            Assert.DoesNotContain(",", message);
+            Assert.DoesNotContain(":", message);
+            Assert.Contains("%2C", message);
+            Assert.Contains("%3A", message);
         }
 
         // Case 13

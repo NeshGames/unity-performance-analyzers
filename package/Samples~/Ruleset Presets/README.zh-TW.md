@@ -37,6 +37,26 @@ Ruleset 才是 Unity 真正讀取的通道:Unity 會把 `Assets/Default.ruleset`
 加入 `UPA_TARGET_WEBGL`——如此規則在日常開發中就會保持啟用,而不是只在
 Active Build Target 為 WebGL 時才生效。
 
+## 讓渡給其他工具
+
+如果你的專案已經在跑 Rider、Microsoft.Unity.Analyzers 或 UniTask 自帶的 analyzer,
+這裡有些規則會與它們報同一件事。`*-coexist` 這組檔案負責讓渡。
+
+| 檔案 | 讓渡給 | include 的基礎 |
+|---|---|---|
+| `rider-coexist` | Rider 的 Unity 效能檢查 | `recommended` |
+| `vs-coexist` | Microsoft.Unity.Analyzers | `recommended` |
+| `unitask-coexist` | `UniTask.Analyzer` | `cysharp-stack` |
+
+**先考慮 `.editorconfig` 那個版本。** Unity 不讀 `.editorconfig`,
+所以它只在 IDE——也就是重複真正發生的地方——移除重複的波浪線,
+而規則在 Unity 建置中繼續回報、在 CI 中繼續可強制。把它併進你專案的 `.editorconfig` 即可。
+
+只有在你也要讓這些規則從建置中消失時,才用 `.ruleset`。
+把它**與它的基礎 preset 一起**複製到 `Assets/`,再把 coexist 那個改名為 `Default.ruleset`。
+它是去 include 基礎,而不是被基礎 include——因為包含者的規則條目會贏:
+反過來寫的話,那個檔案外觀完全正確,卻什麼都靜不掉。
+
 ## Editor 工具程式碼
 
 Ruleset 無法以路徑限定範圍。把 `editor-relaxed.ruleset` 複製到每個 Editor asmdef

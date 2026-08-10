@@ -1,0 +1,468 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Traditional Chinese diagnostic strings. Generated from the key set of Strings.resx,
+     so a key with no translation fails generation rather than silently falling back to
+     English at run time and producing mixed-language output. -->
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="UPA0001Title" xml:space="preserve">
+    <value>逐幀方法內的元件查詢</value>
+  </data>
+  <data name="UPA0001MessageFormat" xml:space="preserve">
+    <value>'{0}' 每次呼叫都會做一次原生元件查詢。請在 Awake 或 Start 取得後存進欄位。</value>
+  </data>
+  <data name="UPA0001Description" xml:space="preserve">
+    <value>GetComponent 與同類查詢每次呼叫都會跨越 managed-native 邊界,並搜尋該物件的元件清單。在 Unity 逐幀執行的方法裡,這份成本毫無必要地重複;請在 Awake 或 Start 解析一次、存進欄位,熱路徑上只用該欄位。</value>
+  </data>
+  <data name="UPA0002Title" xml:space="preserve">
+    <value>逐幀方法內存取物件的 name 或 tag</value>
+  </data>
+  <data name="UPA0002MessageFormat" xml:space="preserve">
+    <value>讀取 '{0}' 會呼叫原生程式碼,而且每次存取都配置一個字串。比較請用 CompareTag,或先把值快取起來。</value>
+  </data>
+  <data name="UPA0002Description" xml:space="preserve">
+    <value>name 與 tag 的 getter 會呼叫 Unity 的原生引擎程式碼,並在每次存取時回傳一個新配置的 managed 字串。在逐幀執行的方法裡,這會每幀產生可避免的垃圾。比較 tag 請用 CompareTag,或在熱路徑之外讀一次並快取。</value>
+  </data>
+  <data name="UPA0003Title" xml:space="preserve">
+    <value>以字串存取 shader 或 animator 屬性</value>
+  </data>
+  <data name="UPA0003MessageFormat" xml:space="preserve">
+    <value>'{0}' 每次呼叫都會把字串 "{1}" 解析成 ID。請用 Shader.PropertyToID / Animator.StringToHash 快取成 static readonly int。</value>
+  </data>
+  <data name="UPA0003Description" xml:space="preserve">
+    <value>Material、MaterialPropertyBlock、Shader 與 Animator 都提供以字串為參數的多載,它們每次呼叫都會把屬性或狀態名稱雜湊成整數 ID。改用整數多載就完全省下這次轉換。以 Shader.PropertyToID 或 Animator.StringToHash 各解析一次、存成 static readonly int,就移除了重複轉換。把這些欄位收攏到全專案一個類別裡是常見慣例、效果相同,但那屬於結構選擇,不是省下來的部分。</value>
+  </data>
+  <data name="UPA0004Title" xml:space="preserve">
+    <value>逐幀方法內使用會實體化的存取子</value>
+  </data>
+  <data name="UPA0004MessageFormat" xml:space="preserve">
+    <value>'{0}' 回傳一份必須手動銷毀的實體化副本,而且每次存取都是一次原生呼叫。請快取到欄位,並在 OnDestroy 釋放。</value>
+  </data>
+  <data name="UPA0004Description" xml:space="preserve">
+    <value>Renderer.material 與 MeshFilter.mesh 在第一次存取時會複製共用資產並快取該副本;副本的所有權屬於呼叫端,必須手動銷毀,否則就會洩漏。之後每次存取仍然是一次原生屬性呼叫,而 Renderer.materials 更會在每次存取時回傳一個新配置的陣列。請在熱路徑之外把實例快取到欄位,並在 OnDestroy 釋放;若本來就打算修改共用資產,請改用 shared* 存取子。</value>
+  </data>
+  <data name="UPA0006Title" xml:space="preserve">
+    <value>逐幀方法內配置參考型別</value>
+  </data>
+  <data name="UPA0006MessageFormat" xml:space="preserve">
+    <value>在逐幀路徑上配置 '{0}' 會每幀產生垃圾。請把配置移出熱路徑,或改用快取/物件池中的實例。</value>
+  </data>
+  <data name="UPA0006Description" xml:space="preserve">
+    <value>Unity 的垃圾回收器不分世代:回收成本隨整個 managed heap 增長,而逐幀配置會穩定地把它必須掃描的垃圾養大,表現出來就是週期性的幀時間尖峰。本規則回報逐幀熱路徑上的 managed heap 配置:參考型別的物件建立、陣列建立,以及實質型別的裝箱轉換。請把配置移出熱路徑、改用快取或物件池中的實例,或改用泛型多載以避免裝箱。</value>
+  </data>
+  <data name="UPA0007Title" xml:space="preserve">
+    <value>逐幀方法內的捕捉型 lambda</value>
+  </data>
+  <data name="UPA0007MessageFormat" xml:space="preserve">
+    <value>這個 lambda 會捕捉狀態,外層程式碼每執行一次就配置一個委派與一個 closure。請把委派快取到欄位,或改寫成不捕捉任何東西。</value>
+  </data>
+  <data name="UPA0007Description" xml:space="preserve">
+    <value>只要 lambda 或匿名方法捕捉了區域變數、參數或 this,外層程式碼每執行一次就必須配置一個 closure 物件與一個新的委派。在逐幀熱路徑上,這些垃圾會每幀累積。不捕捉任何東西的 lambda 會被編譯器快取,第一次之後就不再有成本,因此不予回報。請在初始化時把委派快取到欄位,或重構 lambda 使它不捕捉任何東西。</value>
+  </data>
+  <data name="UPA0008Title" xml:space="preserve">
+    <value>迴圈內的 stackalloc</value>
+  </data>
+  <data name="UPA0008MessageFormat" xml:space="preserve">
+    <value>迴圈內的 'stackalloc' 每次迭代都會保留一段新的堆疊記憶體,而且要到方法回傳時才釋放。請把緩衝區移到迴圈外重複使用。</value>
+  </data>
+  <data name="UPA0008Description" xml:space="preserve">
+    <value>以 stackalloc 保留的記憶體,是在外層方法回傳時才釋放,而不是在當次迴圈迭代或區塊結束時。因此迴圈內的 stackalloc 每次迭代都會保留一段新區域,而先前每一段都還活著,可能導致堆疊溢位。請把緩衝區移出迴圈,跨迭代重複使用。在迴圈中呼叫的區域函式或 lambda,其開頭的 stackalloc 沒有問題:那段記憶體會在該區域函式回傳時回收。</value>
+  </data>
+  <data name="UPA0009Title" xml:space="preserve">
+    <value>for 迴圈未外提 List 的 Count</value>
+  </data>
+  <data name="UPA0009MessageFormat" xml:space="preserve">
+    <value>'{0}.Count' 在這個迴圈的每次迭代都會被重新讀取。若迭代期間大小不變,請在迴圈前外提到一個區域變數。</value>
+  </data>
+  <data name="UPA0009Description" xml:space="preserve">
+    <value>在 for 迴圈的條件式中讀取 List&lt;T&gt;.Count,每次迭代都會做一次屬性存取。當迴圈內不會改變清單大小時,在迴圈前把 count 外提到區域變數即可移除這次重複讀取。陣列則不同:請繼續直接與 array.Length 比較,因為 JIT 認得這個形狀並會消去邊界檢查。</value>
+  </data>
+  <data name="UPA0010Title" xml:space="preserve">
+    <value>未指定 maxDistance 或 layerMask 的 raycast</value>
+  </data>
+  <data name="UPA0010MessageFormat" xml:space="preserve">
+    <value>'{0}' 未明確指定 maxDistance 與 layerMask,會對整個場景的所有圖層查詢。請把兩個引數都傳進去以限縮查詢範圍。</value>
+  </data>
+  <data name="UPA0010Description" xml:space="preserve">
+    <value>省略 maxDistance 的 Physics.Raycast 多載會查詢到無限遠,省略 layerMask 的多載則會測試每一個圖層,包含 trigger 與本來就不該被打到的圖層。這兩個預設值都會讓查詢成本隨整個場景增長,而且是難以除錯的誤命中的常見來源。請明確傳入距離與遮罩;若真的就是要打到所有圖層,請以 ~0 明講。</value>
+  </data>
+  <data name="UPA0011Title" xml:space="preserve">
+    <value>以 SetActive 切換 UI 顯示</value>
+  </data>
+  <data name="UPA0011MessageFormat" xml:space="preserve">
+    <value>透過 SetActive 切換 '{0}' 會停用整個 GameObject,並在重新啟用時強制 canvas 重建。請改為切換該元件的 enabled 屬性,或驅動 CanvasGroup 的 alpha。</value>
+  </data>
+  <data name="UPA0011Description" xml:space="preserve">
+    <value>對 UI 元素的 GameObject 呼叫 SetActive(false) 會停用整個物件;重新啟用時會執行 OnEnable,並強制 canvas 重建該元素的幾何。若只是要切換單一 UI 圖形的可見性,停用元件(enabled = false)或驅動 CanvasGroup 的 alpha 可以達到相同的視覺結果,而重新啟用的成本低得多。只有靜態型別為 UI 元件的接收者會被回報;以 SetActive 切換整個面板通常是刻意的,不予回報。</value>
+  </data>
+  <data name="UPA0012Title" xml:space="preserve">
+    <value>以指派 text 取代 TextMeshPro 的 SetText</value>
+  </data>
+  <data name="UPA0012MessageFormat" xml:space="preserve">
+    <value>在逐幀路徑上指派 '{0}.text' 會存下一個新字串,並每幀把文字標記為 dirty。請改用 SetText 搭配格式引數,直接寫進內部緩衝區。</value>
+  </data>
+  <data name="UPA0012Description" xml:space="preserve">
+    <value>每一次指派 TextMeshPro 的 text 屬性都會存下該字串並把文字標記為 dirty,觸發網格重建。常見的逐幀寫法還會先組出一個新字串(value.ToString() 或串接),於是每幀都在配置。SetText 的多載會把數值引數直接格式化進元件的內部緩衝區,完全省下中間字串的配置。</value>
+  </data>
+  <data name="UPA1000Title" xml:space="preserve">
+    <value>葉類別未 sealed(已廢止)</value>
+  </data>
+  <data name="UPA1000MessageFormat" xml:space="preserve">
+    <value>本規則已廢止:在 IL2CPP 上,把 '{0}' sealed 起來量不到能與雜訊區分開來的收益。</value>
+  </data>
+  <data name="UPA1000Description" xml:space="preserve">
+    <value>已廢止且預設關閉。本規則原本以「把沒有衍生型別的具體類別 sealed 起來,可讓執行環境與 IL2CPP 把虛擬派送換成直接呼叫」為由回報它們。以一個帶四個衍生類別的探針量測、重複八次,sealed 為 2.70 ns、未 sealed 為 3.00 ns,差距 0.30 ns 落在 1.28 ns 的散布範圍內,而且順序還反轉過一次。這不是對前提的否證,而是一次無法解析它的量測;一條收益量不出來的規則,是在花使用者的注意力去買一個沒人展示得出來的東西。把葉類別 sealed 起來仍然是合理的設計,只是本套件不再為它發出警告。</value>
+  </data>
+  <data name="UPA0005Title" xml:space="preserve">
+    <value>直接呼叫 UnityEngine.Debug 記錄方法</value>
+  </data>
+  <data name="UPA0005MessageFormat" xml:space="preserve">
+    <value>'{0}' 是直接呼叫。請把記錄改走標有 [Conditional] 的包裝方法,讓呼叫與其引數在 release 建置中一併被移除。</value>
+  </data>
+  <data name="UPA0005Description" xml:space="preserve">
+    <value>UnityEngine.Debug 的記錄方法在 release 建置中仍然存在,而且每次呼叫都仍會計算並配置它的引數運算式。把記錄呼叫改走一個標有 [System.Diagnostics.Conditional] 的包裝方法,當條件符號未定義時,編譯器就會連同引數運算式一起移除這些呼叫。</value>
+  </data>
+  <data name="UPA1001Title" xml:space="preserve">
+    <value>非窮盡的 enum switch</value>
+  </data>
+  <data name="UPA1001MessageFormat" xml:space="preserve">
+    <value>對 '{0}' 的 switch 沒有處理:{1}。請補上缺少的 case,或在 default 分支中刻意處理它們。</value>
+  </data>
+  <data name="UPA1001Description" xml:space="preserve">
+    <value>新增一個 enum 成員卻沒有同步更新每一個對該 enum 的 switch,是無聲錯誤行為的常見來源:狀態機跳過新狀態,道具或傷害類型無人處理地掉出去。編譯器只對「沒有捨棄分支的 switch 運算式」檢查窮盡性;本規則同時涵蓋 switch 敘述,並可選擇在存在 default 分支時仍繼續回報缺少的成員。Flags enum、帶 when 條件或非常數模式的 switch 不予分析,而共用同一個值的成員會被視為一起涵蓋。</value>
+  </data>
+  <data name="UPA2000Title" xml:space="preserve">
+    <value>逐幀方法內的字串串接</value>
+  </data>
+  <data name="UPA2000MessageFormat" xml:space="preserve">
+    <value>在逐幀路徑上組字串,每幀都會配置一個新字串。{0}</value>
+  </data>
+  <data name="UPA2000Description" xml:space="preserve">
+    <value>字串串接、+= 附加與字串內插,每次執行都會配置一個新字串。在 Unity 逐幀執行的方法裡,這會每幀產生可避免的垃圾。不會變的字串請快取起來;會變的請在熱路徑之外用一個可重複使用的 StringBuilder 組;若專案有 ZString,則可用它在不產生中間字串配置的情況下格式化。</value>
+  </data>
+  <data name="UPA2000AdviceDefault" xml:space="preserve">
+    <value>請快取該字串,或在熱路徑之外用可重複使用的 StringBuilder 組出來。</value>
+  </data>
+  <data name="UPA2000AdviceZString" xml:space="preserve">
+    <value>請用 ZString 格式化,以避免中間字串的配置。</value>
+  </data>
+  <data name="UPA0013Title" xml:space="preserve">
+    <value>使用 System.Linq</value>
+  </data>
+  <data name="UPA0013MessageFormat" xml:space="preserve">
+    <value>'{0}' 會配置列舉器,而且經常配置中間集合。在效能敏感的路徑上請改用迴圈或不配置的替代方案。</value>
+  </data>
+  <data name="UPA0013Description" xml:space="preserve">
+    <value>LINQ 運算子每次求值都會配置列舉器物件、委派實例,而且經常配置中間集合。這在一般 .NET 程式碼中是可接受的成本,但與效能敏感的 Unity 專案所採取的低配置紀律相衝突。這是一條有主張的規則,會回報每一次對 System.Linq.Enumerable 或 System.Linq.Queryable 擴充方法的呼叫,包含查詢語法;它預設關閉,適合那些把「不用 LINQ」當作技術選擇的專案啟用。</value>
+  </data>
+  <data name="UPA2010Title" xml:space="preserve">
+    <value>自行撰寫的 async 方法回傳 Task</value>
+  </data>
+  <data name="UPA2010MessageFormat" xml:space="preserve">
+    <value>async 方法 '{0}' 回傳 Task,每次呼叫都會配置。既然專案已引用 UniTask,請改回傳 UniTask 以避免這些配置。</value>
+  </data>
+  <data name="UPA2010Description" xml:space="preserve">
+    <value>每一次呼叫回傳 Task 或 Task&lt;T&gt; 的 async 方法都會配置該 Task 物件,而會讓出的 await 還會配置狀態機的裝箱。UniTask 提供了為 Unity player loop 設計的免配置等價物。本規則只在引用了 UniTask 的組件中執行,並回報使用者自行撰寫、回傳 Task 的 async 方法宣告;覆寫、介面實作與 async lambda 予以排除,因為它們的簽章無法單方面更改。</value>
+  </data>
+  <data name="UPA2011Title" xml:space="preserve">
+    <value>協程 IEnumerator 的 Unity 訊息或方法</value>
+  </data>
+  <data name="UPA2011MessageFormat" xml:space="preserve">
+    <value>協程 '{0}' 每次啟動都會配置它的列舉器狀態機,而且每次 StartCoroutine 呼叫都會配置一個 Coroutine 控制代碼。請改寫成 async UniTask 或 UniTaskVoid 方法。</value>
+  </data>
+  <data name="UPA2011Description" xml:space="preserve">
+    <value>協程方法每次啟動都會配置編譯器產生的列舉器狀態機,每次 StartCoroutine 呼叫還會額外配置一個 Coroutine 控制代碼物件;yield 出去的實質型別則會被裝箱。async UniTask 方法可避免這些重複配置,而完全不會 yield 的邏輯其實可以是一個普通方法。本規則只在組件引用了 UniTask 時執行,所以建議的改寫一定可用。回傳 IEnumerator&lt;T&gt; 的方法被視為資料迭代,不予回報。</value>
+  </data>
+  <data name="UPA2012Title" xml:space="preserve">
+    <value>async void 或未 await 的 fire-and-forget</value>
+  </data>
+  <data name="UPA2012MessageFormatAsyncVoid" xml:space="preserve">
+    <value>'{0}' 是 async void:例外會逸出所有呼叫端,而且無法觀察它何時完成。{1}</value>
+  </data>
+  <data name="UPA2012MessageFormatFireAndForget" xml:space="preserve">
+    <value>'{0}' 的結果被丟棄,因此它的例外會無聲地消失。{1}</value>
+  </data>
+  <data name="UPA2012Description" xml:space="preserve">
+    <value>async void 方法拋出的例外,任何呼叫端都攔不到,而且無法觀察它何時完成;在呼叫處被丟棄結果的 Task 或 UniTask,則以同樣的方式無聲吞掉它的例外。兩者都是除錯的黑洞。請回傳可 await 的型別並在呼叫處觀察它,或把 fire-and-forget 表達得明確——若有 UniTask,回傳 UniTaskVoid 並呼叫 Forget。符合事件處理器簽章的 async void 方法,以及明確的捨棄指派,因屬既有慣例而予以排除。</value>
+  </data>
+  <data name="UPA2012AdviceAsyncVoidDefault" xml:space="preserve">
+    <value>請改回傳 Task,並在呼叫處 await 或保存它。</value>
+  </data>
+  <data name="UPA2012AdviceAsyncVoidUniTask" xml:space="preserve">
+    <value>請回傳 UniTaskVoid 並呼叫 Forget,或回傳 UniTask。</value>
+  </data>
+  <data name="UPA2012AdviceFireAndForgetDefault" xml:space="preserve">
+    <value>請 await 它,或保存該 task 並觀察它的完成。</value>
+  </data>
+  <data name="UPA2012AdviceFireAndForgetUniTask" xml:space="preserve">
+    <value>請 await 它,或用 Forget 把 fire-and-forget 表達得明確。</value>
+  </data>
+  <data name="UPA2021Title" xml:space="preserve">
+    <value>以公開 Action 事件表達可觀察狀態</value>
+  </data>
+  <data name="UPA2021MessageFormat" xml:space="preserve">
+    <value>公開事件 '{0}' 以單純的 Action 表達可觀察狀態。既然專案已引用 R3,請改為公開 ReactiveProperty 或 Observable,以取得可組合、可 dispose 的訂閱。</value>
+  </data>
+  <data name="UPA2021Description" xml:space="preserve">
+    <value>System.Action 家族的公開事件是通知狀態變更的慣用形狀,但單純的事件沒有組合能力、沒有「目前值」的語意,而且手動取消訂閱很容易漏掉而洩漏。R3 的 ReactiveProperty 與 Observable 提供可組合、可 dispose 的訂閱,並有明確的順序。本規則只在引用了 R3 的組件中執行;符合 EventHandler 慣例的事件、非公開事件、自訂委派型別與單純的 Action 欄位都不予回報。</value>
+  </data>
+  <data name="UPA0014Title" xml:space="preserve">
+    <value>逐幀方法內呼叫場景搜尋 API</value>
+  </data>
+  <data name="UPA0014MessageFormat" xml:space="preserve">
+    <value>'{0}' 每次呼叫都會搜尋場景,並非設計來逐幀使用。請在 Awake 或 Start 解析一次並快取到欄位。</value>
+  </data>
+  <data name="UPA0014Description" xml:space="preserve">
+    <value>GameObject.Find 以及 Object.FindObjectOfType / FindObjectsByType 家族,每次呼叫都會走訪場景或所有已載入的物件,Unity 官方文件明確警告不要逐幀呼叫。請在 Awake 或 Start 解析一次並快取到欄位,或改以直接參考重構程式碼。只檢查逐幀的 Unity 訊息,以及標有 hot-path 屬性的方法。</value>
+  </data>
+  <data name="UPA0015Title" xml:space="preserve">
+    <value>逐幀方法內存取 Camera.main</value>
+  </data>
+  <data name="UPA0015MessageFormat" xml:space="preserve">
+    <value>'Camera.main' 每次存取都會做一次與 GetComponent 相當的查詢。請在 Awake 或 Start 把攝影機快取到欄位。</value>
+  </data>
+  <data name="UPA0015Description" xml:space="preserve">
+    <value>存取 Camera.main 有一份小的 CPU 開銷,與呼叫 GameObject.GetComponent 相當。Unity 2020.2 之後會在內部快取主攝影機的查詢結果,殘餘成本很小——因此本規則以 Info 等級回報。在 CPU 效能要緊的地方,請在 Awake 或 Start 把攝影機快取到欄位。只檢查逐幀的 Unity 訊息,以及標有 hot-path 屬性的方法。</value>
+  </data>
+  <data name="UPA0016Title" xml:space="preserve">
+    <value>呼叫 SendMessage / BroadcastMessage</value>
+  </data>
+  <data name="UPA0016MessageFormat" xml:space="preserve">
+    <value>'{0}' 使用以反射為基礎的訊息派送,比直接呼叫慢上數個數量級。請直接呼叫該方法,或改用介面或 UnityEvent。</value>
+  </data>
+  <data name="UPA0016Description" xml:space="preserve">
+    <value>SendMessage、SendMessageUpwards 與 BroadcastMessage 以反射派送,可能比直接方法呼叫慢上數個數量級,而且會把「方法名稱打錯」變成執行期的無聲失敗。請直接呼叫目標方法,或以介面或 UnityEvent 解耦呼叫端。本規則在所有地方都回報,不限逐幀熱路徑。</value>
+  </data>
+  <data name="UPA0018Title" xml:space="preserve">
+    <value>逐幀方法內呼叫會配置陣列的 Unity API</value>
+  </data>
+  <data name="UPA0018MessageFormat" xml:space="preserve">
+    <value>'{0}' 每次執行都會回傳一個新配置的陣列。請改用 {1}。</value>
+  </data>
+  <data name="UPA0018Description" xml:space="preserve">
+    <value>回傳陣列的 Unity API 每次執行都會建立一份新的陣列副本。本規則檢查一份封閉的 UnityEngine 成員名單,它們都有官方文件記載的非配置替代方案:Input.touches(改用 touchCount 搭配 GetTouch)、Animator.parameters(改用 parameterCount 搭配 GetParameter)、Animator.GetCurrentAnimatorClipInfo(改用 List 多載)、Renderer.sharedMaterials(改用 GetSharedMaterials 搭配快取的 List)、Camera.allCameras(改用 GetAllCameras 搭配預先配置的陣列),以及 Texture2D 的像素讀取 GetPixels、GetPixels32 與非泛型的 GetRawTextureData(改用泛型的 GetRawTextureData 多載,它回傳一個 NativeArray 視圖)。已知會配置的 BCL 成員屬於 UPA0030。Physics 查詢、Mesh 的陣列屬性與 GetComponents 多載刻意排除——那些情況由其他規則負責。只檢查逐幀的 Unity 訊息,以及標有 hot-path 屬性的方法。</value>
+  </data>
+  <data name="UPA0017Title" xml:space="preserve">
+    <value>逐幀方法內使用回傳陣列的 GetComponents 多載</value>
+  </data>
+  <data name="UPA0017MessageFormat" xml:space="preserve">
+    <value>'{0}' 每次呼叫都配置一個新陣列。請改用 List&lt;T&gt; 多載,並把清單快取在欄位裡。</value>
+  </data>
+  <data name="UPA0017Description" xml:space="preserve">
+    <value>回傳陣列的 GetComponents、GetComponentsInChildren 與 GetComponentsInParent 多載,和所有回傳陣列的 Unity API 一樣,每次呼叫都會配置一個新陣列。List&lt;T&gt; 多載改為填入呼叫端提供的清單,只要該清單快取在欄位裡就能避免配置。本規則沒有自動修正——引入可重複使用的清單欄位是型別層級的改動。只檢查逐幀的 Unity 訊息,以及標有 hot-path 屬性的方法;單數的 GetComponent 查詢屬於 UPA0001 的範圍。</value>
+  </data>
+  <data name="UPA0019Title" xml:space="preserve">
+    <value>協程 yield 出裝箱的實質型別</value>
+  </data>
+  <data name="UPA0019MessageFormat" xml:space="preserve">
+    <value>yield '{0}' 每次恢復都會把該值裝箱,而 Unity 對它的處理與 null 完全相同。要等待一幀請 yield null。</value>
+  </data>
+  <data name="UPA0019Description" xml:space="preserve">
+    <value>在 MonoBehaviour 協程(回傳非泛型 IEnumerator 的方法)中 yield 一個實質型別,每次恢復都會把它裝箱,而 Unity 對任何不是 YieldInstruction 的裝箱值,處理方式與 null 相同——等待一幀。yield null 不會配置。yield YieldInstruction 與 CustomYieldInstruction 是正常用法;非 MonoBehaviour 型別上的 IEnumerator 方法不予回報,因為它們 yield 的值可能帶有意義。</value>
+  </data>
+  <data name="UPA0020Title" xml:space="preserve">
+    <value>在 WaitUntil / WaitWhile 的建構中使用 lambda</value>
+  </data>
+  <data name="UPA0020MessageFormat" xml:space="preserve">
+    <value>以 lambda 建構這個 {0},每次執行到這段程式碼都會配置該委派(以及任何 closure)。請把 yield instruction 與它的述詞一起快取到欄位。</value>
+  </data>
+  <data name="UPA0020Description" xml:space="preserve">
+    <value>以 lambda 建構 WaitUntil 或 WaitWhile,每次建構都會配置該委派與任何捕捉到的 closure;Unity 的協程指引建議快取常重複使用的 yield instruction,並避免在 WaitUntil 與 WaitWhile 中使用 lambda。本規則不做流程分析,因此一個可證明只執行一次的建構(例如在欄位初始式中)仍然會回報——請在該處局部抑制,或把述詞快取到欄位。預設關閉。</value>
+  </data>
+  <data name="UPA0021Title" xml:space="preserve">
+    <value>只做比較卻用了 magnitude 或 Distance</value>
+  </data>
+  <data name="UPA0021MessageFormat" xml:space="preserve">
+    <value>比較 '{0}' 會計算一次平方根。請改以 sqrMagnitude 與平方後的閾值比較。</value>
+  </data>
+  <data name="UPA0021Description" xml:space="preserve">
+    <value>magnitude 屬性與 Vector 的 Distance 方法都會計算平方根。當結果只是拿來與一個閾值比較時,以 sqrMagnitude 與平方後的閾值比較是等價的,而且快得多。兩側都是 magnitude 或 Distance 運算式的比較不予回報——改寫那種寫法沒有好處。code fix 只在另一側是單純數值常值時才提供;其他閾值必須自行平方。</value>
+  </data>
+  <data name="UPA0022Title" xml:space="preserve">
+    <value>逐幀方法內的 Enum.HasFlag(已廢止)</value>
+  </data>
+  <data name="UPA0022MessageFormat" xml:space="preserve">
+    <value>本規則已廢止:在所有支援的 Unity 執行環境上,'HasFlag' 都不會裝箱,也不比位元檢查慢。</value>
+  </data>
+  <data name="UPA0022Description" xml:space="preserve">
+    <value>已廢止且預設關閉。本規則原本以「HasFlag 會把運算元裝箱」為由回報它。事實並非如此:Mono 自 4.0 起、IL2CPP 自 Unity 2021.2 起,就已把同型別的呼叫替換為位元 AND,在所有支援的組態上實測皆為零配置,而且在 IL2CPP 上,該呼叫比本規則原本建議的改寫還快。IL 為引數發出的裝箱,在單純載入(常數、區域變數、參數、欄位或屬性)時會與呼叫一起被消去,只有在呼叫處內嵌寫出條件運算式時才會殘留——而那種情況由 UPA0006 回報。</value>
+  </data>
+  <data name="UPA0023Title" xml:space="preserve">
+    <value>player 程式碼中宣告 OnGUI</value>
+  </data>
+  <data name="UPA0023MessageFormat" xml:space="preserve">
+    <value>'OnGUI' 會逐幀執行 IMGUI,並非設計給遊戲內介面使用。玩家介面請用 UI Toolkit 或 uGUI,除錯用的疊加層請以 define 包起來。</value>
+  </data>
+  <data name="UPA0023Description" xml:space="preserve">
+    <value>OnGUI 會逐幀執行 Unity 的立即模式 GUI 系統,而且常常一幀執行多次;IMGUI 一般並非設計給正式的遊戲內使用者介面——它受支援的用途是除錯顯示、工具與編輯器擴充。玩家介面請用 UI Toolkit 或 uGUI,除錯用的疊加層請以 define 包起來。引用了 UnityEditor 的組件不予檢查。Info 等級且預設關閉:開發期的疊加層既合理又常見。</value>
+  </data>
+  <data name="UPA0024Title" xml:space="preserve">
+    <value>逐幀方法內呼叫 Resources.Load</value>
+  </data>
+  <data name="UPA0024MessageFormat" xml:space="preserve">
+    <value>'{0}' 每次呼叫都會做一次資產查詢與載入。請在熱路徑之外載入一次並快取該參考。</value>
+  </data>
+  <data name="UPA0024Description" xml:space="preserve">
+    <value>Resources.Load、LoadAll 與 LoadAsync 每次呼叫都會做一次資產查詢與載入,而 Unity 的指引本來就不鼓勵依賴 Resources 系統;逐幀呼叫更是把成本疊加起來。請在熱路徑之外載入一次並快取該參考。本規則預設關閉且僅限逐幀熱路徑——適合仍在使用 Resources 資料夾的專案啟用。</value>
+  </data>
+  <data name="UPA0025Title" xml:space="preserve">
+    <value>在執行期程式碼中宣告完成項</value>
+  </data>
+  <data name="UPA0025MessageFormat" xml:space="preserve">
+    <value>完成項會讓記憶體回收延後跨越多次垃圾回收,而且在完成項執行緒上執行。請改為實作 IDisposable 並移除完成項。</value>
+  </data>
+  <data name="UPA0025Description" xml:space="preserve">
+    <value>Unity 的程式設計最佳實務明講:不要在執行期程式碼中使用 C# 完成項。帶有完成項的物件至少要多存活一次垃圾回收週期,記憶體才會被回收;完成項在一條專用執行緒上執行,沒有任何順序保證;而額外的簿記也讓回收停頓變得更難預測。請實作 IDisposable 以取得確定性的清理,並移除完成項。引用了 UnityEditor 的組件不予檢查。</value>
+  </data>
+  <data name="UPA0026Title" xml:space="preserve">
+    <value>呼叫繼承來的方法造成實質型別裝箱</value>
+  </data>
+  <data name="UPA0026MessageFormat" xml:space="preserve">
+    <value>'GetType' 繼承自 Object,對實質型別呼叫它會把接收者裝箱。型別在編譯期就已確定——請改用 typeof。</value>
+  </data>
+  <data name="UPA0026Description" xml:space="preserve">
+    <value>GetType 宣告在 Object 上且不可覆寫,因此對 struct 或 enum 呼叫它,必須把接收者裝箱才能抵達。而型別是編譯期就已知的事實,typeof 免費給出同樣的答案。只檢查逐幀的 Unity 訊息,以及標有 hot-path 屬性的方法。ToString、GetHashCode 與 Equals(object) 原本也在此回報,直到在 IL2CPP 上實測發現它們並不會把接收者裝箱。</value>
+  </data>
+  <data name="UPA2030Title" xml:space="preserve">
+    <value>逐幀方法內建立 tween</value>
+  </data>
+  <data name="UPA2030MessageFormat" xml:space="preserve">
+    <value>'{0}' 每幀都建立一個新的 tween,既配置記憶體也讓 DOTween 的 active list 反覆變動。請建立一次並以 SetAutoKill(false) 搭配 Restart 或 ChangeEndValue 重複使用。</value>
+  </data>
+  <data name="UPA2030Description" xml:space="preserve">
+    <value>每一個會建立 tween 的呼叫(DOMove 與其他捷徑、DOTween.To、DOTween.Sequence)都會配置一個 tween 並把它註冊進 DOTween 的 active list;在逐幀方法裡這麼做,兩者都會反覆變動。DOTween 自己的 API 就支援重複使用:建立一次、以 SetAutoKill(false) 關閉自動 kill,再用 Restart 或 ChangeEndValue 驅動它。對既有 tween 的設定呼叫(SetLoops、SetEase 等)不予回報——一條流暢串接只在它的建立根部回報一次。本規則只在引用了 DOTween 的組件中執行。</value>
+  </data>
+  <data name="UPA2031Title" xml:space="preserve">
+    <value>被丟棄且未 SetLink 的無限 tween</value>
+  </data>
+  <data name="UPA2031MessageFormat" xml:space="preserve">
+    <value>這個無限 tween 被丟棄且沒有 SetLink,因此永遠無法被 kill,會活得比它的目標還久。請保存該 tween 並在 OnDestroy 中 kill 它,或加上 SetLink(gameObject)。</value>
+  </data>
+  <data name="UPA2031Description" xml:space="preserve">
+    <value>DOTween 的自動 kill 是在 tween 完成時觸發,而 SetLoops(-1) 的 tween 永遠不會完成。當這樣的 tween 既沒有被保存也沒有被連結時,沒有任何程式路徑能 kill 它:它會在目標被銷毀之後繼續執行,既浪費運算,也以錯誤或洩漏的形式浮現。請把該 tween 存進欄位並在 OnDestroy 中 kill 它,或以 SetLink(gameObject) 綁定它的生命週期。結果有被指派、被傳遞出去,或串接中帶有 SetLink 的,不予回報。本規則只在引用了 DOTween 的組件中執行。</value>
+  </data>
+  <data name="UPA2032Title" xml:space="preserve">
+    <value>字串型 tween ID</value>
+  </data>
+  <data name="UPA2032MessageFormat" xml:space="preserve">
+    <value>字串型 tween ID 是各種快速篩選選項中最慢的。請改用 int ID,或直接以目標參考篩選。</value>
+  </data>
+  <data name="UPA2032Description" xml:space="preserve">
+    <value>DOTween 的篩選操作(DOTween.Kill、Play、Pause 等)在以 ID 篩選時最快,而 DOTween 的文件指出 int ID 比字串 ID 快。本規則回報傳給 SetId 以及傳給靜態篩選操作的字串引數。Info 等級:只有在篩選操作執行得夠頻繁時,這份成本才要緊。本規則只在引用了 DOTween 的組件中執行。</value>
+  </data>
+  <data name="UPA3000Title" xml:space="preserve">
+    <value>WebGL 不支援的執行緒 API</value>
+  </data>
+  <data name="UPA3000MessageFormat" xml:space="preserve">
+    <value>'{0}' 需要執行緒,而 Unity WebGL 建置不支援。請改用主執行緒上的 async/await、協程,或 Job System。</value>
+  </data>
+  <data name="UPA3000Description" xml:space="preserve">
+    <value>Unity WebGL 建置在單一執行緒上執行:建立執行緒、排入執行緒集區,以及會阻塞的同步原語,在執行期不是拋出例外就是卡住。Task.Run 與 TaskFactory.StartNew 會排到執行緒集區,而 Task.Delay 依賴的計時機制已知在 WebGL 上不會完成。主執行緒上單純的 async/await、協程、lock、Interlocked 與 CancellationToken 仍然可用。本規則只在定義了 UPA_TARGET_WEBGL 的編譯中執行。</value>
+  </data>
+  <data name="UPA3001Title" xml:space="preserve">
+    <value>WebGL 不支援的 Sockets API</value>
+  </data>
+  <data name="UPA3001MessageFormat" xml:space="preserve">
+    <value>'{0}' 使用 socket,而 Unity WebGL 建置不支援。請改用 UnityWebRequest 或以 WebSocket 為基礎的方案。</value>
+  </data>
+  <data name="UPA3001Description" xml:space="preserve">
+    <value>瀏覽器不開放原始 socket 存取,因此 System.Net.Sockets 的型別在 Unity WebGL 建置的執行期會失敗。HTTP 流量請用 UnityWebRequest,持續連線請用以 WebSocket 為基礎的方案。本規則只在定義了 UPA_TARGET_WEBGL 的編譯中執行。</value>
+  </data>
+  <data name="UPA3002Title" xml:space="preserve">
+    <value>WebGL 不支援的同步檔案 IO</value>
+  </data>
+  <data name="UPA3002MessageFormat" xml:space="preserve">
+    <value>'{0}' 執行同步檔案 IO,而 Unity WebGL 建置不支援。請改用 PlayerPrefs 或非同步的儲存 API 保存資料。</value>
+  </data>
+  <data name="UPA3002Description" xml:space="preserve">
+    <value>Unity WebGL 建置沒有真正的檔案系統:File 與 Directory 的靜態方法,以及 FileStream 的建構,在瀏覽器的虛擬檔案系統上不是失敗就是無聲地表現異常。請改用 PlayerPrefs 或非同步的儲存 API 保存資料。Path 的操作是純粹的字串處理,MemoryStream 則在記憶體內,兩者仍然可用。本規則只在定義了 UPA_TARGET_WEBGL 的編譯中執行。</value>
+  </data>
+  <data name="UPA3003Title" xml:space="preserve">
+    <value>WebGL 不支援的 Process API</value>
+  </data>
+  <data name="UPA3003MessageFormat" xml:space="preserve">
+    <value>'{0}' 會啟動行程,而 Unity WebGL 建置不支援。請移除這段程式碼,或以平台條件包起來。</value>
+  </data>
+  <data name="UPA3003Description" xml:space="preserve">
+    <value>瀏覽器無法啟動或檢視作業系統行程,因此 System.Diagnostics.Process 在 Unity WebGL 建置的執行期會失敗。請移除這段用法,或以平台 define 把它限制在支援的目標上。本規則只在定義了 UPA_TARGET_WEBGL 的編譯中執行。</value>
+  </data>
+  <data name="UPA3004Title" xml:space="preserve">
+    <value>對非同步作業的阻塞等待</value>
+  </data>
+  <data name="UPA3004MessageFormat" xml:space="preserve">
+    <value>'{0}' 會阻塞主執行緒直到非同步作業完成,這會讓單執行緒的 Unity WebGL 播放器死結。請改為 await 該作業,而不是同步等待。</value>
+  </data>
+  <data name="UPA3004Description" xml:space="preserve">
+    <value>Unity WebGL 播放器在單一執行緒上執行:當主執行緒阻塞等待一個非同步作業時,那個能讓作業完成的接續永遠沒機會執行,於是應用程式不是變慢而是整個凍結。這適用於 AsyncOperationHandle.WaitForCompletion、Task.Wait、Task.WaitAll、Task.WaitAny、Task&lt;TResult&gt;.Result 以及 GetAwaiter().GetResult() 慣用寫法——這些寫法在有執行緒集區的桌面平台上往往看起來能動。請改為 await 該作業。本規則只在定義了 UPA_TARGET_WEBGL 的編譯中執行。</value>
+  </data>
+  <data name="UPA0027Title" xml:space="preserve">
+    <value>在呼叫處配置 params 陣列</value>
+  </data>
+  <data name="UPA0027MessageFormat" xml:space="preserve">
+    <value>'{0}' 在此解析到它的 params 多載,每次呼叫都配置一個 {1}[]。請改用固定引數個數的多載、把陣列外提到欄位,或改成巢狀呼叫。</value>
+  </data>
+  <data name="UPA0027MessageFormatBoxing" xml:space="preserve">
+    <value>'{0}' 在此解析到它的 params object[] 多載,每次呼叫都配置一個陣列並把 {1} 個實質型別引數裝箱。請自行轉換引數,或改用不收 object 的多載。</value>
+  </data>
+  <data name="UPA0028Title" xml:space="preserve">
+    <value>未實作 IEquatable 的實質型別被當成集合鍵</value>
+  </data>
+  <data name="UPA0028MessageFormat" xml:space="preserve">
+    <value>'{0}' 被當成集合鍵使用,但既沒有實作 IEquatable&lt;{0}&gt;,也沒有覆寫 GetHashCode。每次比較都會裝箱並退回反射。</value>
+  </data>
+  <data name="UPA0028MessageFormatEquatable" xml:space="preserve">
+    <value>'{0}' 被當成集合鍵使用,卻沒有實作 IEquatable&lt;{0}&gt;。EqualityComparer&lt;{0}&gt;.Default 每次比較都會裝箱。</value>
+  </data>
+  <data name="UPA0028MessageFormatHashCode" xml:space="preserve">
+    <value>'{0}' 被當成集合鍵使用,卻沒有覆寫 GetHashCode。ValueType.GetHashCode 會使用反射。</value>
+  </data>
+  <data name="UPA0028Description" xml:space="preserve">
+    <value>EqualityComparer&lt;T&gt;.Default 會依型別選擇實作:當 T 實作了 IEquatable&lt;T&gt;,它直接呼叫具型別的 Equals;否則它呼叫 object.Equals(object),每次比較都把兩個運算元裝箱。若該 struct 又沒有覆寫 Equals,繼承來的 ValueType.Equals 會透過反射逐欄位比較。GetHashCode 的行為完全相同,所以兩個成員都需要——只實作其中一個仍會留下成本。enum 不予回報:跨 Mono 與 IL2CPP 的實測確認執行環境對它們有非裝箱的比較器。型別參數同樣不回報,因為答案取決於實體化後的型別。與 CA1815 不同,本規則只在該 struct 真的被當成鍵使用的地方觸發,因此啟用本規則時可以考慮把 CA1815 設為 none。</value>
+  </data>
+  <data name="UPA0029Title" xml:space="preserve">
+    <value>可用 AddRange 取代的逐筆 Add</value>
+  </data>
+  <data name="UPA0029MessageFormat" xml:space="preserve">
+    <value>這個迴圈一次加入一個元素,可能導致後端陣列重新配置數次。請改用 AddRange,一次把緩衝區配足。</value>
+  </data>
+  <data name="UPA0029Description" xml:space="preserve">
+    <value>List&lt;T&gt; 以倍增方式成長:一次加入一個元素、共加入 N 個,可能重新配置並複製後端陣列 O(log N) 次。AddRange 則會事先預留空間——但這只在來源實作了 ICollection&lt;T&gt; 時成立,因為那才讓它問得到「總共有幾個元素要來」。對於單純的 IEnumerable&lt;T&gt;(例如 LINQ 查詢或迭代器方法),AddRange 會退回逐筆加入,沒有任何好處,所以本規則檢查來源型別,而不是無條件建議替換。只有「迴圈本體就只有一句 Add,且加入的正是迭代元素」的情況才回報:多一個投影、一個過濾或一句額外敘述,語意就變了,AddRange 重現不出來。把 upa_addrange_hot_path_only 設為 true 可把本規則收窄到逐幀程式碼。</value>
+  </data>
+  <data name="UPA0030Title" xml:space="preserve">
+    <value>逐幀方法內呼叫已知會配置的 BCL API</value>
+  </data>
+  <data name="UPA0030MessageFormat" xml:space="preserve">
+    <value>'{0}' 每次呼叫都配置一個新的 {1}。{2}</value>
+  </data>
+  <data name="UPA0030MessageFormatConditional" xml:space="preserve">
+    <value>'{0}' 只要有事情要做就會配置一個新的 {1}。{2}</value>
+  </data>
+  <data name="UPA0030Description" xml:space="preserve">
+    <value>「任意一個方法會不會配置」在不跨方法邊界做逃逸分析的情況下無法判定,所以本規則不去嘗試:它檢查一份封閉的 BCL 成員名單,這些成員的配置是有文件記載、也經過量測的事實。名單涵蓋會回傳新實例的字串操作(Split、ToCharArray、Substring、ToLower、ToLowerInvariant、ToUpper、ToUpperInvariant、Trim、TrimStart、TrimEnd),以及每次呼叫都回傳新陣列的 enum 反射輔助方法(Enum.GetValues、Enum.GetNames)。Trim 與其變體在沒有東西可修剪時會回傳原本的實例,所以被回報的呼叫在實務上可能不花任何成本;規則無從得知字串的內容。有同樣問題的 UnityEngine 成員改由 UPA0018 回報,因此沒有任何呼叫會被回報兩次。只檢查逐幀的 Unity 訊息,以及標有 hot-path 屬性的方法。</value>
+  </data>
+  <data name="UPA0031Title" xml:space="preserve">
+    <value>逐幀方法內 Instantiate 或 Destroy</value>
+  </data>
+  <data name="UPA0031MessageFormat" xml:space="preserve">
+    <value>在逐幀路徑上實體化 '{0}',每幀都會配置並初始化一個新物件。請從物件池取用,用完再歸還。</value>
+  </data>
+  <data name="UPA0031MessageFormatDestroy" xml:space="preserve">
+    <value>在逐幀路徑上銷毀 '{0}',每幀都把一個物件排入回收佇列。請改為歸還物件池,而不是銷毀它。</value>
+  </data>
+  <data name="UPA0031Description" xml:space="preserve">
+    <value>每幀建立與銷毀物件會產生垃圾回收器必須回收的垃圾,而 Unity 的物件建構並不便宜。請改為從物件池重複使用實例。</value>
+  </data>
+  <data name="UPA0027Description" xml:space="preserve">
+    <value>params 參數有兩種呼叫方式。傳一個陣列是一般形式,配置看得見,而且由呼叫端掌控。直接傳入各個元素則是展開形式,編譯器會在呼叫處每次呼叫都建立一個新陣列——原始碼上完全看不出這件事。Mathf.Max 與 Mathf.Min 是 Unity 裡最常見的情況,因為它們只有兩個引數的多載,加上第三個引數就會無聲地切換到 params 多載;string.Format、string.Concat、string.Join、Path.Combine 與 Debug.LogFormat 在超過固定引數個數的多載之後也是同樣行為。當參數是 params object[] 時,每個實質型別引數還會在陣列配置之上再裝箱一次。零引數的呼叫不予回報:那會編譯成 Array.Empty,不配置任何東西。只檢查逐幀的 Unity 訊息,以及標有 hot-path 屬性的方法。</value>
+  </data>
+</root>

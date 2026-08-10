@@ -31,6 +31,24 @@ cp "$root/src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerforma
 cp "$root/src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll" \
    "$root/package/Analyzers/"
 
+# The Traditional Chinese satellite. This script did not install it until 2026-08-10, and
+# the omission was invisible in the worst way: whatever satellite happened to be sitting in
+# package/Analyzers survived, so the probe showed Chinese diagnostics that were real but
+# stale -- a translation from an earlier build, checked by a person, and read as current.
+# An IDE running in Chinese is the only place this file is ever seen.
+mkdir -p "$root/package/Analyzers/zh-Hant"
+cp "$root/src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/zh-Hant/UnityPerformanceAnalyzers.resources.dll" \
+   "$root/package/Analyzers/zh-Hant/"
+
+# The template carries com.unity.ide.visualstudio, which JSON gives no way to explain in
+# place. Unity only adds an IDE integration package to projects it creates itself; where a
+# manifest already exists it leaves it alone, and without that package no .csproj or .sln is
+# generated at all. "Open C# Project" then hands the IDE a path to nothing -- which is what
+# happened on 2026-08-10, with a solution file three days stale and no sign of why.
+# Both IDE packages are listed, so the probe opens in whichever editor is configured
+# without a Package Manager detour. The versions are the ones Unity 2022.3.62f2 resolved
+# on 2026-08-10; they are pinned rather than guessed because a version an editor cannot
+# resolve leaves the project with no .csproj at all, which is the failure above.
 cp "$project/Packages/manifest.template.json" "$project/Packages/manifest.json"
 
 # The recommended preset, copied in the way the documentation tells a consumer to install it.

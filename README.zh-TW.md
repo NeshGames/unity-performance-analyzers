@@ -2,11 +2,23 @@
 
 > [English](README.md) | 繁體中文
 
+<!-- badges -->
+[![Release](https://img.shields.io/github/v/release/NeshGames/unity-performance-analyzers?sort=semver&label=release)](https://github.com/NeshGames/unity-performance-analyzers/releases/latest)
+[![Build](https://github.com/NeshGames/unity-performance-analyzers/actions/workflows/pr.yml/badge.svg?branch=main)](https://github.com/NeshGames/unity-performance-analyzers/actions/workflows/pr.yml)
+![Unity 2022.3 LTS – Unity 6](https://img.shields.io/badge/Unity-2022.3%20LTS%20%E2%80%93%20Unity%206-black)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE.md)
+<!-- /badges -->
+
 把 Unity 效能與正確性慣例變成編譯期檢查的 Roslyn analyzer 集合。規則會依每個
 assembly 引用的套件(UniTask、ZString、R3、DOTween)以及專案是否以 WebGL 為目標
 **自動調整**。
 
 以 UPM package 形式發佈。支援 **Unity 2022.3 LTS ~ Unity 6**。
+
+![Unity Console 列出兩個腳本的效能警告](.github/images/console-warnings.png)
+
+規則跑在 Unity 自己的編譯裡,所以 Console 會報、IDE 打字時就會報、CI 上用 `upa-cli`
+不需要 Editor 也不需要授權。哪些規則能讓建置失敗,由 ruleset 決定。
 
 > **狀態:pre-1.0。** 全部 <!-- generated:rule-count -->46<!-- /generated:rule-count --> 條規則已實作,並在 Unity 2022.3 與 Unity 6 的
 > sandbox 建置實測通過。其中兩條——UPA0022 與 UPA1000——已廢止,除非專案自行開啟否則
@@ -43,6 +55,11 @@ analyzer 會自動套用到**專案內的每一個 assembly**——不需要任�
   需要 `UPA_TARGET_WEBGL` scripting define(見 sample 內說明)
 - `editor-relaxed.ruleset` — 放進 Editor asmdef 資料夾改名 `Default.ruleset`,
   讓工具程式碼不受效能規則干擾
+- `rider-coexist`、`vs-coexist`、`unitask-coexist` —— 把「你專案裡另一個工具已經在報」的規則
+  讓渡出去。每一個都**去 include** 它的基礎 preset(兩個檔一起複製到 `Assets/`,
+  再把 coexist 那個改名為 `Default.ruleset`),因為包含者的條目會贏——
+  反過來寫的檔案外觀正確但什麼都靜不掉。同名的 `.editorconfig` 只在 IDE 讓渡,
+  多數情況那才是你要的:見[與其他工具的規則重疊](docs/overlap.zh-TW.md)
 - 各 preset 的 `.editorconfig` 對照版,供 Rider / Visual Studio 同步嚴重度
 
 Unity 只讀 ruleset——它不會把 `.editorconfig` 傳給編譯器(已於 2022.3 與 Unity 6
@@ -54,6 +71,8 @@ Console 應立即亮起警告。
 ## Rule Manager 視窗
 
 **Tools ▸ Unity Performance Analyzers ▸ Rule Manager** 讓你不必手改 XML 就能管理上述一切:
+
+![Rule Manager 視窗列出每條規則的嚴重度、作用範圍與套件條件](.github/images/rule-manager.png)
 
 - **Rules 頁籤**——每條 UPA 規則各有嚴重度下拉(依類別分組、附條件徽章),
   外加 Microsoft.Unity.Analyzers 摺疊區;preset 一鍵套用(直接讀取 package 內容,
@@ -91,7 +110,44 @@ upa_enum_switch_allow_default = true
 
 ## 規則
 
+從 [UnityEngineAnalyzer](https://github.com/vad710/UnityEngineAnalyzer) 過來?
+[遷移指南](docs/migration-unityengineanalyzer.zh-TW.md)逐條對照它的十六條規則,
+包含在這裡沒有對應的那八條。
+
+發現某條規則對正確的程式碼觸發?那是這個專案最想收到的回報——見[參與貢獻](CONTRIBUTING.zh-TW.md)。
+
+**這些規則會讓你的編譯多花多少。** 以編譯器自己的 `-reportanalyzer`,在兩個支援的編輯器上
+對 sandbox 專案量測:
+
+| | Unity 6(6000.5.3f1) | Unity 2022.3 LTS |
+|---|---|---|
+| 該次執行的組件編譯數 | 31 | 16 |
+| 全部 analyzer 的 CPU 時間 | 4.09 s | 1.33 s |
+| **其中這 46 條規則** | **0.95 s(23%)** | **1.33 s(100%)** |
+| Unity 自己內建的 analyzer | 2.60 s | 該版本沒有 |
+| 規則中位數 | 17 ms | 12 ms |
+
+在 Unity 6 上,**Unity 本來就會跑的那些 analyzer,成本是本套件全部規則的 2.7 倍**。
+2022.3 沒有內建 analyzer 可比,所以那個數字就是全部的 analyzer 帳單。
+
+這些是「整次重編譯、跨所有組件的 CPU 時間總和」,不是你等待的時間:analyzer 會並行執行,
+同樣兩次執行,編譯器自己回報的總時間是 2.19 s 與 1.12 s。
+**語料是 sandbox 專案,它很小**——大型正式專案的數字本專案還沒量過,量到之前不會公布。
+以 `sandbox/measure-analyzer-cost.sh` 重現。
+
+**診斷訊息有繁體中文版**,套件本身就帶著這份翻譯。你看不看得到,取決於是誰在問:
+
+| | 語言 |
+|---|---|
+| Unity Console | **一律英文。** Unity 把編譯器語言固定為 `en-US`,而且會把它附加在專案 `csc.rsp` 之後,所以你設什麼都蓋不過去 |
+| `upa-cli` | 一律英文。這個工具刻意以不變語系執行,才能在沒有 ICU 的極簡 CI 容器上啟動得起來 |
+| Rider / Visual Studio | IDE 自己的語言——這才是這份翻譯真正要落地的地方 |
+
+所以「IDE 是中文、Console 是英文」是預期結果,不是裝壞了。
+
 每條規則的完整文件:[`docs/rules/`](docs/rules/)。
+版本號與規則編號各自承諾了什麼、升版可能在你腳下改變什麼:
+[版本與規則治理](docs/versioning.zh-TW.md)。
 
 <!-- generated:rules -->
 
@@ -171,10 +227,23 @@ per-assembly、全自動、零設定。
 
 ## Code fix
 
-八條規則附自動修正,由 IDE 在診斷出現處提供:
+九條規則附自動修正,由 IDE 在診斷出現處提供:
+
+![IDE 提供 UPA0003 的修正,含預覽與 Fix All 範圍](.github/images/ide-inline.png)
+
+診斷訊息跟隨 IDE 的語言——上圖是繁體中文,本套件自帶這份翻譯。
+Unity Console 一律英文,那是 Unity 自己的設定,專案蓋不過去。
+
+![套用後:ID 被快取在發出呼叫的那個型別上](.github/images/codefix-result.png)
+
+Fix All 在同一型別內同一名稱只產生一個欄位。這正是它在真的會出現這條規則的檔案裡用得下去的
+原因:在上面那個範例專案上跑,兩個型別、三處呼叫,產生**兩個**欄位——一個型別一個,
+不是一次呼叫一個。
+
 
 | 規則 | 修正 |
 |---|---|
+| UPA0003 | 把 shader / animator 名稱快取成呼叫端型別上的 `static readonly int`,並改用整數多載 |
 | UPA0019 | `yield return <裝箱值>` → `yield return null` |
 | UPA0021 | 改比較平方長度,免去開根號 |
 | UPA0026 | `x.GetType()` → `typeof(T)`,僅在丟掉接收者不改變執行內容時提供 |
@@ -204,6 +273,13 @@ UPA0029 的修正只在來源為陣列時提供:兩個 `List<T>` 參考可能在
 熱方法內的冷分支(延遲初始化、罕見除錯路徑)仍會被回報——analyzer 不做流程分析。
 針對這類位置請就地抑制,而不是關掉整條規則。
 
+## 與其他工具的關係
+
+多數 Unity 專案本來就跑著 Rider、Microsoft.Unity.Analyzers 或 Project Auditor。
+[`docs/overlap.md`](docs/overlap.md) 逐條記錄了「還有誰會報同一件事、該怎麼辦」——
+包含那個讓共存變便宜的不對稱:Unity 會把 `.ruleset` 傳給編譯器、**不會**傳 `.editorconfig`,
+所以一條規則可以只在 IDE 靜音、同時仍然守著 build。
+
 ## Microsoft.Unity.Analyzers 相容性
 
 preset 也為 `UNT####` 規則分級;這些條目只在專案裡有 Microsoft.Unity.Analyzers 時生效
@@ -226,7 +302,21 @@ preset 也為 `UNT####` 規則分級;這些條目只在專案裡有 Microsoft.Un
 也不必等專案匯入。
 
 目前尚未上架 NuGet。套件 id 與命令名一經發佈即永久固定,其下推出的每個版本亦然,
-因此這一步留到 1.0。在那之前,從本 repo 自行建置:
+因此這一步留到 1.0。在那之前有兩條路。
+
+**直接下載。** 每個 [release](https://github.com/NeshGames/unity-performance-analyzers/releases/latest)
+都附上各平台可直接執行的壓縮檔:
+
+| 平台 | 檔案 |
+|---|---|
+| Linux | `upa-cli-<version>-linux-x64.tar.gz` |
+| macOS(Apple silicon) | `upa-cli-<version>-osx-arm64.tar.gz` |
+| Windows | `upa-cli-<version>-win-x64.zip` |
+
+它們是 self-contained 的——不必裝 .NET、不必 clone、不必建置——而且每一份都是在它所針對的
+平台上建置,並在該平台上真的分析過一個檔案之後,才會被掛上 release。
+
+**或自行建置**:
 
 ```bash
 git clone https://github.com/NeshGames/unity-performance-analyzers.git
@@ -235,8 +325,9 @@ dotnet build UnityPerformanceAnalyzers.sln -c Release
 dotnet run --project src/UnityPerformanceAnalyzers.Cli -c Release --no-build -- --version
 ```
 
-請切到與專案所用套件版本相同的 tag。以不同修訂版建置出的 CLI 可能認得那份套件沒有的規則,
-命令列與 Editor 就會對同一份程式碼給出不同答案。
+兩條路都要對齊專案所用的套件版本——切到該 tag,或取該 release 的壓縮檔。
+以不同修訂版而來的 CLI 可能認得那份套件沒有的規則,命令列與 Editor 就會對同一份
+程式碼給出不同答案。
 
 以下範例寫成 `upa-cli`;從 clone 執行時,對應
 `dotnet run --project src/UnityPerformanceAnalyzers.Cli -c Release --no-build --`。
@@ -251,6 +342,9 @@ upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --format json --fail-on error
 
 # 模擬「專案引用了 UniTask、且以 WebGL 為目標」
 upa-cli Assets/Scripts/Loader.cs --reference UniTask --define UPA_TARGET_WEBGL
+
+# 直接把發現標在 pull request 的 diff 上,不需上傳步驟
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --format github
 
 # 這份建置認得哪些規則?
 upa-cli --list-rules
@@ -281,13 +375,51 @@ upa-cli --list-rules
 | `--fail-on <等級>` | 退出碼 1 的門檻:`none`、`info`、`warning`(預設)、`error` | `--fail-on error` |
 | `--baseline <path>` | 壓下 baseline 檔中已記錄的違規,只回報新增的 | `--baseline upa-baseline.json` |
 | `--write-baseline <path>` | 把目前的違規寫成 baseline。需搭配 `--whole-assembly`;成功時以 0 結束 | `--write-baseline upa-baseline.json --whole-assembly` |
-| `--format <格式>` | `text`(預設)或 `json` | `--format json` |
+| `--prune-baseline` | 與 `--baseline` 併用:移除本次未用到的額度後以 0 結束。**只減不增**——期間新出現的違規不會被吸收 | `--baseline upa-baseline.json --prune-baseline --whole-assembly` |
+| `--report-stale-baseline` | 逐筆列出過期條目,不只印總數 | `--baseline upa-baseline.json --report-stale-baseline` |
+| `--fail-on-stale` | baseline 有未用額度時以 1 結束;判定不了時以 2 結束 | `--baseline upa-baseline.json --fail-on-stale` |
+| `--format <格式>` | `text`(預設)、`json`、`sarif` 或 `github`——見[接進 CI](#接進-ci) | `--format sarif` |
 | `--list-rules` | 印出這份建置的規則目錄,不做分析 | `upa-cli --list-rules --format json` |
+| `--init-args <路徑>` | 依 Unity 實際編譯該組件的引數產生回應檔後結束。需要該專案在 Unity 裡編譯過至少一次 | `upa-cli --init-args upa-args.rsp` |
+| `--project <目錄>` | `--init-args` 的 Unity 專案根目錄,預設為目前目錄 | `--project ../MyGame` |
 | `--version` | 印出工具版本 | `upa-cli --version` |
 | `--help`、`-h` | 印出用法 | `upa-cli --help` |
 
 嚴重度優先序(弱→強):ruleset 的 `<IncludeAll>` 全域動作 → ruleset 的具名條目 →
 `--editorconfig`(可依檔案樣式分別設定)→ `--all-warn`。
+
+### 接進 CI
+
+有兩種輸出格式是給「本工具以外的機器」看的。上面那個 JSON 是本工具自己的形狀,
+除了本專案沒有別的消費端。
+
+**`--format sarif`** 輸出 SARIF 2.1.0——GitHub code scanning、Azure DevOps、Sonar、
+Qodana 都吃這個格式。在 GitHub 上,發現會變成 diff 上的註記、在多次執行之間以 alert
+的形式留存,並帶著規則的說明連結:
+
+```yaml
+- run: upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --format sarif --fail-on none > upa.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: upa.sarif
+```
+
+那裡的 `--fail-on none` 是刻意的:上傳步驟必須跑得到,而分析步驟一旦失敗就會跳過它。
+要擋 PR 就擋在 alert 上,或用門檻再跑一次。
+
+**`--format github`** 印出 workflow command,同樣把發現標在 diff 上,
+但不需要上傳步驟、不需要 token、不需要額外權限:
+
+```yaml
+- run: upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --format github
+```
+
+代價是註記只屬於該次執行(不是可追蹤的 alert),且 GitHub 對單一步驟能渲染的註記數量
+有上限。換來的是一行 YAML。
+
+兩種格式都原樣輸出呼叫端給的檔案路徑,所以請**在 repo 根目錄執行並給相對路徑**——
+絕對路徑會標到服務端找不到的檔案上。被 baseline 壓下的違規在兩種格式中都不會出現,
+但該次執行仍會回報它藏了幾筆。
 
 ### 凍結存量違規
 
@@ -318,6 +450,35 @@ upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --baseline upa-baseline.json -
 一次低報的分析會把它沒看到的存量也一併凍結。
 以部分檔案重生同樣被拒絕;但已被刪除或改名的檔案,其條目會直接移除。
 
+**讓債看得出來在變小。** baseline 只會壓制,所以一筆「真的修好了」的違規,它的條目會**永遠留著**。
+半年後那個檔案變成沒人敢碰的化石,而且——更糟的是——**沒有人看得到債在減少**。
+兩個指令處理這件事:
+
+```bash
+# 哪些條目已經對不到任何東西了?
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --baseline upa-baseline.json   --report-stale-baseline
+
+# 把本次沒用到的額度移除
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --baseline upa-baseline.json   --prune-baseline
+```
+
+`--prune-baseline` **只減不增**,而這正是它與 `--write-baseline` 重生的差別。
+重生會把本次找到的**全部**違規凍結進契約,包含這段期間新出現的那些——
+一個為了「讓檔案變小」而使用的指令,結果安靜地把契約變大了。
+清除則是移除未用到的額度,並讓新違規繼續回報。
+
+它的拒絕條件與寫入相同,再加上一條在這裡更重要的:
+**本次執行必須涵蓋 baseline 中仍存在於磁碟上的每一個檔案**。
+從單一變更檔清除,會對其餘所有檔案都找不到違規,並把那當成債已還清。
+檔案已被刪除或改名的條目會被移除,與重生時的行為一致。
+
+`--fail-on-stale` 把它變成關卡:有未用額度時以 1 結束,
+執行過於不完整、判定不了時以 **2** 結束——因為一個被問「baseline 過期了嗎」的關卡,
+不該在它其實想說「我查不了」的時候回答「沒有」。
+
+一個值得先知道的意外:條目的鍵含所在成員,所以**改成員名會同時製造一筆過期與一筆新違規**。
+清除時兩件事都會發生——舊的那筆被刪掉,新的那筆不會被吸收。
+
 **要當關卡用?** 請帶 `--whole-assembly` 與該組件的完整原始碼集,
 **並為程式碼實際呼叫到的每個套件各給一個 `--reference <DLL 路徑>`**
 (若用到 stub 未涵蓋的 Unity API,再加 `--unity-dll-dir`)。這幾者合起來
@@ -326,19 +487,26 @@ upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --baseline upa-baseline.json -
 失敗並逐條列出,而不是安靜地少報。
 
 這些引數的量超過命令列裝得下的。一個真實組件的份量——該專案的原始碼、它的 define、
-每個套件一個引用——動輒數萬字元,而 Windows 的上限是 32,767,所以改用檔案傳:
+每個套件一個引用——動輒數萬字元,而 Windows 的上限是 32,767。所以這個檔由工具產生:
 
 ```bash
-# args.rsp —— 每行一個引數,不加引號,# 開頭為註解
-#   Assets/Scripts/Player.cs
-#   --reference
-#   Library/ScriptAssemblies/SomePackage.dll
-#   --whole-assembly
-upa-cli @args.rsp
+cd MyUnityProject
+upa-cli --init-args upa-args.rsp --assembly-name Assembly-CSharp
+upa-cli @upa-args.rsp --format sarif > upa.sarif
 ```
 
-這個檔通常由「本來就知道組件輸入是什麼」的東西生成,比手動組裝容易得多。
-引數在 `@file` 出現的位置展開,因此寫在它後面的引數仍然蓋得過檔案裡的設定。
+`--init-args` 讀的是 **Unity 實際用來編譯該組件的東西**——全部 scripting define、
+全部引用、完整原始碼集——來源是 Unity 自己的建置交給 C# 編譯器的回應檔。
+不必安裝任何東西、也不必重新產生專案檔:每次編譯都會寫出它,
+所以只要這個專案在 Unity 裡開過一次就已經有了。
+
+產出的檔案每行一個引數、`#` 開頭為註解,路徑相對於專案根目錄——請從那裡執行。
+唯一與機器綁定的是 `--unity-dll-dir`,它指向你的 Unity 安裝位置;在 CI 上請改指向
+該機器的 Unity。改了套件、define 或編輯器版本之後要重生。過期的檔案會在「那個搬走的
+引用」上直接失敗,而不是安靜地少分析一些東西。
+
+引數在 `@file` 出現的位置展開,因此寫在它後面的引數仍然蓋得過檔案裡的設定——
+`--format`、`--fail-on`、`--baseline` 因此仍然是呼叫端的決定,而不是專案的事實。
 
 **與 Unity 建置的差異**——最終權威仍是 Unity 自己的編譯:
 

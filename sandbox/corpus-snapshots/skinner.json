@@ -1,0 +1,15 @@
+{
+  "project": "skinner",
+  "licence": "MIT License",
+  "kind": "effects",
+  "commit": "4f1b8656985d89c92f31d20e93ca1b1446c4640e",
+  "files": 20,
+  "compileErrors": 9,
+  "analyzerFailures": 0,
+  "total": 60,
+  "byRule": {
+    "UPA0001": 1,
+    "UPA0003": 58,
+    "UPA0005": 1
+  }
+}

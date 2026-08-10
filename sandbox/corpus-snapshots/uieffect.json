@@ -1,0 +1,16 @@
+{
+  "project": "uieffect",
+  "licence": "MIT License",
+  "kind": "library",
+  "commit": "1f4427c3d5d249534dba69d8c53acafb5d5fbd7f",
+  "files": 77,
+  "compileErrors": 211,
+  "analyzerFailures": 0,
+  "total": 15,
+  "byRule": {
+    "UPA0005": 2,
+    "UPA0006": 7,
+    "UPA1001": 5,
+    "UPA2000": 1
+  }
+}

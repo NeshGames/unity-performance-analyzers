@@ -3,7 +3,7 @@
   <!-- Single source of truth for the version. The release workflow syncs
        package/package.json from here; never edit that version by hand. -->
   <PropertyGroup>
-    <Version>0.8.0</Version>
+    <Version>0.8.1</Version>
     <Authors>NeshGames</Authors>
     <Company>NeshGames</Company>
     <Copyright>Copyright (c) 2026 NeshGames</Copyright>

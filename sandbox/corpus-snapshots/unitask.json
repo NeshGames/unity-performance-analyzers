@@ -1,0 +1,16 @@
+{
+  "project": "unitask",
+  "licence": "MIT License",
+  "kind": "library",
+  "commit": "ceac8d6946b1125fe782cd171fbcb245b567dbf9",
+  "files": 153,
+  "compileErrors": 343,
+  "analyzerFailures": 0,
+  "total": 12,
+  "byRule": {
+    "UPA0005": 4,
+    "UPA0023": 1,
+    "UPA0025": 3,
+    "UPA2012": 4
+  }
+}

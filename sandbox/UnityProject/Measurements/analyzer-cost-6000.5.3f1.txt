@@ -1,0 +1,21 @@
+Unity 6000.5.3f1, sandbox project, 31 assembly compiles
+  compiler-reported analyzer time, summed: 2.192 s
+  per-analyzer CPU time, all vendors:      4.093 s
+  of which ours (43 analyzers):            0.952 s  (23%)
+
+  by vendor:
+      2.602 s  Unity
+      0.952 s  UnityPerformanceAnalyzers
+      0.367 s  Microsoft
+      0.172 s  System
+
+  our most expensive rules:
+      0.081 s  UPA3000WebGlUnsupportedApiAnalyzer
+      0.061 s  UPA0006HotPathAllocationAnalyzer
+      0.048 s  UPA0001ComponentLookupAnalyzer
+      0.045 s  UPA0028ValueTypeCollectionKeyAnalyzer
+      0.033 s  UPA2000StringConcatenationAnalyzer
+      0.028 s  UPA0018AllocatingArrayApiAnalyzer
+      0.025 s  UPA0030KnownAllocatingBclApiAnalyzer
+      0.025 s  UPA0029SequentialAddAnalyzer
+    median rule: 0.0170 s

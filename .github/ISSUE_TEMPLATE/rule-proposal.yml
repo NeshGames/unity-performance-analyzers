@@ -1,0 +1,85 @@
+name: Rule proposal
+description: A pattern this package should report
+title: "Rule: "
+labels: ["rule-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Rules here carry an evidence bar most analyzer projects do not have: **every
+        performance claim must survive measurement on IL2CPP.** Reasoning from IL
+        semantics, from .NET behaviour, or from what an optimization should do is not
+        evidence. Mono numbers are recorded for contrast; IL2CPP decides, because that is
+        what ships.
+
+        The bar exists because a rule whose premise has expired is worse than no rule — it
+        asks for a change that buys nothing and spends the reader's attention every time
+        it fires. Version 0.8.0 retired two rules and narrowed two more for that reason.
+
+        **If you have the pattern but not the measurement, open this anyway and say so.**
+        Measuring is work this project can do; knowing what to measure is the harder half.
+
+  - type: textarea
+    id: pattern
+    attributes:
+      label: The pattern, and what you would write instead
+      render: csharp
+    validations:
+      required: true
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: What it costs
+      description: >
+        Allocation or time, on IL2CPP, with the rewritten version as a control. A
+        measurement with no control cannot tell "this is already free" from "we measured
+        the wrong thing" — and a zero has two causes worth distinguishing: the cost was
+        never there, or the compiler hoisted it out of the loop you were timing.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: evidence
+    attributes:
+      label: Where the numbers come from
+      options:
+        - I measured it on IL2CPP
+        - I measured it on Mono only
+        - I have not measured it
+    validations:
+      required: true
+
+  - type: textarea
+    id: legitimate
+    attributes:
+      label: When the pattern is legitimate
+      description: >
+        Where would this rule be wrong to fire, and what could it check to avoid firing
+        there? A rule with no answer here is a rule that will be turned off.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Proposed default
+      description: >
+        No rule's own default goes above Warning; errors come only from a preset the user
+        chose. Rules that need a package or platform ship disabled and activate from what
+        the assembly references.
+      options:
+        - Warning
+        - Info
+        - Disabled by default (needs a package or platform)
+    validations:
+      required: true
+
+  - type: textarea
+    id: overlap
+    attributes:
+      label: Existing coverage
+      description: >
+        Does Rider, Microsoft.Unity.Analyzers (UNT), Project Auditor or an existing UPA
+        rule already report this? Overlapping is sometimes right, but it should be a
+        decision rather than an accident.

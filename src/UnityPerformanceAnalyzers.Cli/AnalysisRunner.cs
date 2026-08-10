@@ -59,6 +59,12 @@ internal sealed record AnalysisResult(
     public long? BaselineStaleCount { get; init; }
 
     /// <summary>
+    /// Which entries the run did not use up. Empty whenever <see cref="BaselineStaleCount"/>
+    /// is null: an incomplete run has no business naming entries to delete.
+    /// </summary>
+    public ImmutableArray<StaleEntry> BaselineStale { get; init; } = ImmutableArray<StaleEntry>.Empty;
+
+    /// <summary>
     /// Whether the run is complete enough for its numbers to be trusted. Unresolved types keep
     /// rules from firing, which reads as debt that has been paid off.
     /// </summary>

@@ -34,6 +34,36 @@ internal static class BaselineWriter
     }
 
     /// <summary>
+    /// The same three refusals for pruning, worded for it. An under-reported run reads as debt
+    /// that has been paid off, and pruning acts on exactly that reading — it is the operation
+    /// an incomplete analysis damages most, because the damage is deletion.
+    /// </summary>
+    public static void EnsureRunIsPrunable(CliOptions options, AnalysisResult result)
+    {
+        if (!options.WholeAssembly)
+        {
+            throw new CliException(
+                "--prune-baseline requires --whole-assembly: without it symbol resolution is "
+                + "incomplete by design, so rules go quiet rather than firing and their entries "
+                + "would look like debt that has been paid off.");
+        }
+
+        if (!result.AnalyzerFailures.IsEmpty)
+        {
+            throw new CliException(
+                $"Refusing to prune the baseline: {result.AnalyzerFailures.Length} analyzer(s) "
+                + "failed to run, so entries they would have matched look unused.");
+        }
+
+        if (result.CompileErrorCount > 0)
+        {
+            throw new CliException(
+                $"Refusing to prune the baseline: {result.CompileErrorCount} compile error(s) "
+                + "leave types unresolved, so rules that key off them did not fire.");
+        }
+    }
+
+    /// <summary>
     /// Refuses to replace a baseline covering files this run did not analyze — but only those
     /// still on disk.
     /// </summary>

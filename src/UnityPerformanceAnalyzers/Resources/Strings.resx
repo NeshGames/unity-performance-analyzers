@@ -34,10 +34,10 @@
     <value>String-based shader or animator property access</value>
   </data>
   <data name="UPA0003MessageFormat" xml:space="preserve">
-    <value>'{0}' resolves the string "{1}" to an ID on every call. Cache it with Shader.PropertyToID / Animator.StringToHash in a static class.</value>
+    <value>'{0}' resolves the string "{1}" to an ID on every call. Cache it in a static readonly int with Shader.PropertyToID / Animator.StringToHash.</value>
   </data>
   <data name="UPA0003Description" xml:space="preserve">
-    <value>Material, MaterialPropertyBlock, Shader, and Animator expose string-based overloads that hash the property or state name to an integer ID on every call. The integer overloads skip that conversion entirely. Resolving each name once with Shader.PropertyToID or Animator.StringToHash and keeping the IDs in a static class removes the repeated conversion and centralizes property names in one place.</value>
+    <value>Material, MaterialPropertyBlock, Shader, and Animator expose string-based overloads that hash the property or state name to an integer ID on every call. The integer overloads skip that conversion entirely. Resolving each name once with Shader.PropertyToID or Animator.StringToHash into a static readonly int removes the repeated conversion. Collecting those fields into one class per project is a common convention and works the same way, but it is a structure choice rather than part of the saving.</value>
   </data>
   <data name="UPA0004Title" xml:space="preserve">
     <value>Instantiating accessor used in per-frame method</value>

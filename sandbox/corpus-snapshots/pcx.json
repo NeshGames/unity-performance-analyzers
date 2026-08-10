@@ -1,0 +1,16 @@
+{
+  "project": "pcx",
+  "licence": "unlicense",
+  "kind": "library",
+  "commit": "ffc344756b9320584a02a738c8b9d328090e1bc3",
+  "files": 8,
+  "compileErrors": 13,
+  "analyzerFailures": 0,
+  "total": 16,
+  "byRule": {
+    "UPA0003": 7,
+    "UPA0005": 3,
+    "UPA0006": 2,
+    "UPA1001": 4
+  }
+}

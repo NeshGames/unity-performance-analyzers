@@ -67,6 +67,7 @@ jobs:
           set -euo pipefail
           bash .github/smoke/assert-selftest.sh
           bash .github/smoke/release-gate-selftest.sh
+          bash .github/release/promote-analyzer-releases-selftest.sh
           bash .github/smoke/analyzer-load.sh
 
       # The tool package is only ever built during a release, where a packaging mistake

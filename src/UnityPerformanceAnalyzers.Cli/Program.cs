@@ -22,6 +22,36 @@ namespace UnityPerformanceAnalyzers.Cli
         public static int ResolveExitCode(AnalysisResult result, string failOn)
             => ExitCode.For(result, failOn, wholeAssembly: false, baselineWritten: false);
 
+        /// <summary>
+        /// The --fail-on-stale verdict, or null when staleness is not what decides this run.
+        /// </summary>
+        /// <remarks>
+        /// A null count means the run could not tell, and answering "not stale" there would be
+        /// a gate reporting a clean result it never established — the same failure the compile
+        /// error rule exists to prevent, in the one place a user reaches for to be told the
+        /// opposite.
+        /// </remarks>
+        private static int? StaleGate(AnalysisResult result, TextWriter stderr)
+        {
+            if (result.BaselineStaleCount is not { } stale)
+            {
+                stderr.WriteLine(
+                    "--fail-on-stale cannot be answered: the analysis was incomplete, so "
+                    + "unused baseline quota cannot be told apart from rules that did not run.");
+                return ExitError;
+            }
+
+            if (stale == 0)
+            {
+                return null;
+            }
+
+            stderr.WriteLine(
+                $"{stale} baseline entr{(stale == 1 ? "y is" : "ies are")} no longer matched. "
+                + "Run again with --prune-baseline to remove the unused quota.");
+            return ExitDiagnostics;
+        }
+
         public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
         {
             var options = CliOptions.Parse(args, out var parseError);
@@ -52,15 +82,41 @@ namespace UnityPerformanceAnalyzers.Cli
                     return ExitClean;
                 }
 
-                var baseline = BaselineSession.Open(options);
-                var result = AnalysisRunner.Run(options);
-                if (baseline is object)
+                if (options.InitArgsPath is object)
                 {
-                    result = baseline.Filter(result);
+                    // The summary goes to stderr for the same reason the baseline's does:
+                    // stdout carries results, and this mode produced none.
+                    stderr.WriteLine(ArgsFileWriter.Write(options, ArgsFileWriter.Now()));
+                    return ExitClean;
                 }
 
-                OutputWriter.WriteAnalysis(stdout, result, options.Format);
+                var baseline = BaselineSession.Open(options);
+
+                // The unfiltered run is kept: filtering removes the occurrences the baseline
+                // matched, and those are exactly the ones pruning has to count. Handing the
+                // filtered result to Prune would find nothing for every baselined key and
+                // delete the entire contract, which is the failure this feature exists to
+                // prevent rather than cause.
+                var analysis = AnalysisRunner.Run(options);
+                var result = baseline is object ? baseline.Filter(analysis) : analysis;
+
+                OutputWriter.WriteAnalysis(stdout, result, options.Format, options.ReportStaleBaseline);
                 OutputWriter.WriteRunProblems(stderr, result, options);
+
+                if (baseline?.Prune(analysis) is { } remaining)
+                {
+                    stderr.WriteLine(
+                        $"Pruned {options.BaselinePath} to {remaining} entries; "
+                        + "quota this run did not use is gone.");
+                    return ExitClean;
+                }
+
+                // Before the threshold, and after pruning: a run asked to prune has just made
+                // the answer zero, so the gate is about the runs that were not asked to.
+                if (options.FailOnStale && StaleGate(result, stderr) is { } staleCode)
+                {
+                    return staleCode;
+                }
 
                 // A refused run writes no baseline: freezing what a broken analysis saw is
                 // the one outcome worse than reporting nothing.

@@ -1,0 +1,108 @@
+name: False positive
+description: A rule fired on code that is correct
+title: "UPA####: fires on "
+labels: ["false-positive"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most useful report this project can receive. A rule's worth is decided
+        by its false-positive rate, and that rate is only visible from projects that are
+        not this one.
+
+        The field that decides how fast it gets fixed is the snippet — the smallest code
+        that still triggers it.
+
+  - type: input
+    id: rule
+    attributes:
+      label: Rule ID
+      placeholder: UPA0006
+    validations:
+      required: true
+
+  - type: textarea
+    id: snippet
+    attributes:
+      label: Smallest snippet that still triggers it
+      description: >
+        Cut it down until removing one more line makes the report go away. A twenty-line
+        method is usually five lines once reduced, and the reduction is most of the
+        diagnosis.
+      render: csharp
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      description: No report at all, or a report somewhere else? Why is this code correct?
+    validations:
+      required: true
+
+  - type: input
+    id: unity
+    attributes:
+      label: Unity version
+      placeholder: 6000.5.3f1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: assembly
+    attributes:
+      label: Which assembly
+      description: >
+        Player-code rules skip assemblies whose name ends in .Editor, so this changes
+        whether the rule should have run at all.
+      options:
+        - Player code (Assembly-CSharp or a runtime asmdef)
+        - Editor code (Assembly-CSharp-Editor or an Editor asmdef)
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: packages
+    attributes:
+      label: Packages that assembly references
+      description: >
+        Several rules only exist when one of these is present, so this decides which rules
+        were even active.
+      options:
+        - label: UniTask
+        - label: ZString
+        - label: R3
+        - label: DOTween
+        - label: TextMeshPro
+
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: The tag you installed, or the commit if you are on a branch.
+      placeholder: v0.8.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: Options and severities you set
+      description: >
+        Any upa_* options, the preset you applied, and any ruleset or .editorconfig entries
+        for this rule. Leave blank if you changed nothing.
+
+  - type: textarea
+    id: cli
+    attributes:
+      label: CLI output (optional, but the fastest path)
+      description: |
+        Reproducing it outside Unity gives an exact result to quote:
+
+        ```
+        dotnet run --project src/UnityPerformanceAnalyzers.Cli -c Release -- \
+          Assets/Scripts/Thing.cs --all-warn --format json
+        ```
+      render: json

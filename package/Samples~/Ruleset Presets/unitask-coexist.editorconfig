@@ -1,0 +1,10 @@
+# unity-performance-analyzers coexistence: defers to UniTask.Analyzer (IDE only).
+# Append to your project .editorconfig. Unity does not read .editorconfig
+# (verified 2022.3/6000.5), so these rules keep reporting in Unity builds and in
+# upa-cli: you lose the duplicate squiggle and keep the gate. Use the .ruleset of
+# the same name only if you want them gone from builds too.
+# GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;
+# regenerate via the RuleManifest presets mode.
+[*.cs]
+# UniTask ships an analyzer that detects unawaited UniTask-returning calls
+dotnet_diagnostic.UPA2012.severity = none
