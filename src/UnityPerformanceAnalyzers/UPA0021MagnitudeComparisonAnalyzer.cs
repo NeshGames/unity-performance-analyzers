@@ -12,17 +12,25 @@ namespace UnityPerformanceAnalyzers
     /// and much faster. Comparisons with a magnitude on both sides are not reported — the
     /// rewrite brings no gain there.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0021MagnitudeComparisonAnalyzer : UpaAnalyzer
     {
         /// <summary>The diagnostic ID reported by this analyzer.</summary>
         public const string DiagnosticId = "UPA0021";
 
+        // Off until measured. The rule's performance argument is a quotation from Unity's
+        // documentation, and no IL2CPP measurement of it exists anywhere in the repository --
+        // sandbox/UnityProject/Measurements/ holds allocation and analyzer-cost figures only.
+        // The project's own rule is that an unmeasured inference is an unverified item, and
+        // that this applies to rules that already shipped. Nine of its fourteen findings on
+        // real game code looked right, so the rule is disabled rather than retired: the number
+        // it is missing is a measurement, not a purpose. Re-enable when one exists.
         private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
             DiagnosticCategories.Performance,
             DiagnosticSeverity.Warning,
-            isEnabledByDefault: true);
+            isEnabledByDefault: false);
 
         private static readonly ImmutableArray<DiagnosticDescriptor> s_supportedDiagnostics =
             ImmutableArray.Create(Rule);

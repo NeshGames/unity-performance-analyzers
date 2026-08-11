@@ -16,6 +16,7 @@ namespace UnityPerformanceAnalyzers
     /// allowed), UPA3003 System.Diagnostics.Process.
     /// </summary>
     [ConditionalRule("WebGL")]
+    [UpaClaim(UpaClaimKind.Correctness)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA3000WebGlUnsupportedApiAnalyzer : UpaAnalyzer
     {

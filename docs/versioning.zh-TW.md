@@ -64,7 +64,7 @@ baseline 條目——全部以編號指稱規則,而它們全都住在**你的**
 
 ## 嚴重度政策
 
-**沒有任何規則的自身預設高於 Warning。** 46 條規則中,43 條預設 Warning、3 條 Info。
+**沒有任何規則的自身預設高於 Warning。** 46 條規則中,42 條預設 Warning、4 條 Info。
 本套件不會自己決定你的建置該失敗。
 
 error 只來自**你選的** preset——`minimal`、`recommended`、`strict`、`cysharp-stack`。

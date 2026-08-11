@@ -17,6 +17,7 @@ namespace UnityPerformanceAnalyzers
     /// the JIT uses to eliminate bounds checks.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0009ListCountInForLoopAnalyzer : UpaAnalyzer
     {

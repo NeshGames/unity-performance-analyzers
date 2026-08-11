@@ -16,6 +16,7 @@ namespace UnityPerformanceAnalyzers
     /// IEnumerator&lt;T&gt; methods are typical data iteration and excluded (docs/rules/UPA2011.md).
     /// </summary>
     [ConditionalRule("UniTask")]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA2011CoroutineAnalyzer : UpaAnalyzer
     {

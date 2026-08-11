@@ -176,9 +176,11 @@ class C
 }");
         }
 
-        // UPA0003 test case 10
+        // UPA0003 test case 10. The call sits in an ordinary method, not Start: one-shot
+        // initialisation is excluded outright now, so a Start body would satisfy this test
+        // whatever the option said - passing for a reason the test is not about.
         [Fact]
-        public Task HotPathOnly_CallInStart_DoesNotTrigger()
+        public Task HotPathOnly_CallInOrdinaryMethod_DoesNotTrigger()
         {
             return VerifyAsync(@"
 using UnityEngine;
@@ -187,7 +189,7 @@ class C : MonoBehaviour
 {
     Material mat = null!;
 
-    void Start()
+    void Apply()
     {
         mat.SetFloat(""_Alpha"", 1f);
     }
@@ -226,7 +228,7 @@ class C : MonoBehaviour
 {
     public Material mat;
 
-    void Start()
+    void Apply()
     {
         mat.SetFloat(""_Alpha"", 1f);
     }
@@ -249,7 +251,7 @@ class Strict : MonoBehaviour
 {
     public Material mat;
 
-    void Start()
+    void Apply()
     {
         {|UPA0003:mat.SetFloat(""_Alpha"", 1f)|};
     }
@@ -261,7 +263,7 @@ class Relaxed : MonoBehaviour
 {
     public Material mat;
 
-    void Start()
+    void Apply()
     {
         mat.SetFloat(""_Alpha"", 1f);
     }
@@ -804,6 +806,264 @@ class C
     void M()
     {
         mat.SetFloat(Alpha, 1f);
+    }
+}");
+        }
+
+        // -----------------------------------------------------------------------------------
+        // One-shot initialisation is not worth a diagnostic.
+        //
+        // The claim - the string is resolved on every call - stays true in a constructor. It
+        // just buys nothing there, and a diagnostic that buys nothing is what makes a team
+        // switch the rule off. Eleven of fourteen findings on real game code were this.
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>Awake runs once in an object's life.</summary>
+        [Fact]
+        public Task InAwake_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    public Material mat;
+
+    void Awake()
+    {
+        mat.SetFloat(""_A"", 1f);
+    }
+}");
+        }
+
+        /// <summary>Start runs once in an object's life.</summary>
+        [Fact]
+        public Task InStart_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    public Material mat;
+
+    void Start()
+    {
+        mat.SetFloat(""_A"", 1f);
+    }
+}");
+        }
+
+        /// <summary>
+        /// OnEnable was in the exclusion set in the first draft, on the grounds
+        /// that it runs once per activation like Awake. Awake runs once in an object's life;
+        /// OnEnable runs on every reactivation, and pooling - which UPA0031 in this same package
+        /// recommends - is precisely the pattern that reactivates objects constantly.
+        /// </summary>
+        [Fact]
+        public Task InOnEnable_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    public Material mat;
+
+    void OnEnable()
+    {
+        {|UPA0003:mat.SetFloat(""_A"", 1f)|};
+    }
+}");
+        }
+
+        /// <summary>
+        /// The shape that keeps OnEnable out of the exclusion set, written out: an object
+        /// returned to a pool by SetActive(false) runs OnEnable again every time it is handed
+        /// back out, so the call is as frequent as the pool is busy.
+        /// </summary>
+        [Fact]
+        public Task InOnEnable_OfAPooledObject_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class Bullet : MonoBehaviour
+{
+    public Material mat;
+
+    void OnEnable()
+    {
+        {|UPA0003:mat.SetColor(""_Tint"", default(Color))|};
+    }
+
+    void ReturnToPool()
+    {
+        gameObject.SetActive(false);
+    }
+}");
+        }
+
+        /// <summary>the corpus Materials shape: a plain class, not a MonoBehaviour.</summary>
+        [Fact]
+        public Task InConstructor_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class Materials
+{
+    private Material shadow;
+
+    private Materials()
+    {
+        shadow.SetFloat(""_HorizontalSkew"", -0.33f);
+    }
+}");
+        }
+
+        /// <summary>
+        /// The call has to sit in the initialiser itself - routing it through a
+        /// helper makes the containing symbol that helper, and the test stops testing anything.
+        /// </summary>
+        [Fact]
+        public Task InFieldInitializer_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C
+{
+    private static readonly Vector4 Cached = Shader.GetGlobalVector(""_A"");
+}");
+        }
+
+        /// <summary>A method invoked from the inspector's context menu runs when a human clicks it.</summary>
+        [Fact]
+        public Task InContextMenuMethod_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    public Material mat;
+
+    [ContextMenu(""Reset Dissolve"")]
+    private void ResetDissolve()
+    {
+        mat.SetFloat(""_Dissolve"", 0f);
+    }
+}");
+        }
+
+        /// <summary>teardown is not initialisation.</summary>
+        [Fact]
+        public Task InOnDestroy_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    public Material mat;
+
+    void OnDestroy()
+    {
+        {|UPA0003:mat.SetFloat(""_A"", 1f)|};
+    }
+}");
+        }
+
+        /// <summary>
+        /// OnDisable is teardown, not initialisation, and runs again on every deactivation.
+        /// It stays reported for the same reason OnEnable and OnDestroy do.
+        /// </summary>
+        [Fact]
+        public Task InOnDisable_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    public Material mat;
+
+    void OnDisable()
+    {
+        {|UPA0003:mat.SetFloat(""_A"", 1f)|};
+    }
+}");
+        }
+
+        /// <summary>
+        /// One of the two shapes that forbid narrowing this rule to hot paths:
+        /// a coroutine loop runs every frame and no Unity-message classifier can see it.
+        /// </summary>
+        [Fact]
+        public Task InCoroutineLoop_Triggers()
+        {
+            return VerifyAsync(@"
+using System.Collections;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    public MaterialPropertyBlock block;
+
+    public IEnumerator Dissolve()
+    {
+        float t = 0f;
+        while (t < 1f)
+        {
+            t += 0.016f;
+            {|UPA0003:block.SetFloat(""_Dissolve"", t)|};
+            yield return null;
+        }
+    }
+}");
+        }
+
+        /// <summary>
+        /// the other one: a custom state machine's own update, called every
+        /// frame by something that is not Unity.
+        /// </summary>
+        [Fact]
+        public Task InCustomUpdateOverride_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+abstract class StateAction
+{
+    public abstract void OnUpdate();
+}
+
+class Flash : StateAction
+{
+    private Material material;
+
+    public override void OnUpdate()
+    {
+        {|UPA0003:material.SetColor(""_MainColor"", default(Color))|};
+    }
+}");
+        }
+
+        /// <summary>the control. An ordinary method is still reported.</summary>
+        [Fact]
+        public Task InOrdinaryMethod_Triggers()
+        {
+            return VerifyAsync(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    public Material mat;
+
+    public void Apply()
+    {
+        {|UPA0003:mat.SetFloat(""_A"", 1f)|};
     }
 }");
         }

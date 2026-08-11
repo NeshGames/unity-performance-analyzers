@@ -11,6 +11,7 @@ namespace UnityPerformanceAnalyzers
     /// route logging through a wrapper marked with <c>[System.Diagnostics.Conditional]</c>,
     /// letting the compiler strip the calls and their argument expressions from release builds.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0005DirectDebugLoggingAnalyzer : UpaAnalyzer
     {

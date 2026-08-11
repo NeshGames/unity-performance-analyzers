@@ -1,7 +1,10 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
@@ -15,6 +18,7 @@ namespace UnityPerformanceAnalyzers
     /// non-constant labels) are conservatively skipped; same-value aliases count as covered
     /// (docs/rules/UPA1001.md).
     /// </summary>
+    [UpaClaim(UpaClaimKind.Correctness)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA1001NonExhaustiveEnumSwitchAnalyzer : UpaAnalyzer
     {
@@ -107,6 +111,15 @@ namespace UnityPerformanceAnalyzers
             // Bitwise combinations make exhaustiveness meaningless for flags enums.
             if (flagsAttributeType is object && enumType.GetAttributes().Any(a =>
                     SymbolEqualityComparer.Default.Equals(a.AttributeClass, flagsAttributeType)))
+            {
+                return;
+            }
+
+            // ... and the attribute is not the only way an author writes one. Measured on real
+            // game code: VehicleLight carries no [Flags] but defines Front = FrontLeft |
+            // FrontRight and All = Front | Rear, so the rule asked for cases covering bit
+            // masks - advice that turns a correct switch into a wrong one.
+            if (HasBitwiseInitializer(enumType, context.CancellationToken))
             {
                 return;
             }
@@ -225,6 +238,54 @@ namespace UnityPerformanceAnalyzers
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// True when any member is written with a bitwise operator, which is how an author
+        /// spells a flag whether or not the type carries the attribute.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately syntactic. The obvious alternative - decide from the values, treating a
+        /// member equal to the bitwise OR of two others as composite - cannot distinguish
+        /// <c>All = Front | Rear</c> from <c>Priority { Low = 1, Medium = 2, High = 3 }</c>,
+        /// where 3 is simply 1 | 2. Getting that wrong silences the rule on an ordinary enum
+        /// for good, and a rule that reports nothing looks exactly like a codebase with nothing
+        /// to report.
+        /// <para>
+        /// Enums visible only through metadata have values but no syntax, so an unattributed
+        /// bitwise-combination enum from a referenced assembly is analysed as an ordinary one.
+        /// That degradation is deliberate and pinned by a test: in practice such types carry
+        /// <c>[Flags]</c>, and the alternative reintroduces the misjudgement above.
+        /// </para>
+        /// </remarks>
+        private static bool HasBitwiseInitializer(INamedTypeSymbol enumType, CancellationToken cancellationToken)
+        {
+            foreach (var member in enumType.GetMembers().OfType<IFieldSymbol>())
+            {
+                foreach (var reference in member.DeclaringSyntaxReferences)
+                {
+                    if (!(reference.GetSyntax(cancellationToken) is EnumMemberDeclarationSyntax declaration)
+                        || declaration.EqualsValue is null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var node in declaration.EqualsValue.Value.DescendantNodesAndSelf())
+                    {
+                        if (node.IsKind(SyntaxKind.BitwiseOrExpression)
+                            || node.IsKind(SyntaxKind.BitwiseAndExpression)
+                            || node.IsKind(SyntaxKind.ExclusiveOrExpression)
+                            || node.IsKind(SyntaxKind.BitwiseNotExpression)
+                            || node.IsKind(SyntaxKind.LeftShiftExpression)
+                            || node.IsKind(SyntaxKind.RightShiftExpression))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }

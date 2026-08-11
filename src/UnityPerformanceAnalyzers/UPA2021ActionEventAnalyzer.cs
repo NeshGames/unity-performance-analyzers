@@ -14,6 +14,7 @@ namespace UnityPerformanceAnalyzers
     /// deliberately excluded — the heuristic stays narrow (docs/rules/UPA2021.md).
     /// </summary>
     [ConditionalRule("R3")]
+    [UpaClaim(UpaClaimKind.Correctness)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA2021ActionEventAnalyzer : UpaAnalyzer
     {

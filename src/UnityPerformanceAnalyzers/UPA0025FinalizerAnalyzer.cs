@@ -12,6 +12,7 @@ namespace UnityPerformanceAnalyzers
     /// they delay memory reclamation across garbage collections and run on the finalizer
     /// thread. Deterministic cleanup belongs in IDisposable.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0025FinalizerAnalyzer : UpaAnalyzer
     {

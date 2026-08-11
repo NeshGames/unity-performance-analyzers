@@ -13,6 +13,7 @@ namespace UnityPerformanceAnalyzers
     /// <c>Awake</c>/<c>Start</c> and cached in a field.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0001ComponentLookupAnalyzer : UpaAnalyzer
     {

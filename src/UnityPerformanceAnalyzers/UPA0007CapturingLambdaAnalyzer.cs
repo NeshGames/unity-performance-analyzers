@@ -12,6 +12,7 @@ namespace UnityPerformanceAnalyzers
     /// by the compiler and are not reported.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0007CapturingLambdaAnalyzer : UpaAnalyzer
     {

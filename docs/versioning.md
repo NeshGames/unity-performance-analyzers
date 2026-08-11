@@ -67,7 +67,7 @@ Both still resolve. A suppression you wrote for either keeps meaning what it mea
 
 ## Severity policy
 
-**No rule's own default is above Warning.** Of 46 rules, 43 default to Warning and 3 to
+**No rule's own default is above Warning.** Of 46 rules, 42 default to Warning and 4 to
 Info. Nothing in this package decides on its own that your build should fail.
 
 Errors come from a preset *you* chose — `minimal`, `recommended`, `strict` or

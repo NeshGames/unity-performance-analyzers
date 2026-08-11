@@ -13,6 +13,7 @@ namespace UnityPerformanceAnalyzers
     /// <c>GetComponent</c> lookups are UPA0001's territory.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0017GetComponentsArrayAnalyzer : UpaAnalyzer
     {

@@ -13,6 +13,7 @@ namespace UnityPerformanceAnalyzers
     /// (docs/rules/UPA2000.md).
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA2000StringConcatenationAnalyzer : UpaAnalyzer
     {

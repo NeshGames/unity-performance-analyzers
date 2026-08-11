@@ -190,7 +190,7 @@ rule ID promise, and what an upgrade may change under you:
 | [UPA0018](docs/rules/UPA0018.md) | Allocating array-returning Unity APIs (`Input.touches`, `Animator.parameters`, `Texture2D.GetPixels`, …) | ✓ |
 | [UPA0019](docs/rules/UPA0019.md) | Value types yielded from coroutines (boxing; Unity treats them as `null`) | |
 | [UPA0020](docs/rules/UPA0020.md) | Lambdas in `WaitUntil` / `WaitWhile` construction *(off by default)* | |
-| [UPA0021](docs/rules/UPA0021.md) | `magnitude` / `Distance` compared where `sqrMagnitude` suffices | |
+| [UPA0021](docs/rules/UPA0021.md) | `magnitude` / `Distance` compared where `sqrMagnitude` suffices *(off by default)* | |
 | [UPA0022](docs/rules/UPA0022.md) | `Enum.HasFlag` in per-frame methods *(off by default; deprecated: the call allocates nothing on any supported runtime)* | ✓ |
 | [UPA0023](docs/rules/UPA0023.md) | `OnGUI` declared in player code *(Info, off by default)* | |
 | [UPA0024](docs/rules/UPA0024.md) | `Resources.Load` in per-frame methods *(off by default)* | ✓ |
@@ -200,7 +200,7 @@ rule ID promise, and what an upgrade may change under you:
 | [UPA0028](docs/rules/UPA0028.md) | Structs used as collection keys without `IEquatable<T>` and `GetHashCode` | |
 | [UPA0029](docs/rules/UPA0029.md) | Copy loops that `AddRange` would do with one allocation | |
 | [UPA0030](docs/rules/UPA0030.md) | Known-allocating `string` and `Enum` members in per-frame methods | ✓ |
-| [UPA0031](docs/rules/UPA0031.md) | `Instantiate` or `Destroy` in per-frame methods | ✓ |
+| [UPA0031](docs/rules/UPA0031.md) | `Instantiate` or `Destroy` in per-frame methods *(Info)* | ✓ |
 
 > Not a rule: [Enum dictionary keys](docs/rules/enum-dictionary-keys.md) documents why the
 > familiar "enum keys box, supply a comparer" advice no longer applies, with measurements

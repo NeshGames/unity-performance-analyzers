@@ -13,6 +13,7 @@ namespace UnityPerformanceAnalyzers
     /// editor tooling. Info severity and disabled by default: development-time overlays are
     /// legitimate and common.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0023OnGuiDeclarationAnalyzer : UpaAnalyzer
     {

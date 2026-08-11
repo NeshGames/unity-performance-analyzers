@@ -15,6 +15,7 @@ namespace UnityPerformanceAnalyzers
     /// deliberately ignored (docs/rules/UPA0006.md).
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0006HotPathAllocationAnalyzer : UpaAnalyzer
     {

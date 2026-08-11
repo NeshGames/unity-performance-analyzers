@@ -14,6 +14,7 @@ namespace UnityPerformanceAnalyzers
     /// low-allocation codebases (docs/rules/UPA0013.md).
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0013LinqUsageAnalyzer : UpaAnalyzer
     {

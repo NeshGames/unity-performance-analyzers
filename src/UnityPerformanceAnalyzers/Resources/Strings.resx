@@ -451,10 +451,10 @@
     <value>Instantiate or Destroy in per-frame method</value>
   </data>
   <data name="UPA0031MessageFormat" xml:space="preserve">
-    <value>Instantiating '{0}' on a per-frame path allocates and initialises a new object every frame. Take one from a pool and return it when done.</value>
+    <value>'{0}' is instantiated inside a per-frame method. If this runs on more than the occasional frame, take one from a pool and return it when done.</value>
   </data>
   <data name="UPA0031MessageFormatDestroy" xml:space="preserve">
-    <value>Destroying '{0}' on a per-frame path queues an object for collection every frame. Return it to a pool instead of destroying it.</value>
+    <value>'{0}' is destroyed inside a per-frame method, and destroying queues the object for collection rather than freeing it. If this runs on more than the occasional frame, return it to a pool instead.</value>
   </data>
   <data name="UPA0031Description" xml:space="preserve">
     <value>Creating and destroying objects every frame produces garbage the collector must reclaim, and Unity object construction is not cheap. Reuse instances from a pool instead.</value>

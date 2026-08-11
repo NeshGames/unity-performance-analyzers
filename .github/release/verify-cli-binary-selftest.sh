@@ -40,13 +40,27 @@ EOF
 }
 
 check() {   # $1 = expected (accept|refuse), $2 = name, $3 = stub path
-  local got=accept
-  # bash -e, not `( set -e; bash ... )`. A subshell's -e does not reach a child bash at all,
-  # so the wrapped form proves nothing -- it passed even with the capture written the way
-  # that failed in CI. Running the script itself under -e is what reproduces the workflow's
-  # arrangement, and it is the property worth pinning even now that the script is invoked as
-  # a child: the next person to inline this, or to call it as `bash -e`, gets told.
-  bash -e "$script" "$3" 1.2.3 > /dev/null 2>&1 || got=refuse
+  # Both invocations, and they must agree.
+  #
+  # `bash script` is what the release workflow actually does, and bash options do not cross a
+  # process boundary, so the runner's -e never reaches the script through that call. `bash -e
+  # script` is the stricter arrangement -- the one an inlined copy would face, and the one the
+  # original failure happened under. Testing only the strict form pins a property production
+  # does not depend on; testing only the loose form would have let the original defect through.
+  #
+  # Not `( set -e; bash ... )`: a subshell's -e does not reach a child either, so that form
+  # asserted nothing. It passed all five cases even with the capture written the way that
+  # failed in CI.
+  local plain=accept strict=accept
+  bash    "$script" "$3" 1.2.3 > /dev/null 2>&1 || plain=refuse
+  bash -e "$script" "$3" 1.2.3 > /dev/null 2>&1 || strict=refuse
+
+  if [ "$plain" != "$strict" ]; then
+    report fail "$2" "differs by caller: plain=$plain, -e=$strict"
+    return
+  fi
+
+  local got=$plain
   if [ "$got" = "$1" ]; then
     report ok "$2"
   else

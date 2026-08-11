@@ -27,6 +27,7 @@ namespace UnityPerformanceAnalyzers
     /// in its ruleset keeps the behaviour it had.
     /// </remarks>
     [CompilationWideRule]
+    [UpaClaim(UpaClaimKind.Correctness)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA1000LeafClassNotSealedAnalyzer : UpaAnalyzer
     {

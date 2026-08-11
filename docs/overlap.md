@@ -142,7 +142,7 @@ rule list is not a description of what ships today.
 |---|---|---|---|---|---|---|
 | **UPA0001** | `GetComponent` family in per-frame methods | ● *Avoid usage of GetComponent methods in performance critical context* | ◐ UNT0026 (`GetComponent` always allocates), ◐ UNT0039 (`RequireComponent` on self-invoke) | ? PAC — API database includes `GetComponent` | ○ | Rider is stronger (propagates through calls). Silence in `.editorconfig` if you use Rider; **keep in the ruleset** — this is the rule most worth gating |
 | **UPA0002** | `name` / `tag` accessed in per-frame methods | ◐ *Use CompareTag instead of explicit string comparison* — narrower | ◐ UNT0002 *Inefficient tag comparison* — narrower | ? PAC | ○ | Keep. Both alternatives only cover the comparison shape; `name` access and bare `tag` reads are not covered by either |
-| **UPA0003** | String-based shader / animator property access | ● *Avoid using string based names for setting and getting properties on Animators, Shaders and Materials* | ● UNT0041 (`Animator.StringToHash` for repeated calls) — repeat-call heuristic only | ? PAC | ○ | Genuine three-way overlap. If UNT0041 is graded in your ruleset, consider `UPA0003 = none` project-wide; otherwise keep — UNT0041 requires repetition, UPA0003 does not |
+| **UPA0003** | String-based shader / animator property access | ● *Avoid using string based names for setting and getting properties on Animators, Shaders and Materials* | ● UNT0041 (`Animator.StringToHash` for repeated calls) — repeat-call heuristic only | ? PAC | ○ | Overlap is narrower than it looks. **Keep.** UNT0041 sees only `Animator`; measured across three real games, one of fourteen UPA0003 findings was an Animator call and it was a false positive, while all three true positives were `Material` and `MaterialPropertyBlock` calls UNT0041 cannot see (2026-08-11) |
 | **UPA0004** | Instantiating accessors (`Renderer.material`, …) in per-frame | ○ | ○ | ? PAC (material instantiation is a known descriptor) | ○ | **Keep.** Distinctive rule; the leak, not just the cost, is the point |
 | **UPA0005** | Direct `Debug.Log` calls *(off by default)* | ● *Avoid usage of Debug.Log methods in performance critical context* — hot-path only | ○ | ◐ | ○ | Different scope: UPA0005 is not hot-path-limited. Off by default anyway; enable deliberately or not at all |
 | **UPA0006** | Reference-type allocation / boxing in per-frame | ○ | ○ | ● PAC boxing/object allocation diagnostics | ○ | **Keep.** Project Auditor covers this well but only in a batch Editor run. This is the per-PR version |
@@ -287,7 +287,11 @@ gating in CI.
 
 ### `vs-coexist.ruleset` — includes `recommended`
 
-Sets to `None`: **UPA0003** (defers to UNT0041).
+Sets nothing to `None`. It used to defer UPA0003 to UNT0041; measurement on three real Unity
+games showed that trade buys one false positive and gives up every true one, because UNT0041
+only sees `Animator` and this rule's real finds are on `Material` and `MaterialPropertyBlock`.
+Severities cannot be scoped to the Animator overloads, so there is no partial deferral to make.
+The file is kept so paths published in earlier releases keep resolving.
 
 Small on purpose. Microsoft.Unity.Analyzers is mostly correctness and suppressors; the actual
 performance overlap is one rule.

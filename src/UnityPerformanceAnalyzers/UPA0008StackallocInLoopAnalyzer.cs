@@ -13,6 +13,7 @@ namespace UnityPerformanceAnalyzers
     /// top level of a local function or lambda invoked from a loop is not reported: that
     /// memory is reclaimed when the nested function returns.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0008StackallocInLoopAnalyzer : UpaAnalyzer
     {

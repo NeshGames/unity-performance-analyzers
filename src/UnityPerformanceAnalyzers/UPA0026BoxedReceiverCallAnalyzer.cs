@@ -22,6 +22,7 @@ namespace UnityPerformanceAnalyzers
     /// instantiation, which one method body cannot see.
     /// </remarks>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0026BoxedReceiverCallAnalyzer : UpaAnalyzer
     {

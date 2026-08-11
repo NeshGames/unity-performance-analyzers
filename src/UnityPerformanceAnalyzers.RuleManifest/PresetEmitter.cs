@@ -1,6 +1,7 @@
 using System.Text;
 
 using UnityPerformanceAnalyzers;
+using UnityPerformanceAnalyzers.Catalog;
 
 namespace UnityPerformanceAnalyzers.RuleManifest;
 
@@ -13,6 +14,20 @@ namespace UnityPerformanceAnalyzers.RuleManifest;
 public static class PresetEmitter
 {
     private sealed record Preset(string Name, Func<PresetTable.Row, string> Severity);
+
+    /// <summary>
+    /// Rules whose claim is per-frame cost, read from the analyzers' own <c>[UpaClaim]</c> —
+    /// the same source the analyzers' editor-only filter reads.
+    /// </summary>
+    /// <remarks>
+    /// This used to be "category is Performance", which is a different question with a
+    /// different answer. UPA0019 is categorised Performance and reports a defect, so the
+    /// category form downgraded it under <c>[**/Editor/**.cs]</c> while the analyzer went on
+    /// reporting it — one rule, two mechanisms, opposite verdicts, and nothing in either
+    /// output to show for it.
+    /// </remarks>
+    private static readonly HashSet<string> s_perFrameCostRules =
+        new HashSet<string>(UpaClaims.RuleIdsClaiming(UpaClaimKind.PerFrameCost), StringComparer.Ordinal);
 
     private static readonly Preset[] s_mainPresets =
     {
@@ -113,8 +128,31 @@ public static class PresetEmitter
         sb.Append('\n');
         sb.Append("# Editor tooling: relax performance pressure (IDE side; for Unity builds place\n");
         sb.Append("# editor-relaxed.ruleset as Default.ruleset in your Editor asmdef folders)\n");
-        sb.Append("[**/Editor/**/*.cs]\n");
-        sb.Append("dotnet_analyzer_diagnostic.category-Performance.severity = suggestion\n");
+        sb.Append("#\n");
+        sb.Append("# Both the glob and the per-rule keys below are load-bearing, and this section\n");
+        sb.Append("# relaxed nothing at all before 0.9.0 because each was written the other way:\n");
+        sb.Append("#   - `**.cs`, not `**/*.cs`. The latter does not match a file sitting directly\n");
+        sb.Append("#     in an Editor folder, which is where nearly every editor script sits.\n");
+        sb.Append("#   - one line per rule id, not a category line. Severity by rule id outranks\n");
+        sb.Append("#     severity by category however specific the section is, so a category line\n");
+        sb.Append("#     here always lost to the [*.cs] entries above.\n");
+        sb.Append("[**/Editor/**.cs]\n");
+        foreach (var row in PresetTable.UpaRows)
+        {
+            // Only per-frame cost is irrelevant in editor tooling. A rule about how a type is
+            // declared is not, and a rule already off has nothing to relax - writing it back
+            // as `suggestion` would turn relaxation into an increase.
+            if (row.Id == "UPA0005"
+                || !s_perFrameCostRules.Contains(row.Id)
+                || PresetTable.IsEditorRelaxedException(row.Id)
+                || preset.Severity(row) == "none")
+            {
+                continue;
+            }
+
+            sb.Append($"dotnet_diagnostic.{row.Id}.severity = suggestion\n");
+        }
+
         sb.Append("dotnet_diagnostic.UPA0005.severity = none\n");
         return sb.ToString();
     }

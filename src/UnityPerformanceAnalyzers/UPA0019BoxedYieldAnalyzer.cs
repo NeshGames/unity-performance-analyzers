@@ -12,6 +12,7 @@ namespace UnityPerformanceAnalyzers
     /// so <c>yield return null</c> is the allocation-free equivalent. Enumerator methods on
     /// non-MonoBehaviour types are not reported — there the yielded values carry meaning.
     /// </summary>
+    [UpaClaim(UpaClaimKind.Correctness)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0019BoxedYieldAnalyzer : UpaAnalyzer
     {

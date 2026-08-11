@@ -716,40 +716,6 @@ jobs:
           fi
           dotnet upa-cli --list-rules > /dev/null
 
-      # Everything above still runs before 1.0: packing and starting the tool are checks,
-      # and a check that only happens on the release that publishes is a check that first
-      # runs on the one occasion it must not fail. Only the push waits.
-      #
-      # Here rather than at the top of the job: the key nuget.org issues lasts an hour, and
-      # the pack and install checks above are the slow part. Requesting it early would risk
-      # spending that hour on the checks and reaching the push with an expired key.
-      - name: NuGet login (OIDC to a short-lived key)
-        id: login
-        if: needs.prepare-release.outputs.nuget == 'yes'
-        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841   # v1.2.0
-        with:
-          user: ${{ secrets.NUGET_USER }}
-
-      - name: Publish upa-cli to NuGet
-        if: needs.prepare-release.outputs.nuget == 'yes'
-        env:
-          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "${NUGET_API_KEY:-}" ]; then
-            echo "::error::The login step returned no API key; the release notes advertise this version on NuGet. Re-run this job - the tag already exists and every step here is idempotent."
-            exit 1
-          fi
-          dotnet nuget push "artifacts/nuget/*.nupkg" \
-            --source https://api.nuget.org/v3/index.json \
-            --api-key "$NUGET_API_KEY" \
-            --skip-duplicate
-
-      - name: Say that the CLI was not published
-        if: needs.prepare-release.outputs.nuget != 'yes'
-        run: |
-          echo "The CLI was built, packed and started, but not pushed: a NuGet id and every version under it are permanent, so publishing begins at 1.0. The .nupkg and a ready-to-run binary for each platform are attached to the release." >> "$GITHUB_STEP_SUMMARY"
-
       # continue-on-error for the same reason the smoke verdicts use it: a download that
       # fails leaves no files, and the step below reads that as "not built", which is the
       # direction a mistake should fall in. merge-multiple, so the three archives land in
@@ -784,6 +750,45 @@ jobs:
           done
           test "$missing" -eq 0
 
+      # Ordered after the binary check on purpose. A NuGet version cannot be withdrawn, so
+      # nothing may be pushed there while a release is still capable of failing. Before 1.0
+      # this pushes nothing and the ordering is free; from 1.0 it is the difference between
+      # a clean failure and a published package with no release to go with it.
+      #
+      # Everything above still runs before 1.0: packing and starting the tool are checks,
+      # and a check that only happens on the release that publishes is a check that first
+      # runs on the one occasion it must not fail. Only the push waits.
+      #
+      # Here rather than at the top of the job: the key nuget.org issues lasts an hour, and
+      # the pack and install checks above are the slow part. Requesting it early would risk
+      # spending that hour on the checks and reaching the push with an expired key.
+      - name: NuGet login (OIDC to a short-lived key)
+        id: login
+        if: needs.prepare-release.outputs.nuget == 'yes'
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841   # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Publish upa-cli to NuGet
+        if: needs.prepare-release.outputs.nuget == 'yes'
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NUGET_API_KEY:-}" ]; then
+            echo "::error::The login step returned no API key; the release notes advertise this version on NuGet. Re-run this job - the tag already exists and every step here is idempotent."
+            exit 1
+          fi
+          dotnet nuget push "artifacts/nuget/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate
+
+      - name: Say that the CLI was not published
+        if: needs.prepare-release.outputs.nuget != 'yes'
+        run: |
+          echo "The CLI was built, packed and started, but not pushed: a NuGet id and every version under it are permanent, so publishing begins at 1.0. The .nupkg and a ready-to-run binary for each platform are attached to the release." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Create or update the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -799,25 +804,28 @@ jobs:
             "Unity package, via UPM:" \
             "https://github.com/$REPOSITORY.git?path=/package#$TAG")
 
-          # The notes say how to get the CLI only where that is true. Naming an install
-          # command for a package that was not pushed is the same defect as the README had.
-          if [ "$NUGET" = yes ]; then
-            notes=$(printf '%s\n' "$notes" "" \
-              "Command line runner:" \
-              "dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version $VERSION")
-          else
-            notes=$(printf '%s\n' "$notes" "" \
-              "Command line runner: build from source, or take the .nupkg attached below." \
-              "It is not on NuGet until 1.0 - an id and every version under it are permanent.")
-          fi
-
-          # Said once, under both branches: the archives need no .NET and no NuGet, which is
-          # what makes them the answer for a CI job rather than a convenience.
+          # The binaries first, under both branches. They need no .NET and no NuGet, which
+          # is what makes them the answer for a CI job rather than a convenience -- and 0.8.2
+          # went out with notes telling people to build from source in the line directly above
+          # three ready-to-run archives.
           notes=$(printf '%s\n' "$notes" "" \
-            "Ready-to-run binaries (self-contained, no .NET install needed):" \
+            "Command line runner - take the archive for your platform below." \
+            "Self-contained: no .NET install, no clone, no build." \
             "  upa-cli-$VERSION-linux-x64.tar.gz" \
             "  upa-cli-$VERSION-osx-arm64.tar.gz" \
             "  upa-cli-$VERSION-win-x64.zip")
+
+          # NuGet is named only where the push actually happened. An install command for a
+          # package that was not pushed is the same defect the README once had.
+          if [ "$NUGET" = yes ]; then
+            notes=$(printf '%s\n' "$notes" "" \
+              "Or install it as a dotnet tool:" \
+              "dotnet tool install --global NeshGames.UnityPerformanceAnalyzers.Cli --version $VERSION")
+          else
+            notes=$(printf '%s\n' "$notes" "" \
+              "The .nupkg is attached as well, but the tool is not on NuGet until 1.0 - an id" \
+              "and every version under it are permanent.")
+          fi
 
           # Taken from the package directory rather than a fresh build: those are the exact
           # bytes the tag ships to Unity, so an asset can never differ from what UPM resolves.

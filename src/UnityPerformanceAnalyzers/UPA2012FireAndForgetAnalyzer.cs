@@ -15,6 +15,7 @@ namespace UnityPerformanceAnalyzers
     /// switches the advice sentence. Event-handler-signature async void, awaited calls,
     /// stored/passed results, .Forget(), and `_ =` discards are excluded (docs/rules/UPA2012.md).
     /// </summary>
+    [UpaClaim(UpaClaimKind.Correctness)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA2012FireAndForgetAnalyzer : UpaAnalyzer
     {

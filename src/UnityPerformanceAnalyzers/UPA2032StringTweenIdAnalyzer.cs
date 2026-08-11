@@ -14,6 +14,7 @@ namespace UnityPerformanceAnalyzers
     /// Registered only when the compilation references the DOTween assembly.
     /// </summary>
     [ConditionalRule("DOTween")]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA2032StringTweenIdAnalyzer : UpaAnalyzer
     {

@@ -5,6 +5,80 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-08-11
+
+A minor version rather than a patch, because rules changed what they report. Upgrading will
+show you fewer diagnostics than 0.8.2 did, deliberately — if you were relying on UPA0021 or on
+UPA0031 at warning level, read the two entries below before you upgrade.
+
+Every finding this package produced on three real open-source Unity games — SanAndreasUnity,
+Diablerie and Unity's own Chop Chop, 748 files between them — was read and judged one by one.
+41% of them were noise: the rule's claim was true and acting on it would have bought nothing.
+That is the number this release is about. Under the `recommended` preset the same three games
+now produce 44 findings where they produced 73, and the ones that went were the ones worth
+losing.
+
+### Changed
+
+- **UPA0021 (`magnitude` compared where `sqrMagnitude` suffices) is off by default.** Its
+  argument was a quotation from Unity's documentation and nothing had measured the difference
+  at the call counts real games produce. An unmeasured inference is not an argument, and that
+  applies to rules that already shipped. It is disabled, not retired — nine of its fourteen
+  findings were in per-frame AI and movement code and looked worth acting on. What is missing
+  is a number. Set `dotnet_diagnostic.UPA0021.severity = warning` to keep it.
+
+- **UPA0031 (`Instantiate`/`Destroy` in a per-frame method) reports at Info, and no longer
+  claims your code runs every frame.** It matches a call written inside a per-frame method;
+  whether that line runs every frame needs flow analysis it does not do. All five findings on
+  real games sat behind a one-shot guard, which follows from the shape: an unguarded `Destroy`
+  in an `Update` deletes its object on the first frame, so it cannot survive in working code.
+  Both messages now state the position and leave the frequency to you.
+
+- **UPA0003 no longer reports setup that runs once** — constructors, field initialisers,
+  `Awake`, `Start`, and `[ContextMenu]` methods. Eleven of its fourteen findings were this.
+  `OnEnable` is deliberately *not* excluded: it runs on every reactivation, and pooling — which
+  UPA0031 recommends — reactivates objects constantly.
+
+- **UPA1001 recognises a flags enum by how its members are written**, not only by `[Flags]`.
+  Real code defines `Front = FrontLeft | FrontRight` without the attribute, and the rule was
+  asking for cases covering bit masks. Judging by value instead would have been worse: in
+  `Priority { Low = 1, Medium = 2, High = 3 }` the third value is the first two OR'd together,
+  and the rule would have gone silent on an ordinary enum.
+
+- **Performance rules no longer report inside `OnDrawGizmos`, `OnDrawGizmosSelected`,
+  `OnValidate` or `Reset`.** Unity strips them from a player build. Correctness rules still do
+  report there — a defect is a defect wherever it runs.
+
+- **The `vs-coexist` overlay no longer defers UPA0003 to UNT0041.** UNT0041 only sees
+  `Animator`: of fourteen UPA0003 findings exactly one was an Animator call, and it was a false
+  positive, while all three genuine finds were `Material` and `MaterialPropertyBlock` calls it
+  cannot see. Deferring bought the false positive and gave up the rest. The file is still
+  published so existing paths resolve, and now says why it is empty.
+
+### Fixed
+
+- **The Editor relaxation in every preset now relaxes something.** Each of `minimal`,
+  `recommended`, `strict` and `cysharp-stack` carries a section meant to lower performance
+  rules for code under an `Editor/` folder, and the rule documentation points you at it. It
+  had never applied, for two independent reasons — either alone was enough:
+
+  - The pattern was `[**/Editor/**/*.cs]`, which does not match a file sitting *directly*
+    in an `Editor/` folder. That is where nearly every editor script sits. It is
+    `[**/Editor/**.cs]` now.
+  - The section set the severity of a whole category. Severity set per rule id outranks
+    severity set per category no matter how specific the section is, and these presets set
+    every rule by id, so the category line could never win. The section now writes one line
+    per rule.
+
+  If you copied a preset into your project, take the new copy. Editor tooling that has been
+  reporting performance warnings all along will drop to suggestions; nothing outside an
+  `Editor/` folder changes, correctness rules are untouched, and a rule your preset already
+  had off stays off.
+
+  Resolved severities are now asserted through Roslyn's own configuration engine rather than
+  by matching the text, because both spellings look correct and only the resolved severity
+  tells them apart.
+
 ## [0.8.2] - 2026-08-11
 
 0.8.1 with a fixed release workflow, and nothing else. No rule, option, preset or message

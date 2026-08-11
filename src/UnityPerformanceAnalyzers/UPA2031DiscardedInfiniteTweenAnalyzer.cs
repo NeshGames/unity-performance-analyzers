@@ -14,6 +14,7 @@ namespace UnityPerformanceAnalyzers
     /// its target. Registered only when the compilation references the DOTween assembly.
     /// </summary>
     [ConditionalRule("DOTween")]
+    [UpaClaim(UpaClaimKind.Correctness)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA2031DiscardedInfiniteTweenAnalyzer : UpaAnalyzer
     {

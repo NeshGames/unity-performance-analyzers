@@ -18,6 +18,7 @@ namespace UnityPerformanceAnalyzers
     /// to be suppressed locally (docs/rules/UPA3004.md).
     /// </summary>
     [ConditionalRule("WebGL")]
+    [UpaClaim(UpaClaimKind.Correctness)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA3004BlockingWaitAnalyzer : UpaAnalyzer
     {

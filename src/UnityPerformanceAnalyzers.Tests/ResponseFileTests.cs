@@ -9,7 +9,7 @@ using Xunit;
 namespace UnityPerformanceAnalyzers.Tests
 {
     /// <summary>
-    /// Response files and compile-error detail — specification cases 48 to 60.
+    /// Response files and compile-error detail.
     ///
     /// Both exist because of what happened when the documented gate setup was run against a
     /// real assembly: Unity's own compile arguments for one package come to about 34,000

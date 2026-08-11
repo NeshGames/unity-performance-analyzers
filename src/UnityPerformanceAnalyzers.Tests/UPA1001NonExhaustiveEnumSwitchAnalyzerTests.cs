@@ -249,5 +249,228 @@ class C
             var descriptor = Assert.Single(new UPA1001NonExhaustiveEnumSwitchAnalyzer().SupportedDiagnostics);
             Assert.True(descriptor.IsEnabledByDefault);
         }
+
+        // ---------------------------------------------------------------------------------
+        // Flags detection by syntax rather than by value.
+        //
+        // The corpus found VehicleLight: no [Flags], but Front = FrontLeft | FrontRight and
+        // All = Front | Rear, so the rule demanded cases for bit masks. Judging by value looks
+        // like the fix and is not one - Priority { Low = 1, Medium = 2, High = 3 } has 3 == 1|2,
+        // so a value test silences the rule on an ordinary enum and leaves no trace that it did.
+        // ---------------------------------------------------------------------------------
+
+        /// <summary>the corpus shape.</summary>
+        [Fact]
+        public Task BitwiseOrInitializer_WithoutFlagsAttribute_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+enum VehicleLight
+{
+    FrontLeft = 1, FrontRight = 2, RearLeft = 4, RearRight = 8,
+    Front = FrontLeft | FrontRight,
+    Rear = RearLeft | RearRight,
+    All = Front | Rear
+}
+
+class C
+{
+    void M(VehicleLight light)
+    {
+        switch (light)
+        {
+            case VehicleLight.FrontLeft: break;
+            case VehicleLight.FrontRight: break;
+            case VehicleLight.RearLeft: break;
+            case VehicleLight.RearRight: break;
+        }
+    }
+}");
+        }
+
+        /// <summary>
+        /// the reason the criterion is syntactic. 3 == 1 | 2, so a value-based
+        /// flags test would judge this enum flags-like and report nothing here, forever.
+        /// </summary>
+        [Fact]
+        public Task SequentialEnum_WhoseThirdValueIsTheOrOfTheFirstTwo_Triggers()
+        {
+            return VerifyAsync(@"
+enum Priority { Low = 1, Medium = 2, High = 3 }
+
+class C
+{
+    void M(Priority p)
+    {
+        switch ({|UPA1001:p|})
+        {
+            case Priority.Low: break;
+            case Priority.Medium: break;
+        }
+    }
+}");
+        }
+
+        /// <summary>literals only, zero present.</summary>
+        [Fact]
+        public Task LiteralValues_WithZeroMember_Triggers()
+        {
+            return VerifyAsync(@"
+enum Mode { None = 0, A = 1, B = 2, C = 4 }
+
+class C
+{
+    void M(Mode m)
+    {
+        switch ({|UPA1001:m|})
+        {
+            case Mode.None: break;
+            case Mode.A: break;
+            case Mode.B: break;
+        }
+    }
+}");
+        }
+
+        /// <summary>powers of two are not, on their own, flags.</summary>
+        [Fact]
+        public Task PowersOfTwoWrittenAsLiterals_Triggers()
+        {
+            return VerifyAsync(@"
+enum Size { Small = 1, Medium = 2, Large = 4 }
+
+class C
+{
+    void M(Size s)
+    {
+        switch ({|UPA1001:s|})
+        {
+            case Size.Small: break;
+            case Size.Medium: break;
+        }
+    }
+}");
+        }
+
+        /// <summary>a same-value alias is not a composite member.</summary>
+        [Fact]
+        public Task SameValueAlias_IsNotAComposite_Triggers()
+        {
+            return VerifyAsync(@"
+enum E { A = 1, Dup = 1, B = 2 }
+
+class C
+{
+    void M(E e)
+    {
+        switch ({|UPA1001:e|})
+        {
+            case E.A: break;
+        }
+    }
+}");
+        }
+
+        /// <summary>a negative literal is not a signal either.</summary>
+        [Fact]
+        public Task NegativeLiteral_Triggers()
+        {
+            return VerifyAsync(@"
+enum E { Sign = int.MinValue, A = 1, B = 2 }
+
+class C
+{
+    void M(E e)
+    {
+        switch ({|UPA1001:e|})
+        {
+            case E.Sign: break;
+            case E.A: break;
+        }
+    }
+}");
+        }
+
+        /// <summary>
+        /// the shape both value formulations miss. 1|2|4|8 never equals ~0, so a
+        /// value test finds no composite member and reports; the `~` says what the author meant.
+        /// </summary>
+        [Fact]
+        public Task BitwiseNotInitializer_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+enum E { A = 1, B = 2, C = 4, D = 8, All = ~0 }
+
+class C
+{
+    void M(E e)
+    {
+        switch (e)
+        {
+            case E.A: break;
+            case E.B: break;
+        }
+    }
+}");
+        }
+
+        /// <summary>a shift is the other common way to write a flag.</summary>
+        [Fact]
+        public Task ShiftInitializer_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+enum E { A = 1, B = 1 << 1, C = 1 << 2 }
+
+class C
+{
+    void M(E e)
+    {
+        switch (e)
+        {
+            case E.A: break;
+        }
+    }
+}");
+        }
+
+        /// <summary>the attribute still stands on its own.</summary>
+        [Fact]
+        public Task FlagsAttribute_WithLiteralValues_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+[System.Flags]
+enum E { A = 1, B = 2, C = 4 }
+
+class C
+{
+    void M(E e)
+    {
+        switch (e)
+        {
+            case E.A: break;
+        }
+    }
+}");
+        }
+
+        /// <summary>
+        /// the documented degradation. A metadata-only enum has values but no
+        /// syntax, so an unattributed bitwise-combination enum from a referenced assembly is
+        /// analysed as an ordinary one. Pinned so nobody "fixes" it back into a value test.
+        /// </summary>
+        [Fact]
+        public Task MetadataOnlyEnum_WithoutFlagsAttribute_IsAnalysedNormally()
+        {
+            return VerifyAsync(@"
+class C
+{
+    void M(System.DayOfWeek d)
+    {
+        switch ({|UPA1001:d|})
+        {
+            case System.DayOfWeek.Monday: break;
+        }
+    }
+}");
+        }
     }
 }

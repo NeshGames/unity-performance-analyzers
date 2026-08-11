@@ -23,6 +23,7 @@ namespace UnityPerformanceAnalyzers
     /// rule in its ruleset keeps the behaviour it had.
     /// </remarks>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0022HasFlagAnalyzer : UpaAnalyzer
     {

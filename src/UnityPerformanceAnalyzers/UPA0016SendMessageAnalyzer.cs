@@ -12,6 +12,7 @@ namespace UnityPerformanceAnalyzers
     /// dispatch is orders of magnitude slower than a direct call and defers errors to runtime,
     /// so this rule reports everywhere, not just on hot paths.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0016SendMessageAnalyzer : UpaAnalyzer
     {

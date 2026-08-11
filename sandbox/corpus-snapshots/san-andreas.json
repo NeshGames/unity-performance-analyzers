@@ -1,0 +1,21 @@
+{
+  "project": "san-andreas",
+  "licence": "MIT License",
+  "kind": "game",
+  "commit": "f685c437f48721afc0787f27d22c85d96e8684c7",
+  "mode": "preset-recommended",
+  "files": 292,
+  "compileErrors": 1305,
+  "analyzerFailures": 0,
+  "total": 7,
+  "bySeverity": {
+    "info": 2,
+    "warning": 5
+  },
+  "byRule": {
+    "UPA0003": 1,
+    "UPA0028": 2,
+    "UPA0031": 2,
+    "UPA1001": 2
+  }
+}

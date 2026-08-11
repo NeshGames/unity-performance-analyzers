@@ -30,7 +30,7 @@
     <Rule Id="UPA0016" Action="None" />
     <Rule Id="UPA0017" Action="None" />
     <Rule Id="UPA0018" Action="None" />
-    <Rule Id="UPA0019" Action="None" />
+    <Rule Id="UPA0019" Action="Warning" />
     <Rule Id="UPA0020" Action="None" />
     <Rule Id="UPA0021" Action="None" />
     <Rule Id="UPA0022" Action="None" />
@@ -50,7 +50,7 @@
     <Rule Id="UPA2012" Action="None" />
     <Rule Id="UPA2021" Action="None" />
     <Rule Id="UPA2030" Action="None" />
-    <Rule Id="UPA2031" Action="None" />
+    <Rule Id="UPA2031" Action="Warning" />
     <Rule Id="UPA2032" Action="None" />
     <Rule Id="UPA3000" Action="None" />
     <Rule Id="UPA3001" Action="None" />

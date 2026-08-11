@@ -12,6 +12,7 @@ namespace UnityPerformanceAnalyzers
     /// (matched by parameter name; Ray-based overloads included). Unbounded raycasts scan the
     /// whole scene across all layers — a performance and correctness hazard.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0010UnboundedRaycastAnalyzer : UpaAnalyzer
     {

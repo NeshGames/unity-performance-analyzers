@@ -133,7 +133,7 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 |---|---|---|---|---|---|---|
 | **UPA0001** | 逐幀方法內的 `GetComponent` 家族 | ● *Avoid usage of GetComponent methods in performance critical context* | ◐ UNT0026、◐ UNT0039 | ? PAC——API 資料庫含 `GetComponent` | ○ | Rider 更強(會跨呼叫傳播)。用 Rider 就在 `.editorconfig` 靜音;**ruleset 裡保留**——這是最值得設成關卡的一條 |
 | **UPA0002** | 逐幀方法內存取 `name` / `tag` | ◐ *Use CompareTag instead of explicit string comparison*——較窄 | ◐ UNT0002 *Inefficient tag comparison*——較窄 | ? PAC | ○ | 保留。兩個替代方案都只涵蓋「比較」那個形狀;`name` 存取與單純讀 `tag` 兩者都不管 |
-| **UPA0003** | 以字串存取 shader / animator 屬性 | ● *Avoid using string based names…* | ● UNT0041(重複呼叫才建議 `StringToHash`) | ? PAC | ○ | 三方真重疊。若你的 ruleset 已評級 UNT0041,可考慮全專案 `UPA0003 = none`;否則保留——UNT0041 需要重複,UPA0003 不需要 |
+| **UPA0003** | 以字串存取 shader / animator 屬性 | ● *Avoid using string based names…* | ● UNT0041(重複呼叫才建議 `StringToHash`) | ? PAC | ○ | 重疊比看起來窄。**保留。** UNT0041 只看得到 `Animator`;在三個真實遊戲上實測,14 則 UPA0003 裡只有 1 則是 Animator 呼叫而且那是誤報,3 則真陽性全是 UNT0041 看不到的 `Material` / `MaterialPropertyBlock`(2026-08-11) |
 | **UPA0004** | 逐幀方法內的實體化存取子(`Renderer.material` 等) | ○ | ○ | ? PAC(材質實體化是已知描述子) | ○ | **保留。** 具辨識度的規則;重點是洩漏,不只是成本 |
 | **UPA0005** | 直接呼叫 `Debug.Log`(預設關閉) | ● *Avoid usage of Debug.Log methods in performance critical context*——僅限熱路徑 | ○ | ◐ | ○ | 範圍不同:UPA0005 不限熱路徑。反正預設關閉,要開就是刻意開 |
 | **UPA0006** | 逐幀方法內的參考型別配置 / boxing | ○ | ○ | ● PAC 的 boxing / 物件配置診斷 | ○ | **保留。** Project Auditor 這塊做得好,但只在批次 Editor 執行時。這是逐 PR 的版本 |
@@ -274,7 +274,11 @@ Rider 與 Microsoft.Unity.Analyzers 都與平台無關。
 
 ### `vs-coexist.ruleset` —— include `recommended`
 
-設為 `None`:**UPA0003**(讓渡給 UNT0041)。
+不再把任何規則設為 `None`。原本把 UPA0003 讓渡給 UNT0041;在三個真實 Unity 遊戲上實測後,
+那個交換換到的是 1 則誤報、付出的是全部 3 則真陽性——因為 UNT0041 只看得到 `Animator`,
+而本規則真正抓到的都在 `Material` 與 `MaterialPropertyBlock`。
+Roslyn 的嚴重度無法只針對 Animator 多載,因此沒有「部分讓位」這個選項。
+檔案保留,以免已出貨版本公布過的路徑失效。
 
 刻意很小。Microsoft.Unity.Analyzers 主要是正確性規則與抑制器,真正的效能重疊只有一條。
 

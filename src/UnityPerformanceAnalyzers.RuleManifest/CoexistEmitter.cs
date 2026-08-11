@@ -51,8 +51,10 @@ public static class CoexistEmitter
         var sb = new StringBuilder();
 
         sb.Append("<?xml version=" + quote + "1.0" + quote + " encoding=" + quote + "utf-8" + quote + "?>\n");
-        sb.Append("<!-- unity-performance-analyzers coexistence ruleset: defers to ")
-          .Append(coexist.Defers).Append(".\n\n");
+        sb.Append("<!-- unity-performance-analyzers coexistence ruleset: ");
+        sb.Append(coexist.Rules.Length == 0
+            ? "nothing is deferred to " + coexist.Defers + ".\n\n"
+            : "defers to " + coexist.Defers + ".\n\n");
         sb.Append("     Copy this file and ").Append(coexist.Base)
           .Append(".ruleset into Assets/, then rename\n");
         sb.Append("     this one Default.ruleset. To defer from a different base preset, change the\n");
@@ -93,6 +95,22 @@ public static class CoexistEmitter
     private static string EditorConfig(PresetTable.Coexist coexist)
     {
         var sb = new StringBuilder();
+
+        // An overlay with nothing to defer needs a header that says so. The standard one
+        // promises deferral above an empty body, which reads as a file that failed to
+        // generate rather than one whose answer is "nothing".
+        if (coexist.Rules.Length == 0)
+        {
+            sb.Append("# unity-performance-analyzers coexistence with ").Append(coexist.Defers)
+              .Append(": nothing is deferred.\n#\n");
+            foreach (var line in Wrap(coexist.Caveat))
+            {
+                sb.Append("# ").Append(line).Append('\n');
+            }
+
+            sb.Append(GeneratedNotice("# "));
+            return sb.ToString();
+        }
 
         sb.Append("# unity-performance-analyzers coexistence: defers to ")
           .Append(coexist.Defers).Append(" (IDE only).\n");

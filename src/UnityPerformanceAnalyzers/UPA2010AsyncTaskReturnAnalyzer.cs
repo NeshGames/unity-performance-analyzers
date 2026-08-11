@@ -14,6 +14,7 @@ namespace UnityPerformanceAnalyzers
     /// excluded: their signatures cannot be changed unilaterally (docs/rules/UPA2010.md).
     /// </summary>
     [ConditionalRule("UniTask")]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA2010AsyncTaskReturnAnalyzer : UpaAnalyzer
     {

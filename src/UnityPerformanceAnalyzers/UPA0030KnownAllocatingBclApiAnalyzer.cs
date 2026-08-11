@@ -19,6 +19,7 @@ namespace UnityPerformanceAnalyzers
     /// a single call from being reported twice.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0030KnownAllocatingBclApiAnalyzer : UpaAnalyzer
     {

@@ -12,6 +12,7 @@ namespace UnityPerformanceAnalyzers
     /// not reported — UNT0002 (Microsoft.Unity.Analyzers) owns that case.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0002NameTagAccessAnalyzer : UpaAnalyzer
     {

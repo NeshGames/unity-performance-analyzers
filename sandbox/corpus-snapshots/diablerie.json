@@ -1,0 +1,25 @@
+{
+  "project": "diablerie",
+  "licence": "MIT License",
+  "kind": "game",
+  "commit": "9e42ef257228257825ebbbeb905d4b1d894b6e98",
+  "mode": "preset-recommended",
+  "files": 161,
+  "compileErrors": 170,
+  "analyzerFailures": 0,
+  "total": 24,
+  "bySeverity": {
+    "info": 7,
+    "warning": 17
+  },
+  "byRule": {
+    "UPA0001": 1,
+    "UPA0002": 1,
+    "UPA0003": 4,
+    "UPA0006": 7,
+    "UPA0015": 4,
+    "UPA0031": 3,
+    "UPA1001": 1,
+    "UPA2000": 3
+  }
+}

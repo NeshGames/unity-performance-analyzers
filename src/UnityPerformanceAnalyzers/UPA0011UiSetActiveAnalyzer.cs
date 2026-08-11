@@ -12,6 +12,7 @@ namespace UnityPerformanceAnalyzers
     /// intentional and cannot be judged statically, so plain GameObject receivers are never
     /// reported. Each UI branch registers only when its type exists in the compilation.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0011UiSetActiveAnalyzer : UpaAnalyzer
     {

@@ -27,7 +27,7 @@ dotnet_diagnostic.UPA0017.severity = warning
 dotnet_diagnostic.UPA0018.severity = warning
 dotnet_diagnostic.UPA0019.severity = warning
 dotnet_diagnostic.UPA0020.severity = none
-dotnet_diagnostic.UPA0021.severity = warning
+dotnet_diagnostic.UPA0021.severity = none
 dotnet_diagnostic.UPA0022.severity = none
 dotnet_diagnostic.UPA0023.severity = none
 dotnet_diagnostic.UPA0024.severity = none
@@ -37,7 +37,7 @@ dotnet_diagnostic.UPA0027.severity = warning
 dotnet_diagnostic.UPA0028.severity = warning
 dotnet_diagnostic.UPA0029.severity = warning
 dotnet_diagnostic.UPA0030.severity = warning
-dotnet_diagnostic.UPA0031.severity = warning
+dotnet_diagnostic.UPA0031.severity = suggestion
 dotnet_diagnostic.UPA1000.severity = none
 dotnet_diagnostic.UPA2000.severity = warning
 dotnet_diagnostic.UPA2010.severity = none
@@ -85,6 +85,35 @@ dotnet_diagnostic.UNT0042.severity = warning
 
 # Editor tooling: relax performance pressure (IDE side; for Unity builds place
 # editor-relaxed.ruleset as Default.ruleset in your Editor asmdef folders)
-[**/Editor/**/*.cs]
-dotnet_analyzer_diagnostic.category-Performance.severity = suggestion
+#
+# Both the glob and the per-rule keys below are load-bearing, and this section
+# relaxed nothing at all before 0.9.0 because each was written the other way:
+#   - `**.cs`, not `**/*.cs`. The latter does not match a file sitting directly
+#     in an Editor folder, which is where nearly every editor script sits.
+#   - one line per rule id, not a category line. Severity by rule id outranks
+#     severity by category however specific the section is, so a category line
+#     here always lost to the [*.cs] entries above.
+[**/Editor/**.cs]
+dotnet_diagnostic.UPA0001.severity = suggestion
+dotnet_diagnostic.UPA0002.severity = suggestion
+dotnet_diagnostic.UPA0003.severity = suggestion
+dotnet_diagnostic.UPA0004.severity = suggestion
+dotnet_diagnostic.UPA0006.severity = suggestion
+dotnet_diagnostic.UPA0007.severity = suggestion
+dotnet_diagnostic.UPA0008.severity = suggestion
+dotnet_diagnostic.UPA0009.severity = suggestion
+dotnet_diagnostic.UPA0010.severity = suggestion
+dotnet_diagnostic.UPA0014.severity = suggestion
+dotnet_diagnostic.UPA0015.severity = suggestion
+dotnet_diagnostic.UPA0016.severity = suggestion
+dotnet_diagnostic.UPA0017.severity = suggestion
+dotnet_diagnostic.UPA0018.severity = suggestion
+dotnet_diagnostic.UPA0025.severity = suggestion
+dotnet_diagnostic.UPA0026.severity = suggestion
+dotnet_diagnostic.UPA0027.severity = suggestion
+dotnet_diagnostic.UPA0029.severity = suggestion
+dotnet_diagnostic.UPA0030.severity = suggestion
+dotnet_diagnostic.UPA0031.severity = suggestion
+dotnet_diagnostic.UPA2000.severity = suggestion
+dotnet_diagnostic.UPA2030.severity = suggestion
 dotnet_diagnostic.UPA0005.severity = none

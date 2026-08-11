@@ -13,6 +13,7 @@ namespace UnityPerformanceAnalyzers
     /// accessors are not reported.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0004InstantiatingAccessorAnalyzer : UpaAnalyzer
     {

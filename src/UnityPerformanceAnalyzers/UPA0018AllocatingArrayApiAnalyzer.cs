@@ -22,6 +22,7 @@ namespace UnityPerformanceAnalyzers
     /// deliberately excluded — other analyzers own them.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0018AllocatingArrayApiAnalyzer : UpaAnalyzer
     {

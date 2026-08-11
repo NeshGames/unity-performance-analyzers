@@ -1,10 +1,10 @@
-# unity-performance-analyzers coexistence: defers to Microsoft.Unity.Analyzers (IDE only).
-# Append to your project .editorconfig. Unity does not read .editorconfig
-# (verified 2022.3/6000.5), so these rules keep reporting in Unity builds and in
-# upa-cli: you lose the duplicate squiggle and keep the gate. Use the .ruleset of
-# the same name only if you want them gone from builds too.
+# unity-performance-analyzers coexistence with Microsoft.Unity.Analyzers: nothing is deferred.
+#
+# Nothing is deferred. The one overlap - UPA0003 against UNT0041 - was
+# measured on three real Unity games and is not worth taking: UNT0041 only
+# sees Animator, which was one finding in fourteen and a false positive,
+# while the rule's three true positives were all Material and
+# MaterialPropertyBlock calls it cannot see. Include this file if you want
+# the recommended preset; it adds nothing else.
 # GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;
 # regenerate via the RuleManifest presets mode.
-[*.cs]
-# UNT0041 covers repeated string-based property access via Animator.StringToHash
-dotnet_diagnostic.UPA0003.severity = none

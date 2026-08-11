@@ -16,6 +16,7 @@ namespace UnityPerformanceAnalyzers
     /// </summary>
     [HotPathRule]
     [ConditionalRule("DOTween")]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA2030TweenCreationAnalyzer : UpaAnalyzer
     {

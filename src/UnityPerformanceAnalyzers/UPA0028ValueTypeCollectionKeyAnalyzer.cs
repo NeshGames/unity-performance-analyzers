@@ -22,6 +22,7 @@ namespace UnityPerformanceAnalyzers
     /// Not hot-path scoped: this is a property of how the type is used, and a lookup on a
     /// badly-keyed dictionary costs the same wherever it happens.
     /// </summary>
+    [UpaClaim(UpaClaimKind.Correctness)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0028ValueTypeCollectionKeyAnalyzer : UpaAnalyzer
     {

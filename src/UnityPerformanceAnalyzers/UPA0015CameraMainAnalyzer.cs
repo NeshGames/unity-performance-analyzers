@@ -11,6 +11,7 @@ namespace UnityPerformanceAnalyzers
     /// so the residual cost is small — the rule reports at Info level.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0015CameraMainAnalyzer : UpaAnalyzer
     {

@@ -17,6 +17,7 @@ namespace UnityPerformanceAnalyzers
     /// and those conversions alone so one cost yields one diagnostic.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0027ParamsArrayAllocationAnalyzer : UpaAnalyzer
     {

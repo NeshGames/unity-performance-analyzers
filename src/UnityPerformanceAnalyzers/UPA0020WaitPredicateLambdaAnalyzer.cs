@@ -12,6 +12,7 @@ namespace UnityPerformanceAnalyzers
     /// yield instruction and its predicate in fields. No flow analysis is performed, so a
     /// construction that provably runs once still reports — disabled by default.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0020WaitPredicateLambdaAnalyzer : UpaAnalyzer
     {

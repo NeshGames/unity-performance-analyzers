@@ -454,10 +454,10 @@
     <value>逐幀方法內 Instantiate 或 Destroy</value>
   </data>
   <data name="UPA0031MessageFormat" xml:space="preserve">
-    <value>在逐幀路徑上實體化 '{0}',每幀都會配置並初始化一個新物件。請從物件池取用,用完再歸還。</value>
+    <value>在逐幀方法中實體化 '{0}'。若這行不只偶爾執行,請從物件池取用,用完再歸還。</value>
   </data>
   <data name="UPA0031MessageFormatDestroy" xml:space="preserve">
-    <value>在逐幀路徑上銷毀 '{0}',每幀都把一個物件排入回收佇列。請改為歸還物件池,而不是銷毀它。</value>
+    <value>在逐幀方法中銷毀 '{0}',而銷毀只是把物件排入回收佇列,並未立即釋放。若這行不只偶爾執行,請改為歸還物件池。</value>
   </data>
   <data name="UPA0031Description" xml:space="preserve">
     <value>每幀建立與銷毀物件會產生垃圾回收器必須回收的垃圾,而 Unity 的物件建構並不便宜。請改為從物件池重複使用實例。</value>

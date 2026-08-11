@@ -59,9 +59,17 @@ namespace UnityPerformanceAnalyzers.Tests
                 // already holds at none is inert here and says so in the table; a file where
                 // every entry is inert is a file that does nothing, which is the failure the
                 // include direction would otherwise have produced silently.
-                Assert.True(
-                    genuinelySilenced > 0,
-                    $"{ruleset} silences nothing the {coexist.Base} preset was reporting");
+                //
+                // An overlay with no entries at all is a different thing and is allowed: the
+                // vs one is deliberately empty, because the single overlap it used to defer
+                // was measured and gave up three true positives to buy one false one. What
+                // this assertion guards against is entries that look effective and are not.
+                if (coexist.Rules.Length > 0)
+                {
+                    Assert.True(
+                        genuinelySilenced > 0,
+                        $"{ruleset} silences nothing the {coexist.Base} preset was reporting");
+                }
 
                 // The other half of the composition: the base has to still apply. Without the
                 // Include the file is a bare list of disables, which silences its own rules

@@ -13,6 +13,7 @@ namespace UnityPerformanceAnalyzers
     /// against the Resources system is broader than the per-frame case this rule enforces.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0024ResourcesLoadAnalyzer : UpaAnalyzer
     {

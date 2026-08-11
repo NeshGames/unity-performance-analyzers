@@ -40,7 +40,11 @@ public static class PresetTable
         new("UPA0018", "none", "warning", "error", "error"),
         new("UPA0019", "none", "warning", "error", "error"),
         new("UPA0020", "none", "none", "warning", "error"),
-        new("UPA0021", "none", "warning", "error", "error"),
+        // Held at none everywhere until an IL2CPP measurement exists. Grading it in a preset
+        // would put the unmeasured claim back in front of users through the channel that
+        // actually decides severity, which is the whole reason the descriptor alone is not
+        // enough. Restore the none/warning/error/error row together with the measurement.
+        new("UPA0021", "none", "none", "none", "none"),
         // Deprecated: HasFlag does not box on any supported runtime and the
         // bitwise rewrite measures slower on IL2CPP. Held at none everywhere rather than
         // dropped from the table, so a preset actively silences it instead of leaving it
@@ -56,7 +60,10 @@ public static class PresetTable
         // and the gain is negligible on small collections.
         new("UPA0029", "none", "warning", "warning", "warning"),
         new("UPA0030", "none", "warning", "error", "error"),
-        new("UPA0031", "none", "warning", "error", "error"),
+        // info, matching the descriptor. Five findings on real games, none of them a per-frame
+        // create or destroy; strict and cysharp do not raise it, because raising a rule the
+        // corpus has never seen fire correctly is how a gate starts costing more than it saves.
+        new("UPA0031", "none", "info", "info", "info"),
         // Deprecated: sealing a leaf class measured 2.70 ns against 3.00 ns
         // unsealed on IL2CPP, a difference the spread of the same eight runs swallows. Held
         // at none for the reason UPA0022 is: a preset that silences it says so, where a
@@ -82,7 +89,17 @@ public static class PresetTable
     /// per-frame cost has no reason to be switched off there. UPA0028 is about how a type is
     /// declared, and a struct used as a dictionary key is just as wrong in an editor window.
     /// </summary>
-    public static readonly string[] EditorRelaxedExceptions = { "UPA0028" };
+    /// <remarks>
+    /// Read from the analyzers' own <c>[UpaClaim]</c> rather than kept as a list, and not
+    /// derived from the diagnostic category either. Category gives the wrong answer: UPA0019
+    /// is filed under Performance and reports a defect — Unity reads a boxed yield as
+    /// <c>null</c> — so a category rule quietly downgrades it in editor folders while the
+    /// analyzer's own editor-only filter, which does read the claim, leaves it reporting. Two
+    /// mechanisms disagreeing about one rule is exactly the silent failure this release is
+    /// about, so they now read the same source.
+    /// </remarks>
+    public static readonly string[] EditorRelaxedExceptions =
+        UpaClaims.RuleIdsClaiming(UpaClaimKind.Correctness);
 
     /// <summary>True when the rule keeps its severity in the editor-relaxed variants.</summary>
     public static bool IsEditorRelaxedException(string id) =>
@@ -174,17 +191,27 @@ public static class PresetTable
             + "these rules from Unity compiles and from upa-cli as well, which leaves a tool "
             + "that cannot gate as your only coverage. The .editorconfig variant next to this "
             + "file silences them in the IDE only, and is the better default."),
+        // Deliberately empty. This overlay used to defer UPA0003 to UNT0041, and measurement
+        // on real game code showed that trade is a bad one: of fourteen UPA0003 findings only
+        // one was on an Animator - the single thing UNT0041 can see - and that one was a false
+        // positive. The other thirteen were Material and MaterialPropertyBlock calls, and all
+        // three of the rule's true positives were among them. Deferring bought one false
+        // positive and gave up every real finding.
+        //
+        // Roslyn severities cannot be scoped to the Animator overloads, so a partial deferral
+        // is not available and nothing is left to defer. The file is kept rather than removed
+        // so paths published in earlier releases keep resolving, and so the reason is written
+        // down where the next person to notice the overlap will look.
         new(
             "vs",
             "Microsoft.Unity.Analyzers",
             "recommended",
-            new[]
-            {
-                ("UPA0003", "UNT0041 covers repeated string-based property access via Animator.StringToHash"),
-            },
-            "Small on purpose: Microsoft.Unity.Analyzers is mostly correctness rules and "
-            + "suppressors, so the performance overlap is one rule. UNT0041 needs the call to "
-            + "repeat before it reports and UPA0003 does not, so this trades some coverage."),
+            System.Array.Empty<(string, string)>(),
+            "Nothing is deferred. The one overlap - UPA0003 against UNT0041 - was measured on "
+            + "three real Unity games and is not worth taking: UNT0041 only sees Animator, "
+            + "which was one finding in fourteen and a false positive, while the rule's three "
+            + "true positives were all Material and MaterialPropertyBlock calls it cannot see. "
+            + "Include this file if you want the recommended preset; it adds nothing else."),
         new(
             "unitask",
             // cysharp-stack rather than recommended: UPA2012 is off in every other preset,

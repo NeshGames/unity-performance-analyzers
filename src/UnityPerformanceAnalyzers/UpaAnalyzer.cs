@@ -23,7 +23,15 @@ namespace UnityPerformanceAnalyzers
         {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-            context.RegisterCompilationStartAction(start => InitializeCore(new UpaCompilationContext(start)));
+
+            // Read off the concrete analyzer rather than passed in by each rule: a rule that
+            // could forget to pass it would go quiet in editor-only methods with nothing in the
+            // output to say so. A contract test requires the attribute on every analyzer.
+            var claim = (UpaClaimAttribute?)System.Attribute.GetCustomAttribute(
+                GetType(), typeof(UpaClaimAttribute));
+
+            context.RegisterCompilationStartAction(
+                start => InitializeCore(new UpaCompilationContext(start, claim?.Kind ?? UpaClaimKind.Correctness)));
         }
 
         /// <summary>

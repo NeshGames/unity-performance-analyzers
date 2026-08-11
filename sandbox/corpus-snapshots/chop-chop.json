@@ -1,0 +1,21 @@
+{
+  "project": "chop-chop",
+  "licence": "Apache License",
+  "kind": "game",
+  "commit": "608eac98df29cd97821a6115cd52dfb9027345b1",
+  "mode": "preset-recommended",
+  "files": 295,
+  "compileErrors": 516,
+  "analyzerFailures": 0,
+  "total": 13,
+  "bySeverity": {
+    "info": 1,
+    "warning": 12
+  },
+  "byRule": {
+    "UPA0003": 5,
+    "UPA0010": 1,
+    "UPA0029": 2,
+    "UPA1001": 5
+  }
+}

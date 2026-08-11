@@ -27,6 +27,7 @@ namespace UnityPerformanceAnalyzers
     /// Global by default; <c>upa_addrange_hot_path_only</c> narrows it to hot paths for
     /// projects that only care there.
     /// </summary>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0029SequentialAddAnalyzer : UpaAnalyzer
     {

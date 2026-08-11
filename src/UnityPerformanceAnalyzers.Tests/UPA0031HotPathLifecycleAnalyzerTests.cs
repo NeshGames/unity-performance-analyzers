@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -163,6 +164,63 @@ class C : MonoBehaviour
         Destroy(spawned);
     }
 }");
+        }
+
+        /// <summary>
+        /// The message must not claim a frequency the rule cannot observe. It matches a
+        /// syntactic position; saying "every frame" describes execution, which needs flow
+        /// analysis this rule does not do. Measured on three real games: five findings, and
+        /// every one sat behind a one-shot guard, so the old wording was wrong every time.
+        /// </summary>
+        [Theory]
+        [InlineData("UPA0031MessageFormat")]
+        [InlineData("UPA0031MessageFormatDestroy")]
+        public void Message_DoesNotAssertAFrequencyTheRuleCannotObserve(string key)
+        {
+            var message = LocalizedText(key);
+
+            Assert.DoesNotContain("every frame", message, System.StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("每幀", LocalizedText(key, "zh-Hant"));
+        }
+
+        /// <summary>messageFormat is two sentences - the problem, then what to do.</summary>
+        [Theory]
+        [InlineData("UPA0031MessageFormat")]
+        [InlineData("UPA0031MessageFormatDestroy")]
+        public void Message_IsTwoSentences(string key)
+        {
+            var sentences = LocalizedText(key)
+                .Split('.', System.StringSplitOptions.RemoveEmptyEntries)
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .Count();
+
+            Assert.Equal(2, sentences);
+        }
+
+        /// <summary>
+        /// Reads the shipped .resx directly rather than through the generated accessor, so the
+        /// assertion is about what users receive and not about a constant that happens to agree.
+        /// </summary>
+        private static string LocalizedText(string key, string culture = "")
+        {
+            var suffix = culture.Length == 0 ? string.Empty : "." + culture;
+            // Anchored on the assembly location: other tests here change the working directory
+            // and xUnit runs collections in parallel.
+            var dir = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
+            while (dir is not null && !System.IO.Directory.Exists(System.IO.Path.Combine(dir.FullName, "package")))
+            {
+                dir = dir.Parent;
+            }
+
+            Assert.NotNull(dir);
+            var path = System.IO.Path.Combine(
+                dir!.FullName,
+                "src", "UnityPerformanceAnalyzers", "Resources", "Strings" + suffix + ".resx");
+            var doc = System.Xml.Linq.XDocument.Load(path);
+            var entry = doc.Root!
+                .Elements("data")
+                .Single(element => (string?)element.Attribute("name") == key);
+            return entry.Element("value")!.Value;
         }
     }
 }

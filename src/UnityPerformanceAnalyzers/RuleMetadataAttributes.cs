@@ -14,6 +14,44 @@ namespace UnityPerformanceAnalyzers
     {
     }
 
+    /// <summary>What kind of claim a rule makes about the code it reports.</summary>
+    /// <remarks>
+    /// The distinction decides whether a finding survives in code Unity strips from a player
+    /// build. Per-frame cost is meaningless in an editor-only method; a defect is not.
+    /// </remarks>
+    public enum UpaClaimKind
+    {
+        /// <summary>The rule reports work that costs something when it repeats.</summary>
+        PerFrameCost,
+
+        /// <summary>The rule reports a defect, which is a defect wherever it runs.</summary>
+        Correctness,
+    }
+
+    /// <summary>
+    /// Declares what kind of claim an analyzer makes. Required on every analyzer, and enforced
+    /// by a contract test rather than by convention.
+    /// </summary>
+    /// <remarks>
+    /// The alternative — deciding per rule from its category, or from a reading of what the
+    /// rule "is about" — is not mechanically checkable. Ecosystem rules carry both kinds
+    /// (UPA2000 is cost, UPA2012 is correctness), so category cannot answer it, and an
+    /// implementer who guesses wrong produces output indistinguishable from a correct one:
+    /// a rule wrongly treated as cost goes quiet in editor-only methods and leaves no trace.
+    /// </remarks>
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class UpaClaimAttribute : Attribute
+    {
+        /// <summary>Creates the marker with the kind of claim this analyzer makes.</summary>
+        public UpaClaimAttribute(UpaClaimKind kind)
+        {
+            Kind = kind;
+        }
+
+        /// <summary>Whether the rule reports per-frame cost or a defect.</summary>
+        public UpaClaimKind Kind { get; }
+    }
+
     /// <summary>
     /// Marks an analyzer whose verdict depends on the whole compilation rather than on the
     /// code in front of it — a rule that reports the ABSENCE of something elsewhere (for

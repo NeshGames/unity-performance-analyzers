@@ -85,6 +85,13 @@ dotnet_diagnostic.UNT0042.severity = none
 
 # Editor tooling: relax performance pressure (IDE side; for Unity builds place
 # editor-relaxed.ruleset as Default.ruleset in your Editor asmdef folders)
-[**/Editor/**/*.cs]
-dotnet_analyzer_diagnostic.category-Performance.severity = suggestion
+#
+# Both the glob and the per-rule keys below are load-bearing, and this section
+# relaxed nothing at all before 0.9.0 because each was written the other way:
+#   - `**.cs`, not `**/*.cs`. The latter does not match a file sitting directly
+#     in an Editor folder, which is where nearly every editor script sits.
+#   - one line per rule id, not a category line. Severity by rule id outranks
+#     severity by category however specific the section is, so a category line
+#     here always lost to the [*.cs] entries above.
+[**/Editor/**.cs]
 dotnet_diagnostic.UPA0005.severity = none

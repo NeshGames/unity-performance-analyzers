@@ -18,6 +18,7 @@ namespace UnityPerformanceAnalyzers
     /// syntax-shaped implementation would miss almost every real occurrence, and miss it
     /// silently.
     /// </remarks>
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     [HotPathRule]
     public sealed class UPA0031HotPathLifecycleAnalyzer : UpaAnalyzer
@@ -28,16 +29,23 @@ namespace UnityPerformanceAnalyzers
         private const string InstantiateName = "Instantiate";
         private const string DestroyName = "Destroy";
 
+        // Info, not Warning. On three real games the rule produced five findings and not one
+        // of them was a per-frame create or destroy -- every one sat behind a one-shot guard,
+        // because an unguarded Destroy in an Update would delete its object on the first frame
+        // and so cannot survive in working code. It stays enabled because the shape it looks
+        // for is real (an Instantiate under a held fire button), but the evidence does not
+        // carry a warning. The presets grade it to match; a descriptor left alone here while
+        // the presets said warning would have changed nothing for anyone who uses one.
         private static readonly DiagnosticDescriptor Rule = UpaDescriptor.Create(
             DiagnosticId,
             DiagnosticCategories.Performance,
-            DiagnosticSeverity.Warning,
+            DiagnosticSeverity.Info,
             isEnabledByDefault: true);
 
         private static readonly DiagnosticDescriptor DestroyRule = UpaDescriptor.Create(
             DiagnosticId,
             DiagnosticCategories.Performance,
-            DiagnosticSeverity.Warning,
+            DiagnosticSeverity.Info,
             isEnabledByDefault: true,
             messageFormatKey: Strings.UPA0031MessageFormatDestroy);
 

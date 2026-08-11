@@ -13,6 +13,7 @@ namespace UnityPerformanceAnalyzers
     /// the compilation — projects without TextMeshPro pay nothing.
     /// </summary>
     [HotPathRule]
+    [UpaClaim(UpaClaimKind.PerFrameCost)]
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class UPA0012TmpTextAssignmentAnalyzer : UpaAnalyzer
     {

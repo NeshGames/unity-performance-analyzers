@@ -175,7 +175,7 @@ upa_enum_switch_allow_default = true
 | [UPA0018](docs/rules/UPA0018.zh-TW.md) | 配置陣列的 Unity 回傳型 API(`Input.touches`、`Animator.parameters`、`Texture2D.GetPixels` 等) | ✓ |
 | [UPA0019](docs/rules/UPA0019.zh-TW.md) | coroutine 內 yield 實值型別(裝箱;Unity 視同 `null`) | |
 | [UPA0020](docs/rules/UPA0020.zh-TW.md) | `WaitUntil` / `WaitWhile` 建構時傳入 lambda *(預設關閉)* | |
-| [UPA0021](docs/rules/UPA0021.zh-TW.md) | 可用 `sqrMagnitude` 取代的 `magnitude` / `Distance` 比較 | |
+| [UPA0021](docs/rules/UPA0021.zh-TW.md) | 可用 `sqrMagnitude` 取代的 `magnitude` / `Distance` 比較 *(預設關閉)* | |
 | [UPA0022](docs/rules/UPA0022.zh-TW.md) | 逐幀方法內的 `Enum.HasFlag` *(預設關閉;已廢止:該呼叫在任何支援的執行環境上都不配置)* | ✓ |
 | [UPA0023](docs/rules/UPA0023.zh-TW.md) | player 程式碼中宣告 `OnGUI` *(Info,預設關閉)* | |
 | [UPA0024](docs/rules/UPA0024.zh-TW.md) | 逐幀方法內的 `Resources.Load` *(預設關閉)* | ✓ |
@@ -185,7 +185,7 @@ upa_enum_switch_allow_default = true
 | [UPA0028](docs/rules/UPA0028.zh-TW.md) | struct 作集合 key 但未實作 `IEquatable<T>` 與覆寫 `GetHashCode` | |
 | [UPA0029](docs/rules/UPA0029.zh-TW.md) | 可用 `AddRange` 一次配置取代的逐個 `Add` 迴圈 | |
 | [UPA0030](docs/rules/UPA0030.zh-TW.md) | 逐幀方法內已知會配置的 `string` / `Enum` 成員 | ✓ |
-| [UPA0031](docs/rules/UPA0031.zh-TW.md) | 逐幀方法內的 `Instantiate` / `Destroy` | ✓ |
+| [UPA0031](docs/rules/UPA0031.zh-TW.md) | 逐幀方法內的 `Instantiate` / `Destroy` *(Info)* | ✓ |
 
 > 非規則:[Enum 作字典 key](docs/rules/enum-dictionary-keys.zh-TW.md) 說明「enum key 會裝箱、
 > 要自備 comparer」這條流傳已久的建議為何已不適用,附 Mono 與 IL2CPP 的實測數據——

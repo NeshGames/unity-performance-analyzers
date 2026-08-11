@@ -30,6 +30,8 @@ namespace UnityPerformanceAnalyzers
         private readonly CompilationStartAnalysisContext _start;
         private readonly Lazy<UpaProfile> _profile;
         private readonly Lazy<HotPathDetector> _hotPath;
+        private readonly UpaClaimKind _claim;
+        private readonly Lazy<INamedTypeSymbol?> _monoBehaviourType;
 
         // RS1012 wants every method taking a start context to register an action, because one
         // that registers nothing is an analyzer that never runs. This one hands the context to
@@ -38,9 +40,13 @@ namespace UnityPerformanceAnalyzers
             "MicrosoftCodeAnalysisCorrectness",
             "RS1012:Start action has no registered non-end actions",
             Justification = "Registration is delegated to the rule through this type.")]
-        internal UpaCompilationContext(CompilationStartAnalysisContext start)
+        internal UpaCompilationContext(CompilationStartAnalysisContext start, UpaClaimKind claim)
         {
             _start = start;
+            _claim = claim;
+            _monoBehaviourType = new Lazy<INamedTypeSymbol?>(
+                () => start.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour"),
+                LazyThreadSafetyMode.ExecutionAndPublication);
 
             // Lazy so a rule that never asks does not pay, and thread-safe because nothing
             // promises the registered actions only touch these from the start callback.
@@ -75,10 +81,40 @@ namespace UnityPerformanceAnalyzers
             => _start.Compilation.GetTypeByMetadataName(metadataName);
 
         public void RegisterOperationAction(Action<OperationAnalysisContext> action, params OperationKind[] operationKinds)
-            => _start.RegisterOperationAction(action, operationKinds);
+            => _start.RegisterOperationAction(
+                ctx =>
+                {
+                    if (SkipsEditorOnly(ctx.Operation.Syntax, ctx.Operation.SemanticModel, ctx.CancellationToken))
+                    {
+                        return;
+                    }
+
+                    action(ctx);
+                },
+                operationKinds);
 
         public void RegisterSyntaxNodeAction(Action<SyntaxNodeAnalysisContext> action, params SyntaxKind[] syntaxKinds)
-            => _start.RegisterSyntaxNodeAction(action, syntaxKinds);
+            => _start.RegisterSyntaxNodeAction(
+                ctx =>
+                {
+                    if (SkipsEditorOnly(ctx.Node, ctx.SemanticModel, ctx.CancellationToken))
+                    {
+                        return;
+                    }
+
+                    action(ctx);
+                },
+                syntaxKinds);
+
+        /// <summary>
+        /// Filtering here rather than in each rule. Forty analyzers each remembering to ask is
+        /// forty chances to forget, and forgetting produces a rule that reports in code Unity
+        /// strips - which looks exactly like a rule working correctly.
+        /// </summary>
+        private bool SkipsEditorOnly(SyntaxNode node, SemanticModel? semanticModel, CancellationToken cancellationToken)
+            => _claim == UpaClaimKind.PerFrameCost
+                && semanticModel is object
+                && EditorOnlyMethods.Contains(node, semanticModel, _monoBehaviourType.Value, cancellationToken);
 
         public void RegisterSymbolAction(Action<SymbolAnalysisContext> action, params SymbolKind[] symbolKinds)
             => _start.RegisterSymbolAction(action, symbolKinds);

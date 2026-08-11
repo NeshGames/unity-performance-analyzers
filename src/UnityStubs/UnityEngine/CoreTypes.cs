@@ -132,4 +132,20 @@ namespace UnityEngine
         public static float Min(float a, float b) => 0f;
         public static float Min(params float[] values) => 0f;
     }
+
+    /// <summary>
+    /// Marks a method invoked from the inspector's context menu. UPA0003 treats such a method
+    /// as one-shot setup, so the attribute has to exist for the negative case to be testable.
+    /// </summary>
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    public sealed class ContextMenu : System.Attribute
+    {
+        public ContextMenu(string itemName)
+        {
+        }
+
+        public ContextMenu(string itemName, bool isValidateFunction)
+        {
+        }
+    }
 }
