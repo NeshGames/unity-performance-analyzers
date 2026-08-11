@@ -1,5 +1,5 @@
 {
-  "version": "0.8.2",
+  "version": "0.9.0",
   "upa": [
     {
       "id": "UPA0001",
@@ -206,7 +206,7 @@
       "title": "magnitude or Distance compared where sqrMagnitude suffices",
       "category": "Performance",
       "defaultSeverity": "Warning",
-      "enabledByDefault": true,
+      "enabledByDefault": false,
       "hotPath": false,
       "condition": null,
       "helpUri": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/docs/rules/UPA0021.md"
@@ -305,7 +305,7 @@
       "id": "UPA0031",
       "title": "Instantiate or Destroy in per-frame method",
       "category": "Performance",
-      "defaultSeverity": "Warning",
+      "defaultSeverity": "Info",
       "enabledByDefault": true,
       "hotPath": true,
       "condition": null,
