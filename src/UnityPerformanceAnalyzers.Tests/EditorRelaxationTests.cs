@@ -24,14 +24,25 @@ namespace UnityPerformanceAnalyzers.Tests;
 /// </remarks>
 public class EditorRelaxationTests
 {
-    private const string EditorFile = @"C:\proj\Assets\Scripts\Tools\Editor\ThingEditor.cs";
-    private const string NestedEditorFile = @"C:\proj\Assets\Editor\Windows\ThingWindow.cs";
-    private const string RuntimeFile = @"C:\proj\Assets\Scripts\Gameplay\Thing.cs";
+    // Absolute on whichever platform is running: Roslyn refuses a config path it does not
+    // consider rooted, and a Windows-shaped literal is not rooted on Linux. These paths name
+    // no real file - only the shape matters - but the shape has to be one the host recognises.
+    private static readonly string ProjectRoot =
+        Path.Combine(Path.GetPathRoot(AppContext.BaseDirectory)!, "proj");
+
+    private static readonly string EditorFile =
+        Path.Combine(ProjectRoot, "Assets", "Scripts", "Tools", "Editor", "ThingEditor.cs");
+
+    private static readonly string NestedEditorFile =
+        Path.Combine(ProjectRoot, "Assets", "Editor", "Windows", "ThingWindow.cs");
+
+    private static readonly string RuntimeFile =
+        Path.Combine(ProjectRoot, "Assets", "Scripts", "Gameplay", "Thing.cs");
 
     private static ReportDiagnostic Resolve(string presetName, string file, string ruleId)
     {
         var text = File.ReadAllText(PresetPath(presetName));
-        var config = AnalyzerConfig.Parse(text, @"C:\proj\.editorconfig");
+        var config = AnalyzerConfig.Parse(text, Path.Combine(ProjectRoot, ".editorconfig"));
         var set = AnalyzerConfigSet.Create(ImmutableArray.Create(config));
         var options = set.GetOptionsForSourcePath(file);
         return options.TreeOptions.TryGetValue(ruleId, out var severity)
