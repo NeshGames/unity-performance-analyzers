@@ -67,6 +67,7 @@ internal static class CompilationBuilder
         // All severity resolution lives in the provider so that file-scoped .editorconfig
         // entries stay file-scoped; nothing goes into the compilation-wide map.
         var compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+            .WithAllowUnsafe(options.AllowUnsafe)
             .WithSyntaxTreeOptionsProvider(SeverityOptionsProvider.Create(
                 editorConfig.SeveritiesByFile,
                 LoadRuleset(options.RulesetPath),

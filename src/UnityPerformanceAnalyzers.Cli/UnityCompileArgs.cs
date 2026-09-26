@@ -12,7 +12,8 @@ internal sealed record UnityCompileArgs(
     ImmutableArray<string> Sources,
     ImmutableArray<string> ProjectReferences,
     ImmutableArray<string> UnityDllDirectories,
-    int DiscardedReferences);
+    int DiscardedReferences,
+    bool AllowUnsafe);
 
 /// <summary>
 /// Reads the response file Unity's build hands to csc.
@@ -50,6 +51,7 @@ internal static class UnityCompileArgsReader
         var projectReferences = ImmutableArray.CreateBuilder<string>();
         var unityDirectories = new SortedSet<string>(StringComparer.Ordinal);
         var discarded = 0;
+        var allowUnsafe = false;
 
         foreach (var raw in File.ReadAllLines(responseFile))
         {
@@ -62,6 +64,16 @@ internal static class UnityCompileArgsReader
             if (line.StartsWith(DefinePrefix, StringComparison.Ordinal))
             {
                 defines.Add(Unquote(line.Substring(DefinePrefix.Length)));
+                continue;
+            }
+
+            // Unity writes it for an assembly definition with allowUnsafeCode, which Burst,
+            // NativeArray pointer access and ZString all need. Dropping it turned every pointer
+            // into CS0227, and under --whole-assembly that is an exit 2 and a baseline that can
+            // never be written. The last spelling wins, as it does for csc.
+            if (UnsafeSwitch(line) is { } unsafeValue)
+            {
+                allowUnsafe = unsafeValue;
                 continue;
             }
 
@@ -97,7 +109,29 @@ internal static class UnityCompileArgsReader
             sources.ToImmutable(),
             projectReferences.ToImmutable(),
             unityDirectories.ToImmutableArray(),
-            discarded);
+            discarded,
+            allowUnsafe);
+    }
+
+    /// <summary>
+    /// The value of an unsafe switch in any of csc's spellings, or null when the line is not
+    /// one. <c>-langversion</c> and <c>-nullable</c> are deliberately not carried: this tool
+    /// parses at C# 9, which is what both supported Unity versions compile at, and a nullable
+    /// context only ever changes warnings, which are never counted as compile errors.
+    /// </summary>
+    private static bool? UnsafeSwitch(string line)
+    {
+        if (line.Length < 2 || (line[0] != '-' && line[0] != '/'))
+        {
+            return null;
+        }
+
+        return line.Substring(1) switch
+        {
+            "unsafe" or "unsafe+" => true,
+            "unsafe-" => false,
+            _ => null,
+        };
     }
 
     /// <summary>

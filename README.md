@@ -346,6 +346,7 @@ called clean.
 | `--unity-dll-dir <dir>` | Use a real Unity managed directory instead of the bundled stubs | `--unity-dll-dir <UnityEditor>/Data/Managed/UnityEngine` |
 | `--all-warn` | Force every rule on at warning, overriding ruleset and editorconfig | `--all-warn` |
 | `--whole-assembly` | Declare the files a complete assembly: enables whole-assembly rules and makes compile errors fatal | `--whole-assembly` |
+| `--unsafe` | Allow unsafe code, as an assembly with `allowUnsafeCode` does (Burst, pointer access, ZString). Without it every pointer is a compile error, which `--whole-assembly` makes fatal. `--init-args` adds it when Unity compiled the assembly with it | `--unsafe` |
 | `--fail-on <level>` | Threshold for exit code 1: `none`, `info`, `warning` (default), `error` | `--fail-on error` |
 | `--baseline <path>` | Suppress the violations recorded in a baseline file, so only new ones are reported | `--baseline upa-baseline.json` |
 | `--write-baseline <path>` | Record the current violations as the baseline. Needs `--whole-assembly`; exits 0 on success | `--write-baseline upa-baseline.json --whole-assembly` |

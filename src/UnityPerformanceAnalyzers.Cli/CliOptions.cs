@@ -29,6 +29,13 @@ internal sealed class CliOptions
     public string? UnityDllDir { get; private set; }
     public bool AllWarn { get; private set; }
     public bool WholeAssembly { get; private set; }
+
+    /// <summary>
+    /// Compile with unsafe code allowed, as an assembly with <c>allowUnsafeCode</c> is. Without
+    /// it every pointer and <c>unsafe</c> block is CS0227, which under --whole-assembly makes
+    /// the run an error and a baseline unwritable.
+    /// </summary>
+    public bool AllowUnsafe { get; private set; }
     public string? BaselinePath { get; private set; }
     public string? WriteBaselinePath { get; private set; }
 
@@ -149,6 +156,9 @@ internal sealed class CliOptions
                     break;
                 case "--whole-assembly":
                     options.WholeAssembly = true;
+                    break;
+                case "--unsafe":
+                    options.AllowUnsafe = true;
                     break;
                 case "--reference":
                     if (TakeValue() is not { } reference) return (null, error);

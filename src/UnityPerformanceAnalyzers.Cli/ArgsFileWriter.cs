@@ -64,6 +64,13 @@ internal static class ArgsFileWriter
         // reference produces no findings rather than wrong ones.
         text.AppendLine("--whole-assembly");
 
+        // Only when Unity compiled the assembly with it: allowing unsafe code in an assembly
+        // that does not would accept pointers the real build rejects.
+        if (args.AllowUnsafe)
+        {
+            text.AppendLine("--unsafe");
+        }
+
         foreach (var define in args.Defines)
         {
             Emit(text, "--define", define);

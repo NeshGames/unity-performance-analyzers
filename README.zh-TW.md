@@ -327,6 +327,7 @@ upa-cli --list-rules
 | `--unity-dll-dir <目錄>` | 改用真實 Unity 組件目錄,而非內建 stub | `--unity-dll-dir <UnityEditor>/Data/Managed/UnityEngine` |
 | `--all-warn` | 強制所有規則以 warning 開啟,蓋過 ruleset 與 editorconfig | `--all-warn` |
 | `--whole-assembly` | 宣告這組檔案構成完整組件:啟用整組件規則,且編譯錯誤變致命 | `--whole-assembly` |
+| `--unsafe` | 允許 unsafe 程式碼,等同 asmdef 勾選 `allowUnsafeCode`(Burst、指標存取、ZString)。少了它每個指標都是編譯錯誤,而 `--whole-assembly` 會讓編譯錯誤變致命。Unity 編譯該組件時有開,`--init-args` 就會自動加上 | `--unsafe` |
 | `--fail-on <等級>` | 退出碼 1 的門檻:`none`、`info`、`warning`(預設)、`error` | `--fail-on error` |
 | `--baseline <path>` | 壓下 baseline 檔中已記錄的違規,只回報新增的 | `--baseline upa-baseline.json` |
 | `--write-baseline <path>` | 把目前的違規寫成 baseline。需搭配 `--whole-assembly`;成功時以 0 結束 | `--write-baseline upa-baseline.json --whole-assembly` |

@@ -432,6 +432,44 @@ public class Broken
             Assert.Contains("Refusing to report success", stderr);
         }
 
+        private const string UnsafeSource = @"
+public static class Pointers
+{
+    public static unsafe int First(int[] values)
+    {
+        fixed (int* p = values) { return *p; }
+    }
+}";
+
+        // An assembly with allowUnsafeCode is ordinary in Unity - Burst, NativeArray pointer
+        // access, ZString - and without the switch every pointer is CS0227, which under
+        // --whole-assembly is an error exit and a baseline that can never be written.
+        [Fact]
+        public void UnsafeCode_IsACompileErrorWithoutTheSwitch()
+        {
+            var file = Write("Pointers.cs", UnsafeSource);
+
+            var (exitCode, stdout, stderr) = Run(file, "--whole-assembly", "--format", "json");
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("CS0227", stderr);
+            Assert.Contains(
+                ParseJson(stdout).GetProperty("compileErrors").EnumerateArray(),
+                e => e.GetProperty("id").GetString() == "CS0227");
+        }
+
+        [Fact]
+        public void UnsafeSwitch_CompilesUnsafeCode()
+        {
+            var file = Write("Pointers.cs", UnsafeSource);
+
+            var (exitCode, stdout, stderr) = Run(file, "--whole-assembly", "--unsafe", "--format", "json");
+
+            Assert.Equal(0, exitCode);
+            Assert.DoesNotContain("compile error", stderr);
+            Assert.Equal(0, ParseJson(stdout).GetProperty("summary").GetProperty("compileErrorCount").GetInt32());
+        }
+
         // Case 17
         [Fact]
         public void EditorAssemblyName_SilencesPlayerCodeRules()
@@ -829,6 +867,14 @@ public class Mixed
         [InlineData("--unity-dll-dir")]
         [InlineData("--all-warn")]
         [InlineData("--whole-assembly")]
+        [InlineData("--unsafe")]
+        [InlineData("--baseline")]
+        [InlineData("--write-baseline")]
+        [InlineData("--prune-baseline")]
+        [InlineData("--report-stale-baseline")]
+        [InlineData("--fail-on-stale")]
+        [InlineData("--init-args")]
+        [InlineData("--project")]
         [InlineData("--fail-on")]
         [InlineData("--format")]
         [InlineData("--list-rules")]
