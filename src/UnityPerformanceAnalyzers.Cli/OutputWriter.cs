@@ -150,19 +150,49 @@ internal static class OutputWriter
     /// </summary>
     private static void WriteAnalysisGithub(TextWriter stdout, AnalysisResult result)
     {
+        var workspace = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");
+
         foreach (var d in result.Diagnostics)
         {
-            // The command syntax is line-based, so anything spanning lines would end the
-            // command early and print the rest as ordinary log text.
-            var message = Escape(d.Message + " (" + d.HelpUri + ")");
+            // The message is the command's data and everything before it a property, and the
+            // two are escaped differently. Escaping ':' and ',' in the data too printed them as
+            // a literal %3A and %2C in every annotation: the runner only unescapes those two
+            // inside properties.
+            var message = EscapeData(d.Message + " (" + d.HelpUri + ")");
 
-            // Forward slashes here for the same reason as SARIF: the annotation is matched
-            // against the repository's paths, and a Windows runner would otherwise report
-            // findings against files GitHub cannot locate.
             stdout.WriteLine(
-                $"::{GithubCommand(d.Severity)} file={Escape(SarifUri(d.File))},line={d.Line},col={d.Column}," +
-                $"endLine={d.EndLine},endColumn={d.EndColumn},title={Escape(d.Id + ": " + d.Title)}::{message}");
+                $"::{GithubCommand(d.Severity)} file={EscapeProperty(GithubFile(d.File, workspace))},line={d.Line},col={d.Column}," +
+                $"endLine={d.EndLine},endColumn={d.EndColumn},title={EscapeProperty(d.Id + ": " + d.Title)}::{message}");
         }
+    }
+
+    /// <summary>
+    /// The path an annotation names. GitHub resolves it against the repository root, so the
+    /// path as given only lands when the tool ran from that root with relative paths. Run from
+    /// a subdirectory, or handed absolute paths, the annotation named a file GitHub could not
+    /// find and was left off the diff without a word.
+    /// </summary>
+    /// <remarks>
+    /// Relative to the workspace when the file is under it; as given otherwise, which is the
+    /// only honest answer for a file outside the checkout. Forward slashes either way, for the
+    /// same reason as SARIF: a Windows runner would otherwise name files GitHub cannot locate.
+    /// </remarks>
+    internal static string GithubFile(string file, string? workspace)
+    {
+        if (!string.IsNullOrEmpty(workspace))
+        {
+            var relative = Path.GetRelativePath(Path.GetFullPath(workspace), Path.GetFullPath(file));
+            if (relative != "."
+                && relative != ".."
+                && !Path.IsPathRooted(relative)
+                && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                && !relative.StartsWith("../", StringComparison.Ordinal))
+            {
+                return SarifUri(relative);
+            }
+        }
+
+        return SarifUri(file);
     }
 
     /// <summary>SARIF has three levels below error; ours map straight onto them.</summary>
@@ -188,13 +218,21 @@ internal static class OutputWriter
     private static string SarifUri(string file) => file.Replace('\\', '/');
 
     /// <summary>
-    /// The workflow-command escapes. Without them a message containing a comma or a newline
-    /// silently truncates the annotation at that character.
+    /// Escapes a workflow command's data, the text after the final <c>::</c>. Only what would
+    /// end the command early is escaped - a line break, or a <c>%</c> that would read as an
+    /// escape - as <c>escapeData</c> in actions/toolkit's packages/core/src/command.ts does.
     /// </summary>
-    private static string Escape(string value) => value
+    internal static string EscapeData(string value) => value
         .Replace("%", "%25", StringComparison.Ordinal)
         .Replace("\r", "%0D", StringComparison.Ordinal)
-        .Replace("\n", "%0A", StringComparison.Ordinal)
+        .Replace("\n", "%0A", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Escapes a workflow command property such as <c>file=</c> or <c>title=</c>, as
+    /// <c>escapeProperty</c> in the same file does. Properties are separated by commas and end
+    /// at <c>::</c>, so a title containing either would otherwise truncate the annotation there.
+    /// </summary>
+    internal static string EscapeProperty(string value) => EscapeData(value)
         .Replace(":", "%3A", StringComparison.Ordinal)
         .Replace(",", "%2C", StringComparison.Ordinal);
 

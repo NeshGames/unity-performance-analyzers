@@ -393,7 +393,9 @@ with no upload step, no token and no permissions:
 Annotations are per run rather than tracked alerts, and GitHub caps how many it renders
 per step. It costs one line of YAML, which is the trade.
 
-Both formats report file paths as given, so run the tool from the repository root and
+`--format github` names each file relative to `GITHUB_WORKSPACE` when the runner sets it
+and the file is inside the checkout, so it works from any directory and with absolute
+paths. SARIF reports paths as given, so for it run the tool from the repository root and
 pass relative paths — an absolute path annotates a file the service cannot find.
 Findings a baseline suppressed appear in neither format; the run still reports how many
 it hid.

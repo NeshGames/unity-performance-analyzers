@@ -360,11 +360,82 @@ public class Worker
             var raw = ParseJson(json).GetProperty("diagnostics")[0].GetProperty("message").GetString()!;
             Assert.Contains(",", raw);
 
-            var message = line.Split("::")[2];
-            Assert.DoesNotContain(",", message);
-            Assert.DoesNotContain(":", message);
-            Assert.Contains("%2C", message);
-            Assert.Contains("%3A", message);
+            // The properties escape ',' and ':', which is what keeps a comma in the title from
+            // ending it early.
+            var separator = line.IndexOf("::", 2, StringComparison.Ordinal);
+            var properties = line.Substring(2, separator - 2);
+            var title = properties.Substring(properties.IndexOf("title=", StringComparison.Ordinal));
+            Assert.StartsWith("title=UPA0016%3A ", title);
+
+            // The data does not: the runner unescapes ',' and ':' only inside properties, so
+            // escaping them in the message printed a literal %2C in every annotation. What the
+            // reader sees is the message exactly as the JSON carries it.
+            var message = line.Substring(separator + 2);
+            Assert.StartsWith(raw, message);
+            Assert.DoesNotContain("%2C", message);
+            Assert.DoesNotContain("%3A", message);
+        }
+
+        // actions/toolkit's escapeData and escapeProperty, character for character.
+        [Theory]
+        [InlineData("a,b:c", "a,b:c", "a%2Cb%3Ac")]
+        [InlineData("50%", "50%25", "50%25")]
+        [InlineData("one\r\ntwo", "one%0D%0Atwo", "one%0D%0Atwo")]
+        [InlineData("%2C", "%252C", "%252C")]
+        public void GithubEscapes_MatchTheActionsToolkit(string value, string data, string property)
+        {
+            Assert.Equal(data, OutputWriter.EscapeData(value));
+            Assert.Equal(property, OutputWriter.EscapeProperty(value));
+        }
+
+        // GitHub resolves an annotation's file against the repository root. A path as given
+        // only lands when the tool ran from that root with relative paths.
+        [Fact]
+        public void GithubFile_IsRelativeToTheWorkspace()
+        {
+            var workspace = Path.Combine(_dir, "repo");
+            var file = Path.Combine(workspace, "Assets", "Scripts", "Probe.cs");
+
+            Assert.Equal("Assets/Scripts/Probe.cs", OutputWriter.GithubFile(file, workspace));
+            Assert.Equal(
+                "Assets/Scripts/Probe.cs",
+                OutputWriter.GithubFile(file, workspace + Path.DirectorySeparatorChar));
+        }
+
+        [Fact]
+        public void GithubFile_OutsideTheWorkspace_IsAsGiven()
+        {
+            var workspace = Path.Combine(_dir, "repo");
+            var outside = Path.Combine(_dir, "repo-other", "Probe.cs");
+
+            Assert.Equal(outside.Replace('\\', '/'), OutputWriter.GithubFile(outside, workspace));
+            Assert.Equal("Assets/Probe.cs", OutputWriter.GithubFile("Assets/Probe.cs", null));
+            Assert.Equal("Assets/Probe.cs", OutputWriter.GithubFile("Assets/Probe.cs", string.Empty));
+        }
+
+        // End to end, through the variable the runner actually sets. The file is passed
+        // absolute, which is the case that used to annotate nothing.
+        [Fact]
+        public void GithubFormat_NamesFilesRelativeToGithubWorkspace()
+        {
+            var workspace = Path.Combine(_dir, "repo");
+            Directory.CreateDirectory(Path.Combine(workspace, "Assets"));
+            var file = Path.Combine(workspace, "Assets", "Probe.cs");
+            File.WriteAllText(file, HotPathViolation);
+
+            var previous = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");
+            try
+            {
+                Environment.SetEnvironmentVariable("GITHUB_WORKSPACE", workspace);
+                var (exitCode, stdout, _) = Run(file, "--format", "github");
+
+                Assert.Equal(1, exitCode);
+                Assert.Contains("::warning file=Assets/Probe.cs,line=", stdout);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("GITHUB_WORKSPACE", previous);
+            }
         }
 
         // Case 13
