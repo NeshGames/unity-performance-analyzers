@@ -24,6 +24,9 @@ sandbox/UnityProject/Packages/manifest.json
 sandbox/UnityProject/Packages/packages-lock.json
 sandbox/*.log
 sandbox/verify-*.txt
+# Written by sandbox/corpus.sh: the third-party checkouts it analyses and the runner's logs.
+# Only the snapshots under sandbox/corpus-snapshots/ are committed - counts, not code.
+sandbox/corpus/
 # Player builds from the allocation measurement harness. The reports under
 # sandbox/UnityProject/Measurements/ are the durable artifact; the players are not.
 sandbox/UnityProject/Builds/
