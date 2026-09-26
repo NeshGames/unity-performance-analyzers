@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Immutable;
 using System.IO;
+using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace UnityPerformanceAnalyzers
 {
@@ -30,11 +32,24 @@ namespace UnityPerformanceAnalyzers
             _values = values;
         }
 
+        // Keyed on the SourceText, never on the file path or the compilation. A SourceText is
+        // immutable, so the parse of one can never go stale: an edited options file arrives as
+        // a different SourceText and misses. The table holds its keys weakly, so it keeps no
+        // text alive that the host has let go of. What it buys is that every analyzer in the
+        // package shares one parse per compilation whenever the host hands each of them the
+        // same text instance (csc does); a host that hands out a fresh instance per call just
+        // misses, which costs the parse and nothing else.
+        private static readonly ConditionalWeakTable<SourceText, UpaOptions> s_parsed =
+            new ConditionalWeakTable<SourceText, UpaOptions>();
+
+        private static readonly ConditionalWeakTable<SourceText, UpaOptions>.CreateValueCallback s_parse = Parse;
+
         /// <summary>
-        /// Parses the options file once per compilation; call from RegisterCompilationStartAction
-        /// and pass the instance to the node actions. When several additional files carry the
-        /// expected name, the lowest path in ordinal order wins, so the choice is deterministic
-        /// across platforms.
+        /// Finds and parses the options file. Call once per compilation - through
+        /// <see cref="UpaCompilationContext.Settings"/>, which does exactly that - and pass the
+        /// instance to the node actions. When several additional files carry the expected
+        /// name, the lowest path in ordinal order wins, so the choice is deterministic across
+        /// platforms.
         /// </summary>
         public static UpaOptions Resolve(AnalyzerOptions options)
         {
@@ -53,11 +68,11 @@ namespace UnityPerformanceAnalyzers
             }
 
             var text = file?.GetText();
-            if (text is null)
-            {
-                return s_empty;
-            }
+            return text is null ? s_empty : s_parsed.GetValue(text, s_parse);
+        }
 
+        private static UpaOptions Parse(SourceText text)
+        {
             var builder = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var line in text.Lines)
             {

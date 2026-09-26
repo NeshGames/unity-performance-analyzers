@@ -45,29 +45,17 @@ namespace UnityPerformanceAnalyzers
         private protected override void InitializeCore(UpaCompilationContext ctx)
         {
             var flagsAttributeType = ctx.Type("System.FlagsAttribute");
-            var allowDefault = ReadAllowDefaultOption(ctx.Compilation, ctx.Options);
 
             ctx.RegisterOperationAction(
-                opCtx => AnalyzeSwitch(opCtx, flagsAttributeType, allowDefault),
+                opCtx => AnalyzeSwitch(opCtx, flagsAttributeType, ctx),
                 OperationKind.Switch,
                 OperationKind.SwitchExpression);
-        }
-
-        // Same resolution pattern as HotPathDetector: once per compilation, layered through
-        // UpaOptions (options file > .editorconfig > default), defaults on any read failure.
-        private static bool ReadAllowDefaultOption(Compilation compilation, AnalyzerOptions analyzerOptions)
-        {
-            return UpaOptions.Resolve(analyzerOptions).GetBool(
-                AllowDefaultOptionKey,
-                compilation.SyntaxTrees.FirstOrDefault(),
-                analyzerOptions.AnalyzerConfigOptionsProvider,
-                fallback: true);
         }
 
         private static void AnalyzeSwitch(
             OperationAnalysisContext context,
             INamedTypeSymbol? flagsAttributeType,
-            bool allowDefault)
+            UpaCompilationContext ctx)
         {
             IOperation governing;
             var hasDefault = false;
@@ -97,7 +85,10 @@ namespace UnityPerformanceAnalyzers
                     return;
             }
 
-            if (hasDefault && allowDefault)
+            // Layered through UpaOptions (options file > .editorconfig > default), and read for
+            // the file the switch is in: an .editorconfig section applies to the files it globs.
+            if (hasDefault &&
+                ctx.GetBool(AllowDefaultOptionKey, context.Operation.Syntax.SyntaxTree, fallback: true))
             {
                 return;
             }

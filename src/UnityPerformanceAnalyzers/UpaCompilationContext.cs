@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -18,7 +19,9 @@ namespace UnityPerformanceAnalyzers
     /// compilations, and a cache keyed on the compilation alone would answer with the settings
     /// of a previous run once the options change — output that is indistinguishable from the
     /// right answer. Each analyzer resolves its own; the duplicated work is one pass over the
-    /// referenced assembly list and one options parse, measured in microseconds.
+    /// referenced assembly list and a lookup of the options file. The parse behind that lookup
+    /// is shared, keyed on the file's immutable text (see <see cref="UpaOptions.Resolve"/>),
+    /// which is the one key that cannot answer with another run's settings.
     /// </para>
     /// <para>
     /// Everything here is per-callback state. The base class creates it inside the
@@ -31,6 +34,7 @@ namespace UnityPerformanceAnalyzers
         private readonly Lazy<UpaProfile> _profile;
         private readonly Lazy<HotPathDetector> _hotPath;
         private readonly UpaClaimKind _claim;
+        private readonly Lazy<UpaOptions> _settings;
         private readonly Lazy<EditorOnlyMethods> _editorOnly;
 
         // RS1012 wants every method taking a start context to register an action, because one
@@ -50,11 +54,15 @@ namespace UnityPerformanceAnalyzers
             _editorOnly = new Lazy<EditorOnlyMethods>(
                 () => EditorOnlyMethods.Create(start.Compilation),
                 LazyThreadSafetyMode.ExecutionAndPublication);
+            _settings = new Lazy<UpaOptions>(
+                () => UpaOptions.Resolve(start.Options),
+                LazyThreadSafetyMode.ExecutionAndPublication);
             _profile = new Lazy<UpaProfile>(
                 () => UpaProfile.Resolve(start.Compilation, start.Options),
                 LazyThreadSafetyMode.ExecutionAndPublication);
             _hotPath = new Lazy<HotPathDetector>(
-                () => HotPathDetector.Create(start.Compilation, start.Options),
+                () => HotPathDetector.Create(
+                    start.Compilation, _settings.Value, start.Options.AnalyzerConfigOptionsProvider),
                 LazyThreadSafetyMode.ExecutionAndPublication);
         }
 
@@ -63,6 +71,25 @@ namespace UnityPerformanceAnalyzers
         public AnalyzerOptions Options => _start.Options;
 
         public CancellationToken CancellationToken => _start.CancellationToken;
+
+        /// <summary>The options file, found and parsed at most once for this analyzer and
+        /// compilation. Look keys up through <see cref="GetBool"/> and <see cref="GetList"/>,
+        /// which add the .editorconfig layer for the file being asked about.</summary>
+        public UpaOptions Settings => _settings.Value;
+
+        /// <summary>
+        /// An option as it applies to <paramref name="tree"/>. Always per file: an
+        /// .editorconfig section applies to the files it globs, and an answer read once from
+        /// the compilation's first syntax tree gave every file whatever that one was
+        /// configured with, depending on the order the host listed them in.
+        /// </summary>
+        public bool GetBool(string key, SyntaxTree tree, bool fallback)
+            => Settings.GetBool(key, tree, _start.Options.AnalyzerConfigOptionsProvider, fallback);
+
+        /// <summary>A comma-separated option as it applies to <paramref name="tree"/>; see
+        /// <see cref="GetBool"/> for why per file.</summary>
+        public ImmutableArray<string> GetList(string key, SyntaxTree tree, ImmutableArray<string> fallback)
+            => Settings.GetList(key, tree, _start.Options.AnalyzerConfigOptionsProvider, fallback);
 
         /// <summary>Which of the supported packages this assembly references, and whether it
         /// is built for WebGL.</summary>

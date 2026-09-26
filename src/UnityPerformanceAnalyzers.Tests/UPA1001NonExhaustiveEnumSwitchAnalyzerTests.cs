@@ -464,5 +464,61 @@ class C
     }
 }");
         }
+
+        /// <summary>
+        /// upa_enum_switch_allow_default applies to the files its section globs. It used to be
+        /// read once from the compilation's first syntax tree, so whether a default arm counted
+        /// in one folder depended on which file the host happened to list first.
+        /// </summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task AllowDefault_PerFileSections_ApplyToTheirOwnFile_RegardlessOfOrder(bool reversed)
+        {
+            var strict = ("/Strict.cs", @"
+class Strict
+{
+    void M(State state)
+    {
+        switch ({|UPA1001:state|})
+        {
+            case State.Idle:
+                break;
+            default:
+                break;
+        }
+    }
+}");
+            var lenient = ("/Lenient.cs", @"
+class Lenient
+{
+    void M(State state)
+    {
+        switch (state)
+        {
+            case State.Idle:
+                break;
+            default:
+                break;
+        }
+    }
+}");
+
+            var harness = new RuleHarness
+            {
+                UnityStubs = false,
+                RawEditorConfig = @"
+root = true
+
+[*Strict.cs]
+upa_enum_switch_allow_default = false
+",
+            };
+            harness.NamedSources.Add(reversed ? lenient : strict);
+            harness.NamedSources.Add(reversed ? strict : lenient);
+
+            return RuleVerifier.VerifyAsync<UPA1001NonExhaustiveEnumSwitchAnalyzer>(
+                "enum State { Idle, Running, Dead }", harness);
+        }
     }
 }

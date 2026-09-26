@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -56,15 +57,17 @@ namespace UnityPerformanceAnalyzers
             var conditionalAttributeType =
                 ctx.Type("System.Diagnostics.ConditionalAttribute");
 
-            // Resolved here, not in the callback. UpaOptions.Resolve reads and parses the
-            // options file, and the callback runs once per Debug call -- in a logging-heavy
-            // project that is the same file parsed thousands of times, against the
-            // once-per-compilation contract the type documents.
-            var options = UpaOptions.Resolve(ctx.Options);
-            var configProvider = ctx.Options.AnalyzerConfigOptionsProvider;
+            // The wrapper list as it applies to each file, split once per file rather than once
+            // per Debug call - in a logging-heavy project that is thousands of splits of the
+            // same string. Per file because an .editorconfig section applies to the files it
+            // globs; the dictionary lives in this compilation's callbacks and dies with them.
+            var wrapperTypesByTree = new ConcurrentDictionary<SyntaxTree, ImmutableArray<string>>();
+            Func<SyntaxTree, ImmutableArray<string>> readWrapperTypes =
+                tree => ctx.GetList(WrapperTypesOptionKey, tree, ImmutableArray<string>.Empty);
 
             ctx.RegisterOperationAction(
-                opCtx => AnalyzeInvocation(opCtx, debugType, conditionalAttributeType, options, configProvider),
+                opCtx => AnalyzeInvocation(
+                    opCtx, debugType, conditionalAttributeType, wrapperTypesByTree, readWrapperTypes),
                 OperationKind.Invocation);
         }
 
@@ -72,8 +75,8 @@ namespace UnityPerformanceAnalyzers
             OperationAnalysisContext context,
             INamedTypeSymbol debugType,
             INamedTypeSymbol? conditionalAttributeType,
-            UpaOptions options,
-            AnalyzerConfigOptionsProvider configProvider)
+            ConcurrentDictionary<SyntaxTree, ImmutableArray<string>> wrapperTypesByTree,
+            Func<SyntaxTree, ImmutableArray<string>> readWrapperTypes)
         {
             var invocation = (IInvocationOperation)context.Operation;
             var method = invocation.TargetMethod;
@@ -89,7 +92,8 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (IsInsideWrapperType(context, invocation, options, configProvider))
+            if (IsInsideWrapperType(
+                context, wrapperTypesByTree.GetOrAdd(invocation.Syntax.SyntaxTree, readWrapperTypes)))
             {
                 return;
             }
@@ -123,22 +127,13 @@ namespace UnityPerformanceAnalyzers
             return false;
         }
 
+        // Through UpaOptions, so the options file works here too. Unity does not pass
+        // .editorconfig to the compiler, so a value set only there did nothing in an actual
+        // build.
         private static bool IsInsideWrapperType(
             OperationAnalysisContext context,
-            IInvocationOperation invocation,
-            UpaOptions options,
-            AnalyzerConfigOptionsProvider configProvider)
+            ImmutableArray<string> wrapperTypeNames)
         {
-            // Through UpaOptions, so the options file works here too. Unity does not pass
-            // .editorconfig to the compiler, so a value set only there did nothing in an
-            // actual build.
-            // The per-tree lookup stays here -- an .editorconfig section applies to the file
-            // the call is in -- but the options file behind it was parsed once.
-            var wrapperTypeNames = options.GetList(
-                WrapperTypesOptionKey,
-                invocation.Syntax.SyntaxTree,
-                configProvider,
-                ImmutableArray<string>.Empty);
             if (wrapperTypeNames.IsEmpty)
             {
                 return false;
