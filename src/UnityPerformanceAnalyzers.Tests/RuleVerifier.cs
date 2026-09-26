@@ -58,6 +58,12 @@ namespace UnityPerformanceAnalyzers.Tests
         /// <summary>Compile with <c>/unsafe</c>, for the rules about stack allocation.</summary>
         public bool AllowUnsafe { get; set; }
 
+        /// <summary>Compilation-wide rule severities, the channel Unity's <c>-ruleset</c> and
+        /// <c>/nowarn</c> arrive through. For rules that change what they report when another
+        /// rule is switched off.</summary>
+        public Dictionary<string, ReportDiagnostic> SpecificDiagnosticOptions { get; } =
+            new Dictionary<string, ReportDiagnostic>();
+
         /// <summary>Markup matching, for the rules whose single id carries more than one
         /// descriptor.</summary>
         public MarkupOptions? MarkupOptions { get; set; }
@@ -172,6 +178,18 @@ namespace UnityPerformanceAnalyzers.Tests
                 {
                     var options = (CSharpCompilationOptions)solution.GetProject(projectId)!.CompilationOptions!;
                     return solution.WithProjectCompilationOptions(projectId, options.WithAllowUnsafe(true));
+                });
+            }
+
+            if (harness.SpecificDiagnosticOptions.Count > 0)
+            {
+                test.SolutionTransforms.Add((solution, projectId) =>
+                {
+                    var options = solution.GetProject(projectId)!.CompilationOptions!;
+                    return solution.WithProjectCompilationOptions(
+                        projectId,
+                        options.WithSpecificDiagnosticOptions(
+                            options.SpecificDiagnosticOptions.SetItems(harness.SpecificDiagnosticOptions)));
                 });
             }
         }

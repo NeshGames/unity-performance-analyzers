@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
 using Xunit;
 
 namespace UnityPerformanceAnalyzers.Tests
@@ -55,6 +56,51 @@ class C : MonoBehaviour
     }
 }");
         }
+
+        // UPA0001 stands aside only for calls UPA0017 will report. A project that switched
+        // UPA0017 off, by ruleset or by .editorconfig, still gets the per-frame lookup from
+        // UPA0001 rather than silence from both.
+        [Fact]
+        public Task ArrayReturningOverloads_Upa0017OffByRuleset_ReportUpa0001()
+        {
+            var harness = new RuleHarness();
+            harness.SpecificDiagnosticOptions["UPA0017"] = ReportDiagnostic.Suppress;
+            return RuleVerifier.VerifyTogetherAsync<UPA0001ComponentLookupAnalyzer, UPA0017GetComponentsArrayAnalyzer>(
+                ArrayLookupsInUpdate("UPA0001"),
+                harness);
+        }
+
+        [Fact]
+        public Task ArrayReturningOverloads_Upa0017OffByEditorConfig_ReportUpa0001()
+        {
+            var harness = new RuleHarness { EditorConfig = "dotnet_diagnostic.UPA0017.severity = none" };
+            return RuleVerifier.VerifyTogetherAsync<UPA0001ComponentLookupAnalyzer, UPA0017GetComponentsArrayAnalyzer>(
+                ArrayLookupsInUpdate("UPA0001"),
+                harness);
+        }
+
+        // Promoting it is not switching it off: UPA0001 still stands aside.
+        [Fact]
+        public Task ArrayReturningOverloads_Upa0017RaisedByRuleset_ReportOnlyUpa0017()
+        {
+            var harness = new RuleHarness();
+            harness.SpecificDiagnosticOptions["UPA0017"] = ReportDiagnostic.Error;
+            return RuleVerifier.VerifyTogetherAsync<UPA0001ComponentLookupAnalyzer, UPA0017GetComponentsArrayAnalyzer>(
+                ArrayLookupsInUpdate("UPA0017"),
+                harness);
+        }
+
+        private static string ArrayLookupsInUpdate(string expectedId) => @"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    void Update()
+    {
+        var a = {|" + expectedId + @":GetComponents<Rigidbody>()|};
+        var b = {|" + expectedId + @":gameObject.GetComponentsInParent<Rigidbody>()|};
+    }
+}";
 
         [Fact]
         public Task SingularLookup_ReportsOnlyUpa0001()

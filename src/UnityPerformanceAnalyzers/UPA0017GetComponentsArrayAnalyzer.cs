@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
@@ -63,6 +64,33 @@ namespace UnityPerformanceAnalyzers
         {
             // The List<T> overloads return void — only the array-returning shapes allocate.
             return s_pluralLookupNames.Contains(method.Name) && method.ReturnType is IArrayTypeSymbol;
+        }
+
+        /// <summary>
+        /// Whether this rule's findings in <paramref name="tree"/> are switched off by
+        /// configuration: a ruleset or <c>/nowarn</c> (compilation-wide), an
+        /// <c>.editorconfig</c> or global config <c>dotnet_diagnostic.UPA0017.severity</c>, or a
+        /// ruleset's <c>IncludeAll</c>. UPA0001 only stands aside for calls UPA0017 will report.
+        /// </summary>
+        /// <remarks>
+        /// The lookup order is the compiler's (Roslyn 3.8, checked against its output): the
+        /// tree's own entry, then the compilation-wide map, then the global config, then the
+        /// descriptor's default under the general option. A <c>#pragma warning disable</c> is
+        /// not configuration an analyzer can see; it is applied after the diagnostic exists.
+        /// </remarks>
+        internal static bool IsSwitchedOff(Compilation compilation, SyntaxTree tree, CancellationToken cancellationToken)
+        {
+            var options = compilation.Options;
+            var provider = options.SyntaxTreeOptionsProvider;
+            if ((provider is object && provider.TryGetDiagnosticValue(tree, DiagnosticId, cancellationToken, out var severity)) ||
+                options.SpecificDiagnosticOptions.TryGetValue(DiagnosticId, out severity) ||
+                (provider is object && provider.TryGetGlobalDiagnosticValue(DiagnosticId, cancellationToken, out severity)))
+            {
+                return severity == ReportDiagnostic.Suppress ||
+                    (severity == ReportDiagnostic.Default && !Rule.IsEnabledByDefault);
+            }
+
+            return Rule.GetEffectiveSeverity(options) == ReportDiagnostic.Suppress;
         }
 
         private static void AnalyzeInvocation(

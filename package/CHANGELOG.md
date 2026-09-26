@@ -34,7 +34,9 @@ Read **Changed** and **Fixed** before upgrading.
 
 - **UPA0001 no longer reports the array-returning `GetComponents*` overloads**, which UPA0017
   reports on the same span. A `GetComponents<T>()` in `Update` now gets one warning, not two.
-  The `List<T>` overloads stay with UPA0001.
+  The `List<T>` overloads stay with UPA0001, and so do the array overloads wherever UPA0017 is
+  switched off by ruleset, `/nowarn` or `.editorconfig` (not by `#pragma`, which UPA0001
+  cannot see).
 - **UPA0009 no longer suggests hoisting `Count` where that changes behaviour**: the list is a
   field and the loop calls one of the class's own methods (`Kill(_enemies[i])` removing from
   `_enemies`), sets or reads one of its non-auto properties or indexers
