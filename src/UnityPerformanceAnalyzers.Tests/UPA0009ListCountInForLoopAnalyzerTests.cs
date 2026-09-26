@@ -496,5 +496,165 @@ class C : MonoBehaviour
     }
 }");
         }
+
+        // A subscriber can remove from the list being walked, and it makes no difference how
+        // the delegate is reached. Only a bare `Handler(x)` used to count.
+        [Theory]
+        [InlineData("EnemyHit?.Invoke(_enemies[i]);")]
+        [InlineData("_callback.Invoke(_enemies[i]);")]
+        [InlineData("_callback?.Invoke(_enemies[i]);")]
+        [InlineData("_unit.OnHit(_enemies[i]);")]
+        [InlineData("_unit.OnHit?.Invoke(_enemies[i]);")]
+        public Task DelegateInvokedAnyWay_DoesNotTrigger(string body)
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class Unit
+{
+    public System.Action<int> OnHit;
+}
+
+class C : MonoBehaviour
+{
+    List<int> _enemies = new List<int>();
+    System.Action<int> _callback;
+    Unit _unit = new Unit();
+
+    event System.Action<int> EnemyHit;
+
+    void Awake()
+    {
+        EnemyHit += e => _enemies.Remove(e);
+        _callback = e => _enemies.Remove(e);
+        _unit.OnHit = e => _enemies.Remove(e);
+    }
+
+    void Update()
+    {
+        for (int i = 0; i < _enemies.Count; i++)
+        {
+            " + body + @"
+        }
+    }
+}");
+        }
+
+        // An accessor is a method call written as a read or an assignment, and a constructor
+        // handed `this` has the whole instance. Each of these removes from _targets.
+        [Theory]
+        [InlineData("CurrentTarget = _targets[i];")]
+        [InlineData("this.CurrentTarget = _targets[i];")]
+        [InlineData("Health -= _targets[i];")]
+        [InlineData("var t = this[i];")]
+        [InlineData("new Watcher(this);")]
+        [InlineData("var w = new Watcher { Owner = this };")]
+        [InlineData("enabled = false;")]
+        public Task FieldReceiver_AccessorOrConstructorMutates_DoesNotTrigger(string body)
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class Watcher
+{
+    public Watcher() { }
+    public Watcher(C owner) { owner.Clear(); }
+    public C Owner { set { value.Clear(); } }
+}
+
+class C : MonoBehaviour
+{
+    List<int> _targets = new List<int>();
+    int _current;
+    int _health;
+
+    public void Clear() { }
+
+    int CurrentTarget
+    {
+        get => _current;
+        set { _targets.Remove(_current); _current = value; }
+    }
+
+    int Health
+    {
+        get => _health;
+        set { _health = value; if (value <= 0) _targets.Clear(); }
+    }
+
+    int this[int index] => _targets.Count > 8 ? _targets[index] : Drop(index);
+
+    int Drop(int index) { _targets.RemoveAt(index); return 0; }
+
+    void OnDisable() { _targets.Clear(); }
+
+    void Update()
+    {
+        for (int i = 0; i < _targets.Count; i++)
+        {
+            " + body + @"
+        }
+    }
+}");
+        }
+
+        // nameof is a constant: it runs nothing, and used to silence the loop because it does
+        // not bind to a method.
+        [Fact]
+        public Task NameofInBody_StillTriggers()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    List<int> _weights = new List<int>();
+    bool IsRunning { get { return _weights.Count > 0; } }
+
+    void Update()
+    {
+        for (int i = 0; i < {|UPA0009:_weights.Count|}; i++)
+        {
+            Debug.Log(nameof(IsRunning));
+        }
+    }
+}");
+        }
+
+        // What the accessor route does not cover: an auto-property only moves a value into its
+        // backing field, an engine getter does not call back into a script, and an
+        // initializer sets members of the new object, not this one.
+        [Fact]
+        public Task AccessorsThatCannotReachReceiver_StillTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class Tracker
+{
+    public int Last { get; set; }
+}
+
+class C : MonoBehaviour
+{
+    List<int> _targets = new List<int>();
+
+    int Selected { get; set; }
+
+    void Update()
+    {
+        for (int i = 0; i < {|UPA0009:_targets.Count|}; i++)
+        {
+            Selected = _targets[i];
+            var t = transform;
+            var tracker = new Tracker { Last = _targets[i] };
+        }
+    }
+}");
+        }
     }
 }

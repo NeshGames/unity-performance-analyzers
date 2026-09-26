@@ -37,8 +37,11 @@ Read **Changed** and **Fixed** before upgrading.
   The `List<T>` overloads stay with UPA0001.
 - **UPA0009 no longer suggests hoisting `Count` where that changes behaviour**: the list is a
   field and the loop calls one of the class's own methods (`Kill(_enemies[i])` removing from
-  `_enemies`), the loop reassigns the list, or it calls a local function or delegate that may
-  have captured it. Expect fewer UPA0009 reports.
+  `_enemies`), sets or reads one of its non-auto properties or indexers
+  (`CurrentTarget = _targets[i]`), writes an engine property such as `enabled`, or constructs
+  something handed `this`; the loop reassigns the list; or it calls a local function or any
+  delegate (`OnHit?.Invoke(x)`, `callback.Invoke(x)`) that may have captured it. Expect fewer
+  UPA0009 reports. A `nameof(...)` in the loop no longer silences it.
 - **UPA2012 also reports** `async void` local functions, async lambdas and anonymous methods
   passed where the delegate returns void — `button.onClick.AddListener(async () => …)` — with a
   message naming the delegate type and UniTask-aware advice, and discarded task-returning calls
