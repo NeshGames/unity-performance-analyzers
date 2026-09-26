@@ -7,8 +7,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace UnityPerformanceAnalyzers
 {
     /// <summary>
-    /// Unity messages and attributes that run only in the editor. Code inside them is stripped
-    /// from a player build, so per-frame cost there costs nothing.
+    /// Unity messages and attributes that run only in the editor. A player build never calls
+    /// them, so per-frame cost there costs nothing.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -31,32 +31,67 @@ namespace UnityPerformanceAnalyzers
     /// runtime type, which no path-based rule can see.
     /// </para>
     /// </remarks>
-    internal static class EditorOnlyMethods
+    internal sealed class EditorOnlyMethods
     {
+        // Messages Unity calls only in the editor. Reset is deliberately absent: Unity sends
+        // it when a component is added in the inspector, but Reset() is also the conventional
+        // name for a pooled object's runtime reinitialisation, and a matching name says nothing
+        // about which of the two a given method is. The pooled one runs in the build - as often
+        // as objects are recycled - and silencing it would leave nothing behind to notice. A
+        // finding in a genuine editor-only Reset is visible and costs a suppression; a missed
+        // one in a pool costs a frame. The same reasoning keeps ContextMenu out of the
+        // attribute list below. The names that remain are not ones runtime code calls.
         private static readonly ImmutableHashSet<string> s_messages = ImmutableHashSet.Create(
             StringComparer.Ordinal,
             "OnDrawGizmos",
             "OnDrawGizmosSelected",
-            "OnValidate",
-            "Reset");
+            "OnValidate");
 
-        // Full metadata names: a project's own [MenuItem] would otherwise silence rules by
-        // accident. ContextMenu is deliberately absent - a method carrying it can still be
-        // called from ordinary code, so the attribute does not establish that it is editor-only.
-        private static readonly ImmutableHashSet<string> s_attributes = ImmutableHashSet.Create(
-            StringComparer.Ordinal,
-            "UnityEditor.MenuItemAttribute",
+        // Resolved to symbols, never matched by display string: a project's own MenuItem
+        // attribute in another namespace would otherwise silence rules by accident, and a
+        // misspelt name matches nothing and fails silently - which is how "MenuItemAttribute"
+        // shipped for a class Unity calls MenuItem. ContextMenu is deliberately absent - a
+        // method carrying it can still be called from ordinary code, so the attribute does
+        // not establish that it is editor-only.
+        private static readonly ImmutableArray<string> s_attributeMetadataNames = ImmutableArray.Create(
+            "UnityEditor.MenuItem",
             "UnityEditor.InitializeOnLoadMethodAttribute",
-            "UnityEditor.Callbacks.DidReloadScriptsAttribute");
+            "UnityEditor.Callbacks.DidReloadScripts");
+
+        private readonly INamedTypeSymbol? _monoBehaviourType;
+        private readonly ImmutableHashSet<INamedTypeSymbol> _attributeTypes;
+
+        private EditorOnlyMethods(INamedTypeSymbol? monoBehaviourType, ImmutableHashSet<INamedTypeSymbol> attributeTypes)
+        {
+            _monoBehaviourType = monoBehaviourType;
+            _attributeTypes = attributeTypes;
+        }
+
+        /// <summary>
+        /// Resolves the types once per compilation. One that UnityEditor does not provide -
+        /// a runtime assembly built outside Unity, say - is left out and matches nothing.
+        /// </summary>
+        public static EditorOnlyMethods Create(Compilation compilation)
+        {
+            var attributeTypes = ImmutableHashSet.CreateBuilder<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+            foreach (var metadataName in s_attributeMetadataNames)
+            {
+                var type = compilation.GetTypeByMetadataName(metadataName);
+                if (type is object)
+                {
+                    attributeTypes.Add(type);
+                }
+            }
+
+            return new EditorOnlyMethods(
+                compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour"),
+                attributeTypes.ToImmutable());
+        }
 
         /// <summary>
         /// True when <paramref name="node"/> sits in a method Unity calls only in the editor.
         /// </summary>
-        public static bool Contains(
-            SyntaxNode node,
-            SemanticModel semanticModel,
-            INamedTypeSymbol? monoBehaviourType,
-            CancellationToken cancellationToken)
+        public bool Contains(SyntaxNode node, SemanticModel semanticModel, CancellationToken cancellationToken)
         {
             MethodDeclarationSyntax? method = null;
 
@@ -85,19 +120,21 @@ namespace UnityPerformanceAnalyzers
                 return false;
             }
 
-            foreach (var attribute in methodSymbol.GetAttributes())
+            if (!_attributeTypes.IsEmpty)
             {
-                var name = attribute.AttributeClass?.ToDisplayString();
-                if (name is object && s_attributes.Contains(name))
+                foreach (var attribute in methodSymbol.GetAttributes())
                 {
-                    return true;
+                    if (attribute.AttributeClass is object && _attributeTypes.Contains(attribute.AttributeClass))
+                    {
+                        return true;
+                    }
                 }
             }
 
             // A message only counts on a MonoBehaviour: a plain class with a method named
             // OnDrawGizmos is an ordinary method and Unity never calls it.
             return s_messages.Contains(method.Identifier.ValueText)
-                && TypeHierarchy.DerivesFrom(methodSymbol.ContainingType, monoBehaviourType);
+                && TypeHierarchy.DerivesFrom(methodSymbol.ContainingType, _monoBehaviourType);
         }
     }
 }

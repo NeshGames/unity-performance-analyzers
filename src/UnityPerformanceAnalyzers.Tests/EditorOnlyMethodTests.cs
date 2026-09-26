@@ -12,9 +12,9 @@ using Xunit;
 namespace UnityPerformanceAnalyzers.Tests
 {
     /// <summary>
-    /// Unity strips OnDrawGizmos, OnDrawGizmosSelected, OnValidate and Reset
-    /// from a player build, so per-frame cost inside them costs nothing — while a defect inside
-    /// them is still a defect.
+    /// A player build never calls OnDrawGizmos, OnDrawGizmosSelected, OnValidate, or a method
+    /// marked [MenuItem], [InitializeOnLoadMethod] or [DidReloadScripts], so per-frame cost
+    /// inside them costs nothing — while a defect inside them is still a defect.
     /// </summary>
     /// <remarks>
     /// This is not the hot-path exclusion. OnDrawGizmos was never in HOT_MESSAGES, which covered
@@ -163,6 +163,118 @@ class C : MonoBehaviour
     {
         Action draw = () => mat.SetFloat(""_A"", 1f);
         draw();
+    }
+}");
+        }
+
+        /// <summary>
+        /// Reset is a Unity message, but it is also what pooled objects name their runtime
+        /// reinitialisation, and the name cannot tell the two apart. The pooled one runs in the
+        /// build as often as objects are recycled, so it keeps its findings.
+        /// </summary>
+        [Fact]
+        public Task PerFrameCostRule_InReset_StillTriggers()
+        {
+            return RuleVerifier.VerifyAsync<UPA0003StringPropertyAccessAnalyzer>(@"
+using UnityEngine;
+
+class Bullet : MonoBehaviour
+{
+    public Material mat;
+
+    public void Reset()
+    {
+        {|UPA0003:mat.SetFloat(""_A"", 1f)|};
+    }
+}");
+        }
+
+        // ---------------------------------------------------------------------------------
+        // Editor-only attributes. UPA0021 rather than UPA0003: UPA0003 carries its own
+        // [MenuItem] exemption, so it would stay silent here even with this filter broken.
+        // UPA0021 has no hot-path scope and no exemption of its own, so the only thing that
+        // can silence it inside these methods is the filter under test.
+        // ---------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Each attribute by Unity's own class name. MenuItem and DidReloadScripts carry no
+        /// "Attribute" suffix; InitializeOnLoadMethodAttribute does. Matching the suffixed
+        /// spelling for all three is how the first two once matched nothing.
+        /// </summary>
+        [Theory]
+        [InlineData(@"UnityEditor.MenuItem(""Tools/Check"")")]
+        [InlineData("UnityEditor.InitializeOnLoadMethod")]
+        [InlineData("UnityEditor.Callbacks.DidReloadScripts")]
+        public Task PerFrameCostRule_InEditorAttributedMethod_DoesNotTrigger(string attribute)
+        {
+            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+using UnityEngine;
+
+static class Tools
+{
+    static Vector3 v;
+
+    [" + attribute + @"]
+    static void Check()
+    {
+        if (v.magnitude < 5f)
+        {
+        }
+    }
+}");
+        }
+
+        /// <summary>the control for the theory above: the same method without the attribute.</summary>
+        [Fact]
+        public Task PerFrameCostRule_InUnattributedStaticMethod_StillTriggers()
+        {
+            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+using UnityEngine;
+
+static class Tools
+{
+    static Vector3 v;
+
+    static void Check()
+    {
+        if ({|UPA0021:v.magnitude < 5f|})
+        {
+        }
+    }
+}");
+        }
+
+        /// <summary>
+        /// A project's own MenuItemAttribute is written [MenuItem] at the use site, exactly like
+        /// Unity's. It says nothing about the build, so it must not silence anything.
+        /// </summary>
+        [Fact]
+        public Task ProjectOwnMenuItemAttribute_StillTriggers()
+        {
+            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+using System;
+using UnityEngine;
+using MyGame.Debugging;
+
+namespace MyGame.Debugging
+{
+    [AttributeUsage(AttributeTargets.Method)]
+    sealed class MenuItemAttribute : Attribute
+    {
+        public MenuItemAttribute(string path) { }
+    }
+}
+
+static class Tools
+{
+    static Vector3 v;
+
+    [MenuItem(""Tools/Check"")]
+    static void Check()
+    {
+        if ({|UPA0021:v.magnitude < 5f|})
+        {
+        }
     }
 }");
         }

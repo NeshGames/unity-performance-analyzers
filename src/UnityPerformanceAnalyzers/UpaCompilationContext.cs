@@ -31,7 +31,7 @@ namespace UnityPerformanceAnalyzers
         private readonly Lazy<UpaProfile> _profile;
         private readonly Lazy<HotPathDetector> _hotPath;
         private readonly UpaClaimKind _claim;
-        private readonly Lazy<INamedTypeSymbol?> _monoBehaviourType;
+        private readonly Lazy<EditorOnlyMethods> _editorOnly;
 
         // RS1012 wants every method taking a start context to register an action, because one
         // that registers nothing is an analyzer that never runs. This one hands the context to
@@ -44,8 +44,8 @@ namespace UnityPerformanceAnalyzers
         {
             _start = start;
             _claim = claim;
-            _monoBehaviourType = new Lazy<INamedTypeSymbol?>(
-                () => start.Compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour"),
+            _editorOnly = new Lazy<EditorOnlyMethods>(
+                () => EditorOnlyMethods.Create(start.Compilation),
                 LazyThreadSafetyMode.ExecutionAndPublication);
 
             // Lazy so a rule that never asks does not pay, and thread-safe because nothing
@@ -114,7 +114,7 @@ namespace UnityPerformanceAnalyzers
         private bool SkipsEditorOnly(SyntaxNode node, SemanticModel? semanticModel, CancellationToken cancellationToken)
             => _claim == UpaClaimKind.PerFrameCost
                 && semanticModel is object
-                && EditorOnlyMethods.Contains(node, semanticModel, _monoBehaviourType.Value, cancellationToken);
+                && _editorOnly.Value.Contains(node, semanticModel, cancellationToken);
 
         public void RegisterSymbolAction(Action<SymbolAnalysisContext> action, params SymbolKind[] symbolKinds)
             => _start.RegisterSymbolAction(action, symbolKinds);

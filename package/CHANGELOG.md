@@ -5,6 +5,25 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Performance rules now go quiet inside `[MenuItem]` and `[DidReloadScripts]` methods, as
+  0.9.0 said they would.** The exemption matched `UnityEditor.MenuItemAttribute` and
+  `UnityEditor.Callbacks.DidReloadScriptsAttribute`, but Unity names those classes `MenuItem`
+  and `DidReloadScripts`, so neither ever matched. The attribute types are now resolved from
+  the compilation and compared as symbols, so a project's own `MenuItemAttribute` in another
+  namespace still does not silence anything.
+
+### Changed
+
+- **Performance rules report inside `Reset` again.** Unity sends `Reset` only in the editor,
+  but `Reset()` is also the usual name for a pooled object's runtime reinitialisation, and the
+  method name cannot tell the two apart. The pooled one runs in the build as often as objects
+  are recycled. A finding in an editor-only `Reset` can be suppressed; a missed one in a pool
+  is never seen. `OnDrawGizmos`, `OnDrawGizmosSelected` and `OnValidate` stay exempt.
+
 ## [0.9.0] - 2026-08-11
 
 A minor version rather than a patch, because rules changed what they report. Upgrading will
