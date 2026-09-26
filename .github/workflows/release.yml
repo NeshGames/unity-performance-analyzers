@@ -434,28 +434,14 @@ jobs:
       # a permanent tag. Publishing still happens after, since a NuGet version should not
       # exist without the tag it names.
       - name: Pack upa-cli
-        run: |
-          set -euo pipefail
-          dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release --no-build -o artifacts/nuget
-          test -f "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.${{ steps.version.outputs.version }}.nupkg"
+        run: dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release --no-build -o artifacts/nuget
 
-      # Proves the package installs and starts before the tag is cut; dotnet pack
-      # succeeding says nothing about whether the tool runs.
+      # Proves the package is at the path the release attaches, installs and starts before
+      # the tag is cut; dotnet pack succeeding says nothing about whether the tool runs.
       - name: The packed tool installs and runs
-        run: |
-          set -euo pipefail
-          work=$(mktemp -d)
-          cd "$work"
-          dotnet new tool-manifest
-          dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli \
-            --add-source "$GITHUB_WORKSPACE/artifacts/nuget" \
-            --version "${{ steps.version.outputs.version }}"
-          reported=$(dotnet upa-cli --version)
-          if [ "$reported" != "${{ steps.version.outputs.version }}" ]; then
-            echo "::error::packed tool reports $reported, expected ${{ steps.version.outputs.version }}"
-            exit 1
-          fi
-          dotnet upa-cli --list-rules > /dev/null
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: bash .github/release/verify-cli-package.sh artifacts/nuget "$VERSION"
 
       - name: Commit, tag, push
         run: |
@@ -559,9 +545,6 @@ jobs:
       #
       # --all-warn because UPA0005 is off by default, and a probe that cannot fail proves
       # nothing. Exit 1 is the success case here: it means violations were found.
-      # Starting is not the same as working, and the difference is exactly the failure the
-      # step above is shaped to avoid: a binary that resolves no reference assemblies still
-      # prints its version happily and reports nothing on every file it is given.
       #
       # The decision lives in a script with its own self-test, which the pull request workflow
       # runs. Inline, it ran under the runner's `bash -e` -- which `set -uo pipefail` does not
@@ -670,10 +653,7 @@ jobs:
           test -f package/Analyzers/UnityPerformanceAnalyzers.dll
 
       - name: Pack upa-cli from the tag
-        run: |
-          set -euo pipefail
-          dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release -o artifacts/nuget
-          test -f "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.${{ steps.tag.outputs.version }}.nupkg"
+        run: dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release -o artifacts/nuget
 
       # Also present before the tag is cut, where it fails cheaply. It is repeated here
       # because this is the step that cannot be undone, and because that one packed the
@@ -683,20 +663,7 @@ jobs:
       - name: The packed tool installs and runs
         env:
           VERSION: ${{ steps.tag.outputs.version }}
-        run: |
-          set -euo pipefail
-          work=$(mktemp -d)
-          cd "$work"
-          dotnet new tool-manifest
-          dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli \
-            --add-source "$GITHUB_WORKSPACE/artifacts/nuget" \
-            --version "$VERSION"
-          reported=$(dotnet upa-cli --version)
-          if [ "$reported" != "$VERSION" ]; then
-            echo "::error::packed tool reports $reported, expected $VERSION"
-            exit 1
-          fi
-          dotnet upa-cli --list-rules > /dev/null
+        run: bash .github/release/verify-cli-package.sh artifacts/nuget "$VERSION"
 
       # continue-on-error for the same reason the smoke verdicts use it: a download that
       # fails leaves no files, and the step below reads that as "not built", which is the
