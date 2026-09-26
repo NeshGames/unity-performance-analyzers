@@ -529,7 +529,7 @@ truth:
 
 ```bash
 dotnet build UnityPerformanceAnalyzers.sln -c Release
-dotnet test UnityPerformanceAnalyzers.sln -c Release --filter "Category!=RequiresUnity"
+dotnet test UnityPerformanceAnalyzers.sln -c Release
 ```
 
 ## License

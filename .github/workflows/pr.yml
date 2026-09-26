@@ -48,12 +48,9 @@ jobs:
       - name: Build
         run: dotnet build UnityPerformanceAnalyzers.sln -c Release
 
-      # Tests that need a real UnityEngine.dll are excluded on PR;
-      # they run against the sandbox project in the release workflow instead.
       - name: Test
         run: >
           dotnet test UnityPerformanceAnalyzers.sln -c Release --no-build
-          --filter "Category!=RequiresUnity"
           --logger "console;verbosity=minimal"
 
       # Everything above compiles with the SDK's C# compiler, which is newer than the one

@@ -494,7 +494,7 @@ upa-cli @upa-args.rsp --format sarif > upa.sarif
 
 ```bash
 dotnet build UnityPerformanceAnalyzers.sln -c Release
-dotnet test UnityPerformanceAnalyzers.sln -c Release --filter "Category!=RequiresUnity"
+dotnet test UnityPerformanceAnalyzers.sln -c Release
 ```
 
 ## 授權
