@@ -279,5 +279,193 @@ class C
 }";
             return VerifyTriggersAsync(Source);
         }
+
+        // Form A, one scope down: a local function's exceptions escape its callers the same way.
+        [Fact]
+        public Task AsyncVoidLocalFunction_Triggers()
+        {
+            return CreateTest(@"
+using System;
+using System.Threading.Tasks;
+
+class C
+{
+    void M()
+    {
+        async void {|UPA2012:Local|}()
+        {
+            await Task.Yield();
+        }
+
+        async void Handler(object sender, EventArgs e)
+        {
+            await Task.Yield();
+        }
+
+        Local();
+    }
+}").RunAsync();
+        }
+
+        private const string UnityEventStub = @"
+namespace UnityEngine.Events
+{
+    public delegate void UnityAction();
+
+    public class UnityEvent
+    {
+        public void AddListener(UnityAction call) { }
+    }
+}
+";
+
+        // The canonical Unity UI line. The delegate returns void, so the lambda is async void,
+        // and the message names the delegate because the lambda has no name of its own.
+        [Fact]
+        public Task AsyncLambdaToUnityAction_Triggers_WithLambdaAdvice()
+        {
+            var test = CreateTest(@"
+using System.Threading.Tasks;
+using UnityEngine.Events;
+" + UnityEventStub + @"
+class C
+{
+    UnityEvent onClick = new UnityEvent();
+
+    Task LoadAsync() => Task.CompletedTask;
+
+    void M()
+    {
+        onClick.AddListener({|#0:async () =>|} await LoadAsync());
+    }
+}");
+            test.ExpectedDiagnostics.Add(
+                new DiagnosticResult(UPA2012FireAndForgetAnalyzer.DiagnosticId, DiagnosticSeverity.Warning)
+                    .WithLocation(0)
+                    .WithMessage("This async lambda is async void once converted to 'UnityAction': exceptions escape every caller and completion cannot be observed. Move the body into a Task-returning method that handles its own exceptions, and call it as () => _ = TheMethod()."));
+            return test.RunAsync();
+        }
+
+        [Fact]
+        public Task AsyncLambdaToAction_WithUniTask_TriggersWithUniTaskAdvice()
+        {
+            var test = CreateTest(@"
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+class C
+{
+    void M(List<int> ids)
+    {
+        ids.ForEach({|#0:async id =>|} await Task.Yield());
+    }
+}", referenceUniTask: true);
+            test.ExpectedDiagnostics.Add(
+                new DiagnosticResult(UPA2012FireAndForgetAnalyzer.DiagnosticId, DiagnosticSeverity.Warning)
+                    .WithLocation(0)
+                    .WithMessage("This async lambda is async void once converted to 'Action<int>': exceptions escape every caller and completion cannot be observed. Wrap it in UniTask.UnityAction or UniTask.Action, or have it call an async UniTaskVoid method and Forget the result."));
+            return test.RunAsync();
+        }
+
+        [Fact]
+        public Task AsyncAnonymousMethodToAction_Triggers()
+        {
+            return CreateTest(@"
+using System;
+using System.Threading.Tasks;
+
+class C
+{
+    void M()
+    {
+        Action fire = {|UPA2012:async delegate|} { await Task.Yield(); };
+    }
+}").RunAsync();
+        }
+
+        // Where the delegate returns a task, so does the lambda, and whoever invokes it can
+        // observe it. The event-handler convention is exempt for lambdas as it is for methods,
+        // and the fix the message offers without UniTask - a non-async lambda discarding a
+        // task that handles its own exceptions - must not report either.
+        [Fact]
+        public Task AsyncLambdaReturningTaskOrEventHandler_DoesNotTrigger()
+        {
+            return CreateTest(@"
+using System;
+using System.Threading.Tasks;
+
+class C
+{
+    event EventHandler Clicked;
+
+    void M()
+    {
+        Func<Task> load = async () => await Task.Yield();
+        var run = Task.Run(async () => await Task.Yield());
+        Clicked += async (sender, e) => await Task.Yield();
+        Action fire = () => _ = LoadAndReportAsync();
+    }
+
+    async Task LoadAndReportAsync()
+    {
+        try { await Task.Yield(); }
+        catch (Exception) { }
+    }
+}").RunAsync();
+        }
+
+        // `?.` only decides whether there is a task; when there is one it is discarded all the
+        // same. The span is the whole conditional access, which is the statement being flagged.
+        [Fact]
+        public Task ConditionalAccessInvocation_Triggers()
+        {
+            return CreateTest(@"
+using System.Threading.Tasks;
+
+class Loader
+{
+    public Loader Next;
+    public Task LoadAsync() => Task.CompletedTask;
+}
+
+class C
+{
+    Loader loader;
+
+    void M()
+    {
+        {|UPA2012:loader?.LoadAsync()|};
+        {|UPA2012:loader?.Next?.LoadAsync()|};
+        {|UPA2012:loader?.Next.LoadAsync()|};
+    }
+}").RunAsync();
+        }
+
+        [Fact]
+        public Task ConditionalAccessUniTask_ForgetOrReceiver_DoesNotTrigger_BareTriggers()
+        {
+            return CreateTest(@"
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
+" + UniTaskStub + @"
+class Loader
+{
+    public UniTask LoadAsync() => default;
+    public Task Pending() => Task.CompletedTask;
+}
+
+class C
+{
+    Loader loader;
+
+    void M()
+    {
+        loader?.LoadAsync().Forget();
+        loader.Pending()?.ToString();
+        {|UPA2012:loader?.LoadAsync()|};
+    }
+}", referenceUniTask: true).RunAsync();
+        }
     }
 }

@@ -189,8 +189,11 @@
   <data name="UPA2012MessageFormatFireAndForget" xml:space="preserve">
     <value>The result of '{0}' is discarded, so its exceptions are silently lost. {1}</value>
   </data>
+  <data name="UPA2012MessageFormatAsyncLambda" xml:space="preserve">
+    <value>This async lambda is async void once converted to '{0}': exceptions escape every caller and completion cannot be observed. {1}</value>
+  </data>
   <data name="UPA2012Description" xml:space="preserve">
-    <value>Exceptions thrown by an async void method cannot be caught by any caller and its completion cannot be observed; a Task or UniTask whose result is discarded at the call site silently swallows its exceptions the same way. Both are debugging black holes. Return an awaitable type and observe it at the call sites, or make fire-and-forget explicit — with UniTask, return UniTaskVoid and call Forget. Event-handler-signature async void methods and explicit discard assignments are excluded as established conventions.</value>
+    <value>Exceptions thrown by an async void method, local function or lambda cannot be caught by any caller and its completion cannot be observed; a Task or UniTask whose result is discarded at the call site silently swallows its exceptions the same way. Both are debugging black holes. Return an awaitable type and observe it at the call sites, or make fire-and-forget explicit — with UniTask, return UniTaskVoid and call Forget. Event-handler-signature async void methods and explicit discard assignments are excluded as established conventions.</value>
   </data>
   <data name="UPA2012AdviceAsyncVoidDefault" xml:space="preserve">
     <value>Return Task instead, and await or store it at the call sites.</value>
@@ -203,6 +206,12 @@
   </data>
   <data name="UPA2012AdviceFireAndForgetUniTask" xml:space="preserve">
     <value>Await it, or make fire-and-forget explicit with Forget.</value>
+  </data>
+  <data name="UPA2012AdviceAsyncLambdaDefault" xml:space="preserve">
+    <value>Move the body into a Task-returning method that handles its own exceptions, and call it as () =&gt; _ = TheMethod().</value>
+  </data>
+  <data name="UPA2012AdviceAsyncLambdaUniTask" xml:space="preserve">
+    <value>Wrap it in UniTask.UnityAction or UniTask.Action, or have it call an async UniTaskVoid method and Forget the result.</value>
   </data>
   <data name="UPA2021Title" xml:space="preserve">
     <value>Public Action event used for observable state</value>

@@ -29,9 +29,12 @@ namespace UnityPerformanceAnalyzers
                 ReferenceEquals(assignment.Target, operation);
 
         /// <summary>
-        /// The operation with implicit conversions stripped. A literal passed where an
-        /// interface or a wider type is expected arrives wrapped, and the rules care about
-        /// what was written, not what it was converted to.
+        /// The operation with every conversion stripped - implicit ones and explicit casts
+        /// alike. A literal passed where an interface or a wider type is expected arrives
+        /// wrapped, and the rules care about what was written, not what it was converted to;
+        /// a cast is looked through for the same reason, so <c>(object)"id"</c> still reads as
+        /// the string. A rule that has to tell a written cast from an implicit conversion needs
+        /// its own loop.
         /// </summary>
         public static IOperation Unwrap(IOperation operation)
         {
