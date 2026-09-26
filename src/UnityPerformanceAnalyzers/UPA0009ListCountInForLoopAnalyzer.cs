@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Collections.Immutable;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -85,7 +86,11 @@ namespace UnityPerformanceAnalyzers
                     continue;
                 }
 
-                if (LoopMayReachReceiver(forStatement, receiverName))
+                var receiver = new Receiver(
+                    receiverName,
+                    IsMemberReceiver(memberAccess.Expression, context.SemanticModel, context.CancellationToken),
+                    context.SemanticModel.GetEnclosingSymbol(forStatement.SpanStart, context.CancellationToken)?.ContainingType);
+                if (LoopMayReachReceiver(forStatement, receiver, context.SemanticModel, context.CancellationToken))
                 {
                     continue;
                 }
@@ -119,6 +124,38 @@ namespace UnityPerformanceAnalyzers
             }
         }
 
+        // A field or property can be reached by any code running on the instance (or, when
+        // static, on the type); a local or parameter only by code that was handed it or
+        // captured it. An unresolved receiver is treated as the wider of the two.
+        private static bool IsMemberReceiver(ExpressionSyntax receiver, SemanticModel model, CancellationToken cancellationToken)
+        {
+            switch (model.GetSymbolInfo(receiver, cancellationToken).Symbol)
+            {
+                case ILocalSymbol _:
+                case IParameterSymbol _:
+                    return false;
+                default:
+                    return true;
+            }
+        }
+
+        /// <summary>The collection whose Count is read, and what could reach it besides the loop.</summary>
+        private readonly struct Receiver
+        {
+            public Receiver(string name, bool isMember, INamedTypeSymbol? enclosingType)
+            {
+                Name = name;
+                IsMember = isMember;
+                EnclosingType = enclosingType;
+            }
+
+            public string Name { get; }
+
+            public bool IsMember { get; }
+
+            public INamedTypeSymbol? EnclosingType { get; }
+        }
+
         /// <summary>
         /// Whether anything in the loop - body, initializer or incrementor - could reach the
         /// collection other than by reading it. Hoisting Count is only correct while the
@@ -134,16 +171,20 @@ namespace UnityPerformanceAnalyzers
         /// initializer, and the rule is where that belongs: if the advice cannot be followed
         /// safely, the advice is what is wrong.
         /// </remarks>
-        private static bool LoopMayReachReceiver(ForStatementSyntax loop, string receiverName)
+        private static bool LoopMayReachReceiver(
+            ForStatementSyntax loop,
+            Receiver receiver,
+            SemanticModel model,
+            CancellationToken cancellationToken)
         {
-            if (loop.Declaration is { } declaration && MayReachReceiver(declaration, receiverName))
+            if (loop.Declaration is { } declaration && MayReachReceiver(declaration, receiver, model, cancellationToken))
             {
                 return true;
             }
 
             foreach (var initializer in loop.Initializers)
             {
-                if (MayReachReceiver(initializer, receiverName))
+                if (MayReachReceiver(initializer, receiver, model, cancellationToken))
                 {
                     return true;
                 }
@@ -151,13 +192,13 @@ namespace UnityPerformanceAnalyzers
 
             foreach (var incrementor in loop.Incrementors)
             {
-                if (MayReachReceiver(incrementor, receiverName))
+                if (MayReachReceiver(incrementor, receiver, model, cancellationToken))
                 {
                     return true;
                 }
             }
 
-            return MayReachReceiver(loop.Statement, receiverName);
+            return MayReachReceiver(loop.Statement, receiver, model, cancellationToken);
         }
 
         /// <summary>
@@ -170,13 +211,28 @@ namespace UnityPerformanceAnalyzers
         /// initialise a declaration. Reading through it -- <c>list.Count</c>,
         /// <c>list[i]</c> -- cannot produce one, so those still report.
         /// <para>
+        /// Then the routes that need no alias. Assigning the receiver itself replaces the
+        /// collection the hoisted count was read from. A field is reachable from any method of
+        /// its own type, so a call through <c>this</c> - implicit or written - may mutate it
+        /// however innocent its arguments look: <c>Kill(_enemies[i])</c> removing from
+        /// <c>_enemies</c> is the ordinary shape of that. A local function may have captured
+        /// the receiver wherever it was declared, and a delegate invoked by name may be a
+        /// lambda that did. None of these can be told apart from the harmless case without
+        /// reading the callee, so all of them silence the rule.
+        /// </para>
+        /// <para>
         /// What remains and cannot be removed: another object may already hold the collection
         /// and mutate it from inside the loop. Nothing visible at this call site says so. The
         /// rule page states this.
         /// </para>
         /// </remarks>
-        private static bool MayReachReceiver(SyntaxNode scope, string receiverName)
+        private static bool MayReachReceiver(
+            SyntaxNode scope,
+            Receiver receiver,
+            SemanticModel model,
+            CancellationToken cancellationToken)
         {
+            var receiverName = receiver.Name;
             foreach (var node in scope.DescendantNodesAndSelf())
             {
                 switch (node)
@@ -200,16 +256,120 @@ namespace UnityPerformanceAnalyzers
                             return true;
                         }
 
+                        if (receiver.IsMember &&
+                            invocation.ArgumentList is { } thisArguments &&
+                            PassesThis(thisArguments))
+                        {
+                            return true;
+                        }
+
+                        if (CallMayReachReceiver(invocation, receiver, model, cancellationToken))
+                        {
+                            return true;
+                        }
+
                         break;
 
+                    // Either side: on the right the collection escapes into another name, on
+                    // the left it is replaced - `items = GetMore();` - and a count hoisted
+                    // before the loop belongs to a list the loop is no longer reading.
                     case AssignmentExpressionSyntax assignment
-                        when MentionsBareIdentifier(assignment.Right, receiverName):
+                        when MentionsBareIdentifier(assignment.Right, receiverName) ||
+                            MentionsBareIdentifier(assignment.Left, receiverName):
                         return true;
 
                     case VariableDeclaratorSyntax declarator
                         when declarator.Initializer is { } initializer &&
                             MentionsBareIdentifier(initializer.Value, receiverName):
                         return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Whether this call runs code that may reach the receiver without being handed it.
+        /// </summary>
+        private static bool CallMayReachReceiver(
+            InvocationExpressionSyntax invocation,
+            Receiver receiver,
+            SemanticModel model,
+            CancellationToken cancellationToken)
+        {
+            var target = invocation.Expression;
+            var throughThis = target is MemberAccessExpressionSyntax qualified &&
+                (qualified.Expression is ThisExpressionSyntax || qualified.Expression is BaseExpressionSyntax);
+            var bySimpleName = target is SimpleNameSyntax;
+            if (!throughThis && !bySimpleName)
+            {
+                return false;
+            }
+
+            var method = model.GetSymbolInfo(invocation, cancellationToken).Symbol as IMethodSymbol;
+            if (method is null)
+            {
+                // Unbound (an error, or a dynamic call): nothing says what it runs.
+                return true;
+            }
+
+            // Wherever it was declared, a local function sees the locals it captured and the
+            // instance it runs on; a delegate invoked by name may be a lambda that did the same.
+            if (method.MethodKind == MethodKind.LocalFunction ||
+                method.MethodKind == MethodKind.DelegateInvoke)
+            {
+                return true;
+            }
+
+            if (!receiver.IsMember)
+            {
+                return false;
+            }
+
+            // `this.Anything()` - including an extension that takes the instance - runs with
+            // the instance in hand.
+            if (throughThis)
+            {
+                return true;
+            }
+
+            // A simple name that binds to the enclosing type's own methods, its bases' or an
+            // outer type's is an implicit-this or same-type static call. A `using static`
+            // import binds elsewhere and cannot see the field.
+            return IsOwnOrInheritedMember(method.ContainingType, receiver.EnclosingType);
+        }
+
+        private static bool IsOwnOrInheritedMember(INamedTypeSymbol? methodType, INamedTypeSymbol? enclosingType)
+        {
+            if (methodType is null || enclosingType is null)
+            {
+                return true;
+            }
+
+            var declaring = methodType.OriginalDefinition;
+            for (var outer = enclosingType; outer is not null; outer = outer.ContainingType)
+            {
+                for (var type = outer; type is not null; type = type.BaseType)
+                {
+                    if (SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, declaring))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        // `this` handed out as an argument gives the callee every field of the instance.
+        private static bool PassesThis(ArgumentListSyntax arguments)
+        {
+            foreach (var node in arguments.DescendantNodes())
+            {
+                if (node is ThisExpressionSyntax &&
+                    !(node.Parent is MemberAccessExpressionSyntax member && member.Expression == node))
+                {
+                    return true;
                 }
             }
 
