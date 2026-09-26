@@ -348,7 +348,7 @@ upa-cli --list-rules
 | `--whole-assembly` | 宣告這組檔案構成完整組件:啟用整組件規則,且編譯錯誤變致命 | `--whole-assembly` |
 | `--unsafe` | 允許 unsafe 程式碼,等同 asmdef 勾選 `allowUnsafeCode`(Burst、指標存取、ZString)。少了它每個指標都是編譯錯誤,而 `--whole-assembly` 會讓編譯錯誤變致命。Unity 編譯該組件時有開,`--init-args` 就會自動加上 | `--unsafe` |
 | `--only <路徑\|樣式>` | 只回報這些檔案的發現;可重複。所有輸入檔仍會一起編譯,符號解析與完整執行相同——縮小的是回報,不是分析。不可與寫入、修剪或檢查 baseline 過期同時使用 | `@upa-args.rsp --only Assets/Scripts/Player.cs` |
-| `--only-from <檔案>` | 清單版的 `--only`,每行一個路徑——例如 `git diff --name-only --relative HEAD > changed.txt`。已刪除與非 `.cs` 的條目會略過;不在輸入檔中的 `.cs` 則視為錯誤,而不是默默回報「乾淨」 | `--only-from changed.txt` |
+| `--only-from <檔案>` | 清單版的 `--only`,每行一個路徑,以工作目錄為基準——例如 `git diff --name-only --relative HEAD > changed.txt`。已刪除與非 `.cs` 的條目會略過;不在輸入檔中的 `.cs`,或清單中的 C# 檔一個都找不到,都視為錯誤,而不是默默回報「乾淨」。搭配 `--baseline` 時,壓下數與過期數只計算指定的檔案 | `--only-from changed.txt` |
 | `--fail-on <等級>` | 退出碼 1 的門檻:`none`、`info`、`warning`(預設)、`error` | `--fail-on error` |
 | `--baseline <path>` | 壓下 baseline 檔中已記錄的違規,只回報新增的 | `--baseline upa-baseline.json` |
 | `--write-baseline <path>` | 把目前的違規寫成 baseline。需搭配 `--whole-assembly`;成功時以 0 結束 | `--write-baseline upa-baseline.json --whole-assembly` |

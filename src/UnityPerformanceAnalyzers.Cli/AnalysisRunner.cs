@@ -139,6 +139,17 @@ internal static class AnalysisRunner
             .ThenBy(r => r.Id, StringComparer.Ordinal)
             .ToImmutableArray();
 
+        // --only narrows what this run speaks for, not what it compiled. Narrowing here, before
+        // a baseline is applied, is what keeps the baseline's numbers about the same files as
+        // the findings: the suppressed and stale counts cover the named files only, instead of
+        // whole-run totals printed beside a narrowed report.
+        IEnumerable<string> reportedFiles = options.Files;
+        if (options.OnlyFiles is { } only)
+        {
+            records = records.RemoveAll(r => !only.Contains(Path.GetFullPath(r.File)));
+            reportedFiles = options.Files.Where(f => only.Contains(Path.GetFullPath(f)));
+        }
+
         var result = new AnalysisResult(records, excludedRules, compileErrors, analyzerFailures);
         if (baselineDirectory is null)
         {
@@ -147,7 +158,7 @@ internal static class AnalysisRunner
 
         return result with
         {
-            AnalyzedFiles = NormalizeInputs(options.Files, baselineDirectory),
+            AnalyzedFiles = NormalizeInputs(reportedFiles, baselineDirectory),
         };
     }
 

@@ -420,15 +420,17 @@ internal sealed class CliOptions
     }
 
     /// <summary>
-    /// Narrows the report to the files --only names, for a caller that changed a few files and
-    /// wants to hear about those without compiling them out of context.
+    /// Narrows the report to the files --only and --only-from name, for a caller that changed
+    /// a few files and wants to hear about those without compiling them out of context.
     /// </summary>
     /// <remarks>
-    /// Built for <c>git diff --name-only &gt; changed.txt</c> and <c>--only-from changed.txt</c>, so
-    /// what such a list legitimately contains is not an error: a file that no longer exists
-    /// has nothing to report, and a file that is not C# is not this tool's concern. A C# file
-    /// that exists but is not among the analyzed inputs is an error, though - reporting nothing
-    /// for it would read as "clean" when it was never looked at.
+    /// The failure to guard against is a narrowed run that names nothing it analyzed and so
+    /// reports "clean" - a typo, or a change list whose paths are relative to somewhere other
+    /// than the working directory (<c>git diff --name-only</c> prints repository-relative
+    /// paths; run from a Unity project in a subfolder, none of them resolve). So an explicit
+    /// <c>--only</c> must name an analyzed .cs file or a pattern matching one. A list is
+    /// allowed what a change list legitimately holds - deleted files, non-C# paths - but if
+    /// it names C# files and none of them resolve, that is the wrong-base case, not a clean one.
     /// </remarks>
     private static string? ResolveOnly(CliOptions options)
     {
@@ -436,7 +438,19 @@ internal sealed class CliOptions
         var analyzed = new HashSet<string>(options.Files.Select(Path.GetFullPath), comparer);
         var only = new HashSet<string>(comparer);
 
-        var requested = new List<string>();
+        string? Take(string candidate)
+        {
+            var full = Path.GetFullPath(candidate);
+            if (!analyzed.Contains(full))
+            {
+                return $"--only names {candidate}, which is not one of the analyzed files; "
+                    + "its findings could not be reported. Add it to the inputs.";
+            }
+
+            only.Add(full);
+            return null;
+        }
+
         foreach (var entry in options.Only)
         {
             if (entry.StartsWith('@'))
@@ -447,34 +461,61 @@ internal sealed class CliOptions
                     return $"--only-from list not found: {listPath}";
                 }
 
-                requested.AddRange(File.ReadAllLines(listPath)
+                var listed = File.ReadAllLines(listPath)
                     .Select(line => line.Trim())
-                    .Where(line => line.Length > 0 && !line.StartsWith('#')));
-            }
-            else
-            {
-                requested.Add(entry);
-            }
-        }
+                    .Where(line => line.Length > 0 && !line.StartsWith('#'))
+                    .Where(line => line.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var present = listed.Where(File.Exists).ToList();
 
-        foreach (var item in requested)
-        {
-            IReadOnlyList<string> candidates = FileGlob.HasWildcard(item) ? FileGlob.Expand(item) : new[] { item };
-            foreach (var candidate in candidates)
-            {
-                if (!candidate.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || !File.Exists(candidate))
+                if (listed.Count > 0 && present.Count == 0)
                 {
-                    continue;
+                    return $"--only-from {listPath} names {listed.Count} C# file(s) and none exists "
+                        + $"relative to {Directory.GetCurrentDirectory()}. Paths in the list are read "
+                        + "from the working directory; from a subfolder, generate it with "
+                        + "git diff --name-only --relative.";
                 }
 
-                var full = Path.GetFullPath(candidate);
-                if (!analyzed.Contains(full))
+                foreach (var candidate in present)
                 {
-                    return $"--only names {candidate}, which is not one of the analyzed files; "
-                        + "its findings could not be reported. Add it to the inputs.";
+                    if (Take(candidate) is { } listError)
+                    {
+                        return listError;
+                    }
                 }
 
-                only.Add(full);
+                continue;
+            }
+
+            if (FileGlob.HasWildcard(entry))
+            {
+                var matches = FileGlob.Expand(entry)
+                    .Where(match => match.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (matches.Count == 0)
+                {
+                    return $"--only matched no C# files: {entry}";
+                }
+
+                foreach (var match in matches)
+                {
+                    if (Take(match) is { } globError)
+                    {
+                        return globError;
+                    }
+                }
+
+                continue;
+            }
+
+            if (!entry.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || !File.Exists(entry))
+            {
+                return $"--only: no C# file at {entry}";
+            }
+
+            if (Take(entry) is { } fileError)
+            {
+                return fileError;
             }
         }
 

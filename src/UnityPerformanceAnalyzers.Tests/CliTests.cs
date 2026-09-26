@@ -1047,5 +1047,45 @@ public class Mixed
             Assert.Equal(2, exitCode);
             Assert.Contains("--write-baseline", stderr);
         }
+
+        [Fact]
+        public void Only_WithAPathThatIsNotThere_IsRefusedRatherThanReportedClean()
+        {
+            var analyzed = WriteViolation("Analyzed.cs", "Analyzed");
+
+            var (exitCode, _, stderr) = Run(analyzed, "--only", Path.Combine(_dir, "Analyzd.cs"));
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("no C# file", stderr);
+        }
+
+        // git diff --name-only prints repository-relative paths; run from a Unity project in a
+        // subfolder, none of them resolve, and an empty narrowing would read as a clean run.
+        [Fact]
+        public void OnlyFrom_WhenNoListedCSharpFileResolves_IsRefused()
+        {
+            var analyzed = WriteViolation("Analyzed.cs", "Analyzed");
+            var list = Write("changed.txt", string.Join("\n",
+                "Game/Assets/Scripts/Analyzed.cs",
+                "Game/Assets/Scripts/Other.cs",
+                "README.md"));
+
+            var (exitCode, _, stderr) = Run(analyzed, "--only-from", list);
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("--relative", stderr);
+        }
+
+        [Fact]
+        public void OnlyFrom_WithNoCSharpChanges_ReportsNothingAndPasses()
+        {
+            var analyzed = WriteViolation("Analyzed.cs", "Analyzed");
+            var list = Write("changed.txt", "README.md\nAssets/Scene.unity");
+
+            var (exitCode, stdout, stderr) = Run(analyzed, "--only-from", list, "--format", "json");
+
+            Assert.True(exitCode == 0, stderr);
+            Assert.Empty(ReportedFiles(stdout));
+        }
     }
 }

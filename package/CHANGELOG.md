@@ -23,7 +23,9 @@ Read **Changed** and **Fixed** before upgrading.
   put a suppression's reason on the same line.
 - **`upa-cli --only <path|glob>` and `--only-from <file>`** report findings for the files named
   and nothing else, while still compiling every input so symbols resolve as in a full run. Built
-  for `git diff --name-only`: deleted and non-C# entries are skipped.
+  for `git diff --name-only --relative`: deleted and non-C# entries are skipped, but a name that
+  resolves to nothing is an error rather than a clean run. With a baseline, its counts cover the
+  named files only.
 - **`upa-cli --unsafe`**, and `--init-args` carries Unity's `-unsafe` through. Assemblies with
   `allowUnsafeCode` (Burst, pointers, ZString) no longer fail with CS0227 under
   `--whole-assembly`, and can have a baseline written.

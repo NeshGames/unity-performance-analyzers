@@ -1152,5 +1152,32 @@ public sealed class Broken : MonoBehaviour
                     SyntaxKind.MethodDeclaration);
             }
         }
+
+        // --only narrows the run before the baseline sees it, so the baseline's numbers are
+        // about the same files as the findings. Another file's unused quota is not stale from
+        // a run that did not look at it, and its suppressions are not this run's.
+        [Fact]
+        public void Only_WithABaseline_CountsTheNamedFilesAlone()
+        {
+            var changed = Write("Changed.cs", OneViolation);
+            var other = Write("Other.cs", OneViolation.Replace("class Probe", "class Other"));
+            var (_, before, _) = Run(changed, "--whole-assembly", "--format", "json");
+            var inChanged = DiagnosticCount(before);
+            Assert.True(inChanged > 0, "the fixture must produce something to freeze");
+
+            var baseline = Freeze(BaselinePathIn(), changed, other);
+            File.WriteAllText(other, "public class Other { }");
+
+            var (_, whole, _) = Run(changed, other, "--whole-assembly", "--baseline", baseline, "--format", "json");
+            Assert.True(Summary(whole).GetProperty("baselineStaleCount").GetInt32() > 0,
+                "the fixture must leave the other file's quota unused");
+
+            var (exitCode, stdout, stderr) = Run(
+                changed, other, "--whole-assembly", "--baseline", baseline, "--only", changed, "--format", "json");
+
+            Assert.True(exitCode == 0, stderr);
+            Assert.Equal(inChanged, Summary(stdout).GetProperty("baselineSuppressedCount").GetInt32());
+            Assert.Equal(0, Summary(stdout).GetProperty("baselineStaleCount").GetInt32());
+        }
     }
 }
