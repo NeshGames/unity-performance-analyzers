@@ -3,6 +3,11 @@
      Copy this file to Assets/Default.ruleset (project-wide).
      A Default.ruleset inside an asmdef folder overrides it for that assembly.
      To add the WebGL rules: <Include Path="webgl-addon.ruleset" Action="Default" />
+
+     Error entries fail Unity's compile. An Editor launched on a project that
+     does not compile opens in Safe Mode, where the Unity CLI cannot reach it.
+     To gate at this level without that, keep recommended in Assets and pass
+     this file to upa-cli in CI as its ruleset, failing on error.
      GENERATED FILE - do not edit. Severities live in PresetTable.cs;
      regenerate via the RuleManifest presets mode (see that file's header). -->
 <RuleSet Name="UPA cysharp-stack" ToolsVersion="10.0">

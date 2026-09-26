@@ -36,7 +36,6 @@ namespace NeshGames.UnityPerformanceAnalyzers.Editor
         private OptionsFile _optionsFile;
         private readonly Dictionary<string, string> _pendingOptions = new Dictionary<string, string>();
         private bool _optionsDirty;
-        private bool _syncEditorConfig;
 
         private List<(string assemblyName, string path)> _asmdefOverrides = new List<(string, string)>();
 
@@ -295,7 +294,7 @@ namespace NeshGames.UnityPerformanceAnalyzers.Editor
         private void DrawOptionsTab()
         {
             EditorGUILayout.HelpBox(
-                $"Values are written to {OptionsFile.ProjectPath}, which both Unity builds and the IDE honor (it wins over .editorconfig). Unset rows fall back to .editorconfig, then to built-in defaults.",
+                $"Values are written to {OptionsFile.ProjectPath}, which Unity builds and upa-cli both read. An unset row falls back to an .editorconfig where a toolchain passes one (upa-cli --editorconfig, dotnet build; Unity never does), then to the built-in default.",
                 MessageType.None);
 
             _optionsScroll = EditorGUILayout.BeginScrollView(_optionsScroll);
@@ -307,12 +306,6 @@ namespace NeshGames.UnityPerformanceAnalyzers.Editor
             EditorGUILayout.EndScrollView();
 
             EditorGUILayout.Space();
-            _syncEditorConfig = EditorGUILayout.ToggleLeft(
-                new GUIContent(
-                    "Also sync values to .editorconfig",
-                    "Mirrors the set keys into the project root .editorconfig for toolchains that read options from there."),
-                _syncEditorConfig);
-
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
             using (new EditorGUI.DisabledScope(!_optionsDirty))
@@ -510,10 +503,6 @@ namespace NeshGames.UnityPerformanceAnalyzers.Editor
             }
 
             _optionsFile.Save();
-            if (_syncEditorConfig && _pendingOptions.Count > 0)
-            {
-                OptionsFile.SyncToEditorConfig(_pendingOptions);
-            }
 
             AssetDatabase.Refresh();
             _optionsDirty = false;

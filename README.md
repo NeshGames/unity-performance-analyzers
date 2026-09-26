@@ -17,8 +17,8 @@ Distributed as a UPM package. Supports **Unity 2022.3 LTS through Unity 6**.
 
 ![Unity's Console listing performance warnings across two scripts](.github/images/console-warnings.png)
 
-The rules run inside Unity's own compile, so they report in the Console, in your IDE as
-you type, and in CI through `upa-cli` with no Editor and no licence. A ruleset decides
+The rules run inside Unity's own compile, so they report in the Console, and in CI (or
+for a coding agent) through `upa-cli` with no Editor and no licence. A ruleset decides
 which of them can fail a build.
 
 > **Status: pre-1.0.** All <!-- generated:rule-count -->46<!-- /generated:rule-count --> rules are implemented and verified against
@@ -41,6 +41,19 @@ the analyzer's scope to referencing assemblies only).
 Then pick a severity preset (below). Without one, only the rules that are enabled by
 default report, at Warning.
 
+**For coding agents.** This repository is also a Claude Code and Codex plugin. Its skill
+tells an agent when to run `upa-cli`, how to read what it reports, to fix rather than
+silence, and how to keep the rules from locking the Unity CLI out of the Editor. It works
+alongside Unity's own plugin:
+
+```bash
+claude plugin marketplace add NeshGames/unity-performance-analyzers
+claude plugin install unity-performance-analyzers@unity-performance-analyzers
+```
+
+For Codex: `codex plugin marketplace add NeshGames/unity-performance-analyzers`, then
+`codex plugin add unity-performance-analyzers@unity-performance-analyzers`.
+
 ## Severity presets
 
 Import the **Ruleset Presets** sample from the Package Manager window, then copy one
@@ -59,17 +72,23 @@ Extras in the same sample:
   requires the `UPA_TARGET_WEBGL` scripting define (see the sample README)
 - `editor-relaxed.ruleset` — drop into Editor asmdef folders as `Default.ruleset` to
   silence performance rules in tooling code
-- `rider-coexist`, `vs-coexist`, `unitask-coexist` — defer the rules another tool in your
-  project already reports. Each **includes** its base preset (copy both into `Assets/` and
-  rename the coexist file `Default.ruleset`), because a ruleset entry in the including file
-  wins — a file written the other way round silences nothing while looking correct. The
-  `.editorconfig` of the same name defers them in the IDE only, which is usually what you
-  want: see [rule overlap with other tools](docs/overlap.md)
-- `.editorconfig` variants of each preset for Rider / Visual Studio parity
+- `vs-coexist`, `unitask-coexist` — defer the rules another analyzer in your project
+  already reports. Each **includes** its base preset (copy both into `Assets/` and rename
+  the coexist file `Default.ruleset`), because a ruleset entry in the including file wins —
+  a file written the other way round silences nothing while looking correct. See
+  [rule overlap with other tools](docs/overlap.md)
 
 Unity reads rulesets only — it does not pass `.editorconfig` to the compiler (verified
 on 2022.3 and Unity 6). A `Default.ruleset` inside an asmdef folder overrides the
 project-wide one for that assembly.
+
+> **Error entries fail Unity's compile.** That is what `strict` and `cysharp-stack` are for
+> in a build, and it matters when a coding agent drives the Editor through the Unity CLI: an
+> Editor started on a project that does not compile opens in Safe Mode, where the
+> `com.unity.pipeline` package does not load and `unity command` cannot connect. For agent
+> workflows keep `recommended` in `Assets/Default.ruleset` and gate in CI instead —
+> `upa-cli --ruleset <path-to>/strict.ruleset --fail-on error` applies the stricter preset
+> there without touching Unity's compile. See [Reporting into CI](#reporting-into-ci).
 
 Import the **Smoke Test** sample to verify the analyzer is loaded: it violates several
 rules on purpose and should light up the Console immediately.
@@ -86,8 +105,7 @@ hand-editing XML:
   (read straight from the package, no sample import needed); and a WebGL toggle that
   maintains the `UPA_TARGET_WEBGL` define across **all** build targets together with the
   `webgl-addon.ruleset` Include. Per-asmdef ruleset overrides are listed read-only.
-- **Options tab** — edits the universal options file (next section), with an optional
-  mirror into `.editorconfig`.
+- **Options tab** — edits the universal options file (next section).
 
 The window edits `Assets/Default.ruleset` conservatively: entries belonging to other
 analyzers, `<Include>` lines and comments are preserved as-is.
@@ -95,8 +113,8 @@ analyzers, `<Include>` lines and comments are preserved as-is.
 ## Analyzer options (universal options file)
 
 `Assets/Rules.UnityPerformanceAnalyzers.additionalfile` carries every analyzer option in
-`key = value` form and is honored by **Unity builds and IDE analysis alike** — Unity
-passes additional files to the compiler, which it never does for `.editorconfig`.
+`key = value` form and is honored by **Unity builds and `upa-cli` alike** — Unity passes
+additional files to the compiler, which it never does for `.editorconfig`.
 Resolution is per key: the options file wins over `.editorconfig`, which wins over the
 built-in defaults.
 
@@ -148,17 +166,9 @@ is 2.19 s and 1.12 s. **The corpus is the sandbox project, which is small** — 
 a large production assembly is not something this project has measured yet, and it will not
 be published until it has been. Reproduce with `sandbox/measure-analyzer-cost.sh`.
 
-**Diagnostics exist in Traditional Chinese**, and the package ships the translation. Where
-you see it depends on what is asking:
-
-| | Language |
-|---|---|
-| Unity Console | **Always English.** Unity fixes the compiler's language to `en-US`, and it appends that after anything a project's `csc.rsp` sets, so nothing you configure changes it |
-| `upa-cli` | Always English. The tool runs culture-invariant on purpose, so it starts on minimal CI containers that have no ICU |
-| Rider / Visual Studio | The IDE's own language, which is where the translation is meant to land |
-
-So Chinese in the IDE and English in the Console is the expected result, not a broken
-install.
+**Diagnostic messages are English only**, everywhere: the Unity Console, `upa-cli`, and
+any other build. The rule documentation below is available in both English and Traditional
+Chinese.
 
 Full documentation per rule: [`docs/rules/`](docs/rules/). What a version number and a
 rule ID promise, and what an upgrade may change under you:
@@ -240,42 +250,6 @@ Package detection is by referenced assembly name (`UniTask`, `ZString`, `R3`,
 `DOTween`) — per-assembly, automatic, zero configuration.
 <!-- /generated:rules -->
 
-## Code fixes
-
-Nine rules ship with an automatic fix, offered by the IDE where the diagnostic appears:
-
-![The IDE offering the UPA0003 fix, with its preview and Fix All scopes](.github/images/ide-inline.png)
-
-Diagnostics follow your IDE's language — shown here in Traditional Chinese, which this
-package ships a translation for. Unity's Console is always English; that is Unity's own
-setting and no project can override it.
-
-![The applied result: the id cached on the type that makes the call](.github/images/codefix-result.png)
-
-Fix All shares one field per name per type. That is what makes it usable on the files where
-this rule really shows up: applied across the sample project above, three call sites in two
-types produced two fields — one per type, not one per call.
-
-
-| Rule | Fix |
-|---|---|
-| UPA0003 | cache a shader or animator name in a `static readonly int` on the containing type, and use the integer overload |
-| UPA0019 | `yield return <boxed value>` → `yield return null` |
-| UPA0021 | compare squared magnitudes instead of taking a square root |
-| UPA0026 | `x.GetType()` → `typeof(T)`, when the receiver can be dropped without changing what runs |
-| UPA0009 | hoist `list.Count` into a local declared before the loop |
-| UPA0029 | replace an array copy loop with `AddRange`, where no aliasing is possible |
-| UPA2031 | append `.SetLink(gameObject)` to a discarded infinite tween |
-| UPA2012 | append `.Forget()` to an unawaited UniTask call |
-| UPA2000 | `"a: " + n` → `ZString.Concat("a: ", n)`, where an operand is not a string |
-
-The fixes live in a second assembly that ships alongside the analyzer. Unity hands both to
-the compiler; the fixes themselves are IDE-only, since the compiler has no use for them.
-
-UPA0029's fix is offered only where the source is an array: two `List<T>` references can be
-the same list at runtime, and the rewrite would change what a self-copy does. See
-[its documentation](docs/rules/UPA0029.md).
-
 ## Tuning and suppressing
 
 Every rule doc has a "How to configure or suppress" section. The short version:
@@ -286,18 +260,17 @@ Every rule doc has a "How to configure or suppress" section. The short version:
 - **Hot-path classification** (which methods count as per-frame) and every other
   analyzer option: set them in the universal options file (see
   [Analyzer options](#analyzer-options-universal-options-file)) — effective in Unity
-  builds and IDEs alike; `.editorconfig` still works as an IDE-side fallback.
+  builds and `upa-cli` alike; `.editorconfig` still works as a fallback for toolchains
+  that pass one (`upa-cli --editorconfig`, `dotnet build`).
 
 Cold branches inside hot methods (lazy init, rare debug paths) will still be reported —
 the analyzers do no flow analysis. Suppress those locally rather than disabling rules.
 
 ## How this relates to other tools
 
-Most Unity projects already run Rider, Microsoft.Unity.Analyzers, or Project Auditor.
-[`docs/overlap.md`](docs/overlap.md) records, rule by rule, what else reports the same thing
-and what to do about it — including the one asymmetry that makes coexistence cheap: Unity
-passes `.ruleset` to the compiler and does not pass `.editorconfig`, so a rule can be silenced
-in the IDE while it still gates a build.
+Many Unity projects already run Microsoft.Unity.Analyzers, a package's own analyzer, or
+Project Auditor. [`docs/overlap.md`](docs/overlap.md) records, rule by rule, what else reports
+the same thing and what to do about it.
 
 ## Microsoft.Unity.Analyzers compatibility
 
@@ -390,10 +363,13 @@ called clean.
 | `--ruleset <path>` | Apply severities from a `.ruleset` | `--ruleset Assets/Default.ruleset` |
 | `--editorconfig <path>` | Apply severities **and** `upa_*` analyzer options from an `.editorconfig` | `--editorconfig .editorconfig` |
 | `--additionalfile <path>` | Pass an additional file, such as the universal options file. Repeatable | `--additionalfile Assets/Rules.UnityPerformanceAnalyzers.additionalfile` |
-| `@<path>` | Read arguments from a file, one per line, expanded where the `@` appears. A whole assembly's references and defines do not fit on a Windows command line | `upa-cli @args.rsp` |
+| `@<path>` | Read arguments from a file, one per line, expanded where the `@` appears. A whole assembly's references and defines do not fit on a Windows command line. Relative paths inside resolve against the working directory, as with csc, not the file's own directory | `upa-cli @args.rsp` |
 | `--unity-dll-dir <dir>` | Use a real Unity managed directory instead of the bundled stubs | `--unity-dll-dir <UnityEditor>/Data/Managed/UnityEngine` |
 | `--all-warn` | Force every rule on at warning, overriding ruleset and editorconfig | `--all-warn` |
 | `--whole-assembly` | Declare the files a complete assembly: enables whole-assembly rules and makes compile errors fatal | `--whole-assembly` |
+| `--unsafe` | Allow unsafe code, as an assembly with `allowUnsafeCode` does (Burst, pointer access, ZString). Without it every pointer is a compile error, which `--whole-assembly` makes fatal. `--init-args` adds it when Unity compiled the assembly with it | `--unsafe` |
+| `--only <path\|glob>` | Report findings for these files only; repeatable. Every input is still compiled, so symbols resolve as in a full run — this narrows the report, not the analysis. Cannot be combined with writing, pruning or stale-checking a baseline | `@upa-args.rsp --only Assets/Scripts/Player.cs` |
+| `--only-from <file>` | `--only` for a list, one path per line, read from the working directory — e.g. `git diff --name-only --relative HEAD > changed.txt`. Deleted and non-`.cs` entries are skipped. A `.cs` file that is not among the inputs, or a list whose C# files all fail to resolve, is an error rather than a silent "clean". With `--baseline`, the suppressed and stale counts cover the named files only | `--only-from changed.txt` |
 | `--fail-on <level>` | Threshold for exit code 1: `none`, `info`, `warning` (default), `error` | `--fail-on error` |
 | `--baseline <path>` | Suppress the violations recorded in a baseline file, so only new ones are reported | `--baseline upa-baseline.json` |
 | `--write-baseline <path>` | Record the current violations as the baseline. Needs `--whole-assembly`; exits 0 on success | `--write-baseline upa-baseline.json --whole-assembly` |
@@ -440,7 +416,24 @@ with no upload step, no token and no permissions:
 Annotations are per run rather than tracked alerts, and GitHub caps how many it renders
 per step. It costs one line of YAML, which is the trade.
 
-Both formats report file paths as given, so run the tool from the repository root and
+**With the Unity CLI.** A workflow generated by `unity ci init` runs `unity doctor --ci`,
+tests and a build, and nothing that reads analyzer findings: Unity CLI's own
+`--format github` annotations are not anchored to a file and line, so UPA warnings from a
+Unity compile stay in the log. Add one step after `unity doctor --ci`, using a response file
+generated once with `--init-args` and committed:
+
+```yaml
+- name: Unity performance analyzers
+  run: upa-cli @upa-args.rsp --ruleset Assets/Default.ruleset --format github --fail-on warning
+```
+
+Its `--unity-dll-dir` line must point at the runner's Unity installation. To gate harder than
+the project's own ruleset, pass a stricter preset here only — `--ruleset ci/strict.ruleset
+--fail-on error` — which fails the job without failing Unity's compile.
+
+`--format github` names each file relative to `GITHUB_WORKSPACE` when the runner sets it
+and the file is inside the checkout, so it works from any directory and with absolute
+paths. SARIF reports paths as given, so for it run the tool from the repository root and
 pass relative paths — an absolute path annotates a file the service cannot find.
 Findings a baseline suppressed appear in neither format; the run still reports how many
 it hid.
@@ -563,7 +556,6 @@ truth:
 | Path | Purpose |
 |---|---|
 | `src/UnityPerformanceAnalyzers/` | Analyzer assembly (netstandard2.0, Roslyn 3.8) |
-| `src/UnityPerformanceAnalyzers.CodeFixes/` | IDE-only code fixes |
 | `src/UnityPerformanceAnalyzers.Cli/` | `upa-cli` — run the rules without Unity |
 | `src/UnityPerformanceAnalyzers.Tests/` | xUnit analyzer tests (net8.0) |
 | `src/UnityStubs/` | Minimal hand-written UnityEngine stand-ins for tests |
@@ -575,7 +567,7 @@ truth:
 
 ```bash
 dotnet build UnityPerformanceAnalyzers.sln -c Release
-dotnet test UnityPerformanceAnalyzers.sln -c Release --filter "Category!=RequiresUnity"
+dotnet test UnityPerformanceAnalyzers.sln -c Release
 ```
 
 ## License

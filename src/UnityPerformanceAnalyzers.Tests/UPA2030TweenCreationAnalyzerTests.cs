@@ -10,7 +10,6 @@ namespace UnityPerformanceAnalyzers.Tests
             var harness = new RuleHarness
             {
                 Sources = { DoTweenTestSources.Stubs },
-                EnabledRules = { "UPA2030" },
             };
             if (referenceDOTween)
             {

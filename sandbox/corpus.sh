@@ -12,12 +12,8 @@
 # nobody is configured for: it turned on the rules that ship disabled. --all-warn restores that
 # for surveying what the disabled rules would say; the snapshot records which mode produced it,
 # because two configurations writing to one file is how a snapshot diff becomes unreadable.
-#
-# The preset is copied to the corpus root before the run rather than passed where it lives.
-# .editorconfig sections are matched relative to the directory holding the file, so a config
-# outside the tree being analysed matches nothing at all - and matches it silently, which is
-# the failure that looks exactly like success. Measured: with the config left in package/,
-# every section was inert and the whole drop in findings came from dropping --all-warn.
+# The preset is passed as a ruleset, the same file Unity reads, so the counts are what a
+# Unity build of the same code would report.
 #
 # Unit-test fixtures answer "does the rule fire where I wrote it to". They cannot answer
 # "how much does this package say on code nobody wrote for it", and that second question is
@@ -38,7 +34,7 @@ snapshots=$root/sandbox/corpus-snapshots
 unity_dll_dir=""
 check=no
 all_warn=no
-preset="$root/package/Samples~/Ruleset Presets/recommended.editorconfig"
+preset="$root/package/Samples~/Ruleset Presets/recommended.ruleset"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -49,43 +45,43 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+python=$(command -v python3 || command -v python) || { echo "python3 not found" >&2; exit 2; }
 mode=preset-recommended
 [ "$all_warn" = yes ] && mode=all-warn
-active_config=$corpus/.editorconfig
 if [ "$all_warn" = no ]; then
   [ -f "$preset" ] || { echo "preset not found: $preset" >&2; exit 2; }
 fi
 
-# key|url|commit|licence|kind|source globs
+# key|url|commit|kind|source globs
 #
 # Pinned to a commit because an unpinned corpus makes every snapshot diff ambiguous: a
-# change in the counts could be ours or theirs. Licence is recorded per entry because this
-# reads other people's code, and permissive is the only kind here.
+# change in the counts could be ours or theirs. The pin used to be recorded in each snapshot
+# while the clone took whatever upstream HEAD was that day, so --check reported upstream's
+# commits as regressions in the rules. The commit here is the one checked out, and it has
+# to match the snapshot's; moving a pin is a deliberate edit to this list plus a new
+# snapshot. The licence is read from the checkout rather than written here, because this
+# reads other people's code, and permissive is the only kind allowed.
 entries=(
-  "kino-bloom|https://github.com/keijiro/KinoBloom.git|effects|Assets"
-  "skinner|https://github.com/keijiro/Skinner.git|effects|Assets/Skinner"
-  "klak|https://github.com/keijiro/Klak.git|library|Assets/Klak"
-  "pcx|https://github.com/keijiro/Pcx.git|library|Packages/jp.keijiro.pcx"
-  "uieffect|https://github.com/mob-sakai/UIEffect.git|library|Packages/src"
-  "zstring|https://github.com/Cysharp/ZString.git|library|src/ZString.Unity/Assets/Scripts/ZString"
-  "unitask|https://github.com/Cysharp/UniTask.git|library|src/UniTask/Assets/Plugins/UniTask/Runtime"
+  "kino-bloom|https://github.com/keijiro/KinoBloom.git|0a04c43fa47de12bb52edb325c8d3c0125d0b4ca|effects|Assets"
+  "skinner|https://github.com/keijiro/Skinner.git|4f1b8656985d89c92f31d20e93ca1b1446c4640e|effects|Assets/Skinner"
+  "klak|https://github.com/keijiro/Klak.git|b38ec4dbc0c614fd6fba08c44ddef80783855c02|library|Assets/Klak"
+  "pcx|https://github.com/keijiro/Pcx.git|ffc344756b9320584a02a738c8b9d328090e1bc3|library|Packages/jp.keijiro.pcx"
+  "uieffect|https://github.com/mob-sakai/UIEffect.git|1f4427c3d5d249534dba69d8c53acafb5d5fbd7f|library|Packages/src"
+  "zstring|https://github.com/Cysharp/ZString.git|604dc1eb5ada260a7be546d3d647482dc5bd0578|library|src/ZString.Unity/Assets/Scripts/ZString"
+  "unitask|https://github.com/Cysharp/UniTask.git|ceac8d6946b1125fe782cd171fbcb245b567dbf9|library|src/UniTask/Assets/Plugins/UniTask/Runtime"
 
   # Games, added because the seven above could not answer the question this corpus exists
   # for. Six of them are libraries or effect packages, and a false-positive rate on library
   # code says nothing about gameplay code -- which is where the noise that makes a team
   # switch the rules off actually comes from. Licences were read from each repository before
   # anything was cloned: MIT, MIT, and an unmodified Apache 2.0.
-  "san-andreas|https://github.com/in0finite/SanAndreasUnity.git|game|Assets/Scripts"
-  "diablerie|https://github.com/mofr/Diablerie.git|game|Assets/Scripts/Diablerie"
-  "chop-chop|https://github.com/UnityTechnologies/open-project-1.git|game|UOP1_Project/Assets/Scripts"
+  "san-andreas|https://github.com/in0finite/SanAndreasUnity.git|f685c437f48721afc0787f27d22c85d96e8684c7|game|Assets/Scripts"
+  "diablerie|https://github.com/mofr/Diablerie.git|9e42ef257228257825ebbbeb905d4b1d894b6e98|game|Assets/Scripts/Diablerie"
+  "chop-chop|https://github.com/UnityTechnologies/open-project-1.git|608eac98df29cd97821a6115cd52dfb9027345b1|game|UOP1_Project/Assets/Scripts"
 )
 
 mkdir -p "$corpus" "$snapshots"
 status=0
-
-rm -f "$active_config"
-[ "$all_warn" = no ] && cp "$preset" "$active_config"
-trap 'rm -f "$active_config"' EXIT
 
 echo "== building upa-cli"
 dotnet build "$root/src/UnityPerformanceAnalyzers.Cli" -c Release >/dev/null || exit 2
@@ -109,7 +105,7 @@ for w in "${wanted[@]}"; do
   }
 done
 for entry in "${entries[@]}"; do
-  IFS='|' read -r key url kind globs <<< "$entry"
+  IFS='|' read -r key url pinned kind globs <<< "$entry"
 
   if [ ${#wanted[@]} -gt 0 ] && ! printf '%s\n' "${wanted[@]}" | grep -qx "$key"; then
     continue
@@ -124,12 +120,33 @@ for entry in "${entries[@]}"; do
     # fetched on demand and only the analysed directories are checked out. Cone mode keeps
     # the root files, which is where the licence is read from a few lines below, so this
     # cannot quietly turn a checked licence into UNKNOWN.
-    git clone --depth 1 --filter=blob:none --sparse "$url" "$dir" >/dev/null 2>&1 \
-      || { echo "   clone failed" >&2; continue; }
-    git -C "$dir" sparse-checkout set $globs >/dev/null 2>&1 \
-      || { echo "   sparse-checkout failed for: $globs" >&2; continue; }
+    #
+    # init + fetch rather than clone, because clone can only start from a branch tip, and
+    # the tip is exactly what must not be analysed. The promisor settings are what clone
+    # --filter would have written, and what lets checkout fetch the blobs it needs.
+    { git init -q "$dir" \
+        && git -C "$dir" remote add origin "$url" \
+        && git -C "$dir" config remote.origin.promisor true \
+        && git -C "$dir" config remote.origin.partialclonefilter blob:none; } >/dev/null 2>&1 \
+      || { echo "   could not initialise $dir" >&2; status=1; continue; }
+    git -C "$dir" sparse-checkout set --cone $globs >/dev/null 2>&1 \
+      || { echo "   sparse-checkout failed for: $globs" >&2; status=1; continue; }
+  fi
+
+  # A checkout left by an earlier run, or by the unpinned clone this script used to make, is
+  # moved to the pin rather than trusted. GitHub serves a single commit by its SHA, so this
+  # fetches one commit's trees and nothing of the history around it.
+  if [ "$(git -C "$dir" rev-parse -q --verify HEAD 2>/dev/null)" != "$pinned" ]; then
+    git -C "$dir" fetch -q --depth 1 --filter=blob:none origin "$pinned" >/dev/null 2>&1 \
+      && git -C "$dir" -c advice.detachedHead=false checkout -q --detach "$pinned" >/dev/null 2>&1 \
+      || { echo "   could not check out the pinned commit $pinned" >&2; status=1; continue; }
   fi
   commit=$(git -C "$dir" rev-parse HEAD)
+  if [ "$commit" != "$pinned" ]; then
+    echo "   checked out $commit, but the pin is $pinned" >&2
+    status=1
+    continue
+  fi
 
   # Read from the project rather than asserted here. A licence I typed from memory is a
   # claim about someone else's terms with nothing behind it; the file is the terms.
@@ -180,9 +197,9 @@ for entry in "${entries[@]}"; do
   else
     # Paths inside a response file are read literally, same as the source list above.
     if command -v cygpath >/dev/null 2>&1; then
-      printf '%s\n' --editorconfig "$(cygpath -w "$active_config")" >> "$rsp"
+      printf '%s\n' --ruleset "$(cygpath -w "$preset")" >> "$rsp"
     else
-      printf '%s\n' --editorconfig "$active_config" >> "$rsp"
+      printf '%s\n' --ruleset "$preset" >> "$rsp"
     fi
   fi
   [ -n "$unity_dll_dir" ] && printf '%s\n' --unity-dll-dir "$unity_dll_dir" >> "$rsp"
@@ -192,18 +209,28 @@ for entry in "${entries[@]}"; do
   # rather than into the count below, which is the thing worth knowing.
   out=$snapshots/$key.json
   [ "$check" = yes ] && out=$(mktemp)
-  dotnet "$cli" "@$rsp_arg" > "$out.raw" 2>/dev/null
+
+  # stderr to a log rather than /dev/null: it is where the runner says why it produced
+  # nothing, and where the compile errors behind a snapshot's compileErrors count are listed.
+  log=$corpus/$key.log
+  dotnet "$cli" "@$rsp_arg" > "$out.raw" 2> "$log"
+  runner_status=$?
   rm -f "$rsp"
 
   # A run that produced nothing must not read as a project with nothing to report. Without
   # this the traceback below scrolled past and the script exited 0 with two projects missing.
   if [ ! -s "$out.raw" ]; then
-    echo "   the runner produced no output - snapshot not written" >&2
+    echo "   the runner produced no output (exit $runner_status) - snapshot not written. Its stderr:" >&2
+    sed -n '1,40p' "$log" | sed 's/^/     /' >&2
+    rm -f "$out.raw"
     status=1
     continue
   fi
+  if [ "$runner_status" -ne 0 ]; then
+    echo "   the runner exited $runner_status; its stderr is in $log" >&2
+  fi
 
-  python - "$out.raw" "$out" "$key" "$licence" "$kind" "$commit" "${#files[@]}" "$mode" <<'PY'
+  "$python" - "$out.raw" "$out" "$key" "$licence" "$kind" "$commit" "${#files[@]}" "$mode" <<'PY'
 import collections, io, json, sys
 
 raw, target, key, licence, kind, commit, file_count, mode = sys.argv[1:9]

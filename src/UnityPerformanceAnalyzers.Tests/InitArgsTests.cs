@@ -16,6 +16,7 @@ namespace UnityPerformanceAnalyzers.Tests
     /// real assembly analyzes with zero compile errors — is recorded in the specification; what
     /// these assert is the shape of the file and the partitioning that made it possible.
     /// </remarks>
+    [Collection(WorkingDirectoryCollection.Name)]
     public sealed class InitArgsTests : IDisposable
     {
         private const string Probe = @"
@@ -49,7 +50,10 @@ public class Probe : MonoBehaviour
         /// Writes a Unity project whose Bee artifacts hold one assembly's compile arguments,
         /// shaped exactly as Unity writes them: quoted paths, one option per line.
         /// </summary>
-        private string BuildProject(string assembly = "Assembly-CSharp", string dagName = "abc123.dag")
+        private string BuildProject(
+            string assembly = "Assembly-CSharp",
+            string dagName = "abc123.dag",
+            params string[] extraOptions)
         {
             var dag = Path.Combine(_project, "Library", "Bee", "artifacts", dagName);
             Directory.CreateDirectory(dag);
@@ -60,7 +64,7 @@ public class Probe : MonoBehaviour
             var shim = Path.Combine(_root, "UnityInstall", "Editor", "Data", "NetStandard",
                 "compat", "2.1.0", "shims", "netstandard", "System.dll").Replace('\\', '/');
 
-            var rsp = string.Join(Environment.NewLine, new[]
+            var rsp = string.Join(Environment.NewLine, extraOptions.Concat(new[]
             {
                 "-target:library",
                 $"-out:\"Library/Bee/artifacts/{dagName}/{assembly}.dll\"",
@@ -71,7 +75,7 @@ public class Probe : MonoBehaviour
                 $"-r:\"{unityDll}\"",
                 $"-r:\"{shim}\"",
                 "\"Assets/Probe.cs\"",
-            });
+            }));
 
             File.WriteAllText(Path.Combine(dag, assembly + ".rsp"), rsp);
             return dag;
@@ -221,6 +225,35 @@ public class Probe : MonoBehaviour
             {
                 Directory.SetCurrentDirectory(previous);
             }
+        }
+
+        // Case 64c - Unity writes -unsafe for an assembly with allowUnsafeCode. Dropping it
+        // made every pointer CS0227, so a Burst or ZString assembly could never be gated.
+        [Theory]
+        [InlineData("-unsafe")]
+        [InlineData("/unsafe")]
+        [InlineData("-unsafe+")]
+        public void UnsafeAssemblies_KeepTheSwitch(string spelling)
+        {
+            BuildProject(extraOptions: spelling);
+
+            var lines = Generate();
+
+            Assert.Contains("--unsafe", lines);
+        }
+
+        // The other direction: allowing unsafe code the real build rejects would accept
+        // pointers Unity refuses to compile.
+        [Theory]
+        [InlineData("")]
+        [InlineData("-unsafe -unsafe-")]
+        public void SafeAssemblies_DoNotAllowUnsafeCode(string options)
+        {
+            BuildProject(extraOptions: options.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+            var lines = Generate();
+
+            Assert.DoesNotContain("--unsafe", lines);
         }
 
         // Case 65

@@ -12,9 +12,10 @@ using Xunit;
 namespace UnityPerformanceAnalyzers.Tests
 {
     /// <summary>
-    /// A player build never calls OnDrawGizmos, OnDrawGizmosSelected, OnValidate, or a method
-    /// marked [MenuItem], [InitializeOnLoadMethod] or [DidReloadScripts], so per-frame cost
-    /// inside them costs nothing — while a defect inside them is still a defect.
+    /// Unity calls OnDrawGizmos, OnDrawGizmosSelected, OnValidate and the [MenuItem],
+    /// [InitializeOnLoadMethod] and [DidReloadScripts] callbacks only in the editor, so
+    /// per-frame cost inside them costs nothing in a player — while a defect inside them is
+    /// still a defect.
     /// </summary>
     /// <remarks>
     /// This is not the hot-path exclusion. OnDrawGizmos was never in HOT_MESSAGES, which covered
@@ -168,9 +169,9 @@ class C : MonoBehaviour
         }
 
         /// <summary>
-        /// Reset is a Unity message, but it is also what pooled objects name their runtime
-        /// reinitialisation, and the name cannot tell the two apart. The pooled one runs in the
-        /// build as often as objects are recycled, so it keeps its findings.
+        /// Reset is Unity's editor-only message and also the conventional name of a pooling
+        /// method game code calls every frame. Nothing at the report site tells them apart,
+        /// and a silence in the second case cannot be noticed - so the name is not exempt.
         /// </summary>
         [Fact]
         public Task PerFrameCostRule_InReset_StillTriggers()
@@ -184,60 +185,39 @@ class Bullet : MonoBehaviour
 
     public void Reset()
     {
-        {|UPA0003:mat.SetFloat(""_A"", 1f)|};
+        {|UPA0003:mat.SetFloat(""_Alpha"", 1f)|};
     }
 }");
         }
 
-        // ---------------------------------------------------------------------------------
-        // Editor-only attributes. UPA0021 rather than UPA0003: UPA0003 carries its own
-        // [MenuItem] exemption, so it would stay silent here even with this filter broken.
-        // UPA0021 has no hot-path scope and no exemption of its own, so the only thing that
-        // can silence it inside these methods is the filter under test.
-        // ---------------------------------------------------------------------------------
-
         /// <summary>
-        /// Each attribute by Unity's own class name. MenuItem and DidReloadScripts carry no
-        /// "Attribute" suffix; InitializeOnLoadMethodAttribute does. Matching the suffixed
-        /// spelling for all three is how the first two once matched nothing.
+        /// The editor callback attributes, spelled the way Unity spells them. MenuItem and
+        /// DidReloadScripts carry no Attribute suffix, and a check written against the suffixed
+        /// spelling never matched either. UPA0021 because it is not hot-path scoped and has no
+        /// exemption of its own for these, so nothing but this filter can silence it here.
         /// </summary>
         [Theory]
-        [InlineData(@"UnityEditor.MenuItem(""Tools/Check"")")]
-        [InlineData("UnityEditor.InitializeOnLoadMethod")]
-        [InlineData("UnityEditor.Callbacks.DidReloadScripts")]
-        public Task PerFrameCostRule_InEditorAttributedMethod_DoesNotTrigger(string attribute)
+        [InlineData("[MenuItem(\"Tools/Measure\")]")]
+        [InlineData("[MenuItem(\"Tools/Measure\", false, 10)]")]
+        [InlineData("[InitializeOnLoadMethod]")]
+        [InlineData("[DidReloadScripts]")]
+        [InlineData("[DidReloadScripts(1)]")]
+        public Task PerFrameCostRule_InEditorCallback_DoesNotTrigger(string attribute)
         {
             return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+using UnityEditor;
+using UnityEditor.Callbacks;
 using UnityEngine;
 
 static class Tools
 {
-    static Vector3 v;
+    static Vector3 a;
+    static Vector3 b;
 
-    [" + attribute + @"]
-    static void Check()
+    " + attribute + @"
+    static void Measure()
     {
-        if (v.magnitude < 5f)
-        {
-        }
-    }
-}");
-        }
-
-        /// <summary>the control for the theory above: the same method without the attribute.</summary>
-        [Fact]
-        public Task PerFrameCostRule_InUnattributedStaticMethod_StillTriggers()
-        {
-            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
-using UnityEngine;
-
-static class Tools
-{
-    static Vector3 v;
-
-    static void Check()
-    {
-        if ({|UPA0021:v.magnitude < 5f|})
+        if (Vector3.Distance(a, b) > 2f)
         {
         }
     }
@@ -245,38 +225,123 @@ static class Tools
         }
 
         /// <summary>
-        /// A project's own MenuItemAttribute is written [MenuItem] at the use site, exactly like
-        /// Unity's. It says nothing about the build, so it must not silence anything.
+        /// The control for the case above: the same method with no attribute reports, so the
+        /// silence there comes from the attribute and not from the rule missing the shape.
         /// </summary>
         [Fact]
-        public Task ProjectOwnMenuItemAttribute_StillTriggers()
+        public Task PerFrameCostRule_InStaticMethodWithoutEditorAttribute_StillTriggers()
         {
             return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
-using System;
 using UnityEngine;
-using MyGame.Debugging;
-
-namespace MyGame.Debugging
-{
-    [AttributeUsage(AttributeTargets.Method)]
-    sealed class MenuItemAttribute : Attribute
-    {
-        public MenuItemAttribute(string path) { }
-    }
-}
 
 static class Tools
 {
-    static Vector3 v;
+    static Vector3 a;
+    static Vector3 b;
 
-    [MenuItem(""Tools/Check"")]
-    static void Check()
+    static void Measure()
     {
-        if ({|UPA0021:v.magnitude < 5f|})
+        if ({|UPA0021:Vector3.Distance(a, b) > 2f|})
         {
         }
     }
 }");
+        }
+
+        /// <summary>
+        /// A project's own attribute with Unity's name is an ordinary attribute. Matching by
+        /// name would let it silence rules in runtime code, and the silence would leave nothing
+        /// behind to notice.
+        /// </summary>
+        [Theory]
+        [InlineData("MenuItem")]
+        [InlineData("MenuItemAttribute")]
+        [InlineData("DidReloadScripts")]
+        public Task PerFrameCostRule_UnderAProjectsOwnLookalikeAttribute_StillTriggers(string className)
+        {
+            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+using UnityEngine;
+
+namespace Game.Tooling
+{
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    sealed class " + className + @" : System.Attribute
+    {
+        public " + className + @"(string path = """") { }
+    }
+
+    static class Tools
+    {
+        static Vector3 a;
+        static Vector3 b;
+
+        [" + className + @"(""Tools/Measure"")]
+        static void Measure()
+        {
+            if ({|UPA0021:Vector3.Distance(a, b) > 2f|})
+            {
+            }
+        }
+    }
+}");
+        }
+
+        /// <summary>
+        /// A partial method's attributes can sit on the declaration while the body sits on the
+        /// implementation, which the syntax of the body alone does not show.
+        /// </summary>
+        [Fact]
+        public Task PerFrameCostRule_InPartialMethodAttributedOnItsOtherPart_DoesNotTrigger()
+        {
+            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+using UnityEditor;
+using UnityEngine;
+
+static partial class Tools
+{
+    static Vector3 a;
+    static Vector3 b;
+
+    [MenuItem(""Tools/Measure"")]
+    static partial void Measure();
+
+    static partial void Measure()
+    {
+        if (Vector3.Distance(a, b) > 2f)
+        {
+        }
+    }
+}");
+        }
+
+        /// <summary>
+        /// Syntax-node rules go through the same filter as operation rules; this is the one
+        /// test that would notice if only one of the two registrations applied it.
+        /// </summary>
+        [Fact]
+        public Task SyntaxNodeRule_InOnValidate_DoesNotTrigger()
+        {
+            return RuleVerifier.VerifyAsync<UPA0008StackallocInLoopAnalyzer>(@"
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    unsafe void OnValidate()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            int* p = stackalloc int[16];
+        }
+    }
+
+    unsafe void Apply()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            int* p = {|UPA0008:stackalloc int[16]|};
+        }
+    }
+}", new RuleHarness { AllowUnsafe = true });
         }
 
         // ---------------------------------------------------------------------------------

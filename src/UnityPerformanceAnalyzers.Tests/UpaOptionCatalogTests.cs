@@ -7,8 +7,7 @@ using Xunit;
 namespace UnityPerformanceAnalyzers.Tests
 {
     /// <summary>
-    /// The catalog is what generates the option list in rules.json and the commented defaults
-    /// in every preset. Nothing forced a new option into it, and two of the seven keys had
+    /// The catalog is what generates the option list in rules.json. Nothing forced a new option into it, and two of the seven keys had
     /// quietly fallen out — along with the options file itself, which is the only channel
     /// that reaches a Unity build.
     /// </summary>

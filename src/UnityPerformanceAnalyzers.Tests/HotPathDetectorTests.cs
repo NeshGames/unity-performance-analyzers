@@ -257,5 +257,62 @@ class C : MonoBehaviour
 }",
                 extraConfig: "upa_hot_path_include_lambdas = false");
         }
+
+        /// <summary>
+        /// An .editorconfig section applies to the files it globs. The detector used to read
+        /// its options once, from whichever syntax tree the host listed first, so a section
+        /// for one folder either applied everywhere or nowhere depending on file order. The
+        /// first tree here is a file no section matches, which is the order that hid it.
+        /// </summary>
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public Task PerFileSections_ApplyToTheirOwnFile_RegardlessOfOrder(bool reversed)
+        {
+            var custom = ("/Custom.cs", @"
+using UnityEngine;
+
+class Custom : MonoBehaviour
+{
+    void Tick()
+    {
+        {|UPATEST01:Marker.Mark()|};
+    }
+
+    void Update()
+    {
+        Marker.Mark();
+    }
+}");
+            var standard = ("/Standard.cs", @"
+using UnityEngine;
+
+class Standard : MonoBehaviour
+{
+    void Tick()
+    {
+        Marker.Mark();
+    }
+
+    void Update()
+    {
+        {|UPATEST01:Marker.Mark()|};
+    }
+}");
+
+            var harness = new RuleHarness
+            {
+                RawEditorConfig = @"
+root = true
+
+[*Custom.cs]
+upa_hot_path_messages = Tick
+",
+            };
+            harness.NamedSources.Add(reversed ? standard : custom);
+            harness.NamedSources.Add(reversed ? custom : standard);
+
+            return RuleVerifier.VerifyAsync<HotPathProbeAnalyzer>(Prelude, harness);
+        }
     }
 }

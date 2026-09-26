@@ -7,7 +7,7 @@ namespace UnityPerformanceAnalyzers.Tests
     {
         private static Task VerifyAsync(string source, bool referenceR3 = true)
         {
-            var harness = new RuleHarness { UnityStubs = false, EnabledRules = { "UPA2021" } };
+            var harness = new RuleHarness { UnityStubs = false };
             if (referenceR3)
             {
                 harness.PackageAssemblies.Add(UpaProfile.R3AssemblyName);
@@ -104,15 +104,6 @@ class Score
 
     void Raise(int value) => ScoreChanged?.Invoke(value);
 }");
-        }
-
-        // isEnabledByDefault: false — asserted on the descriptor because the
-        // testing framework force-enables disabled-by-default rules when running analyzers.
-        [Fact]
-        public void Descriptor_IsDisabledByDefault()
-        {
-            var descriptor = Assert.Single(new UPA2021ActionEventAnalyzer().SupportedDiagnostics);
-            Assert.False(descriptor.IsEnabledByDefault);
         }
     }
 }

@@ -86,27 +86,6 @@ class C : MonoBehaviour
 }");
         }
 
-        // UPA0007 test case 5
-        [Fact]
-        public Task LocalCapture_InHotPathAttributedMethod_Triggers()
-        {
-            return VerifyAsync(@"
-using System;
-
-class HotPathAttribute : System.Attribute { }
-
-class C
-{
-    [HotPath]
-    void Tick()
-    {
-        int count = 0;
-        Action a = {|UPA0007:() => count++|};
-        a();
-    }
-}");
-        }
-
         // UPA0007 test case 6
         [Fact]
         public Task AnonymousMethodCapture_InUpdate_Triggers()

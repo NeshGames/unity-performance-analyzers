@@ -1,8 +1,6 @@
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -39,11 +37,6 @@ namespace UnityPerformanceAnalyzers.Tests
         /// alone, so an empty assembly is enough to flip an <see cref="UpaProfile"/> flag.</summary>
         public List<string> PackageAssemblies { get; } = new List<string>();
 
-        /// <summary>Rule ids to raise to warning, the way a preset does. Rules in the UPA2000+
-        /// and UPA3000+ groups are off by default and report nothing until something enables
-        /// them.</summary>
-        public List<string> EnabledRules { get; } = new List<string>();
-
         /// <summary>Preprocessor symbols, e.g. <see cref="UpaProfile.WebGlDefine"/>.</summary>
         public List<string> Defines { get; } = new List<string>();
 
@@ -65,6 +58,12 @@ namespace UnityPerformanceAnalyzers.Tests
         /// <summary>Compile with <c>/unsafe</c>, for the rules about stack allocation.</summary>
         public bool AllowUnsafe { get; set; }
 
+        /// <summary>Compilation-wide rule severities, the channel Unity's <c>-ruleset</c> and
+        /// <c>/nowarn</c> arrive through. For rules that change what they report when another
+        /// rule is switched off.</summary>
+        public Dictionary<string, ReportDiagnostic> SpecificDiagnosticOptions { get; } =
+            new Dictionary<string, ReportDiagnostic>();
+
         /// <summary>Markup matching, for the rules whose single id carries more than one
         /// descriptor.</summary>
         public MarkupOptions? MarkupOptions { get; set; }
@@ -77,6 +76,12 @@ namespace UnityPerformanceAnalyzers.Tests
     /// One module means the differential pipeline has somewhere to attach, and a new rule's
     /// tests start at one line instead of ten.
     /// </summary>
+    /// <remarks>
+    /// Rules that ship disabled need no enabling here: the testing framework raises every
+    /// descriptor of the analyzer under test before it runs. Whether a rule ships disabled is
+    /// the descriptor's claim, pinned by release tracking and VersioningPolicyTests, not
+    /// something a rule test can observe.
+    /// </remarks>
     internal static class RuleVerifier
     {
         /// <summary>Where the analyzers look for the universal options file.</summary>
@@ -87,6 +92,21 @@ namespace UnityPerformanceAnalyzers.Tests
         public static Task VerifyAsync<TAnalyzer>(string source, RuleHarness? harness = null)
             where TAnalyzer : DiagnosticAnalyzer, new()
             => CreateTest<TAnalyzer>(source, harness).RunAsync();
+
+        /// <summary>
+        /// Both analyzers over the same source, with the markup asserting the union of what
+        /// they report. For the boundaries between two rules that could otherwise both claim
+        /// one call: each rule's own tests only prove it is silent in isolation, which says
+        /// nothing about whether a line collects two warnings once both are loaded.
+        /// </summary>
+        public static Task VerifyTogetherAsync<TFirst, TSecond>(string source, RuleHarness? harness = null)
+            where TFirst : DiagnosticAnalyzer, new()
+            where TSecond : DiagnosticAnalyzer, new()
+        {
+            var test = (HarnessAnalyzerTest<TFirst>)CreateTest<TFirst>(source, harness);
+            test.AdditionalAnalyzers.Add(new TSecond());
+            return test.RunAsync();
+        }
 
         /// <summary>
         /// The configured test, unrun. For the handful of cases that assert on the message text
@@ -111,45 +131,6 @@ namespace UnityPerformanceAnalyzers.Tests
 
             Configure(test, harness);
             return test;
-        }
-
-        public static Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(
-            string source,
-            string fixedSource,
-            RuleHarness? harness = null)
-            where TAnalyzer : DiagnosticAnalyzer, new()
-            where TCodeFix : CodeFixProvider, new()
-        {
-            harness ??= new RuleHarness();
-            var test = new HarnessCodeFixTest<TAnalyzer, TCodeFix>
-            {
-                TestCode = source,
-                FixedCode = fixedSource,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-                Defines = harness.Defines.ToArray(),
-            };
-            if (harness.MarkupOptions is { } markup)
-            {
-                test.MarkupOptions = markup;
-            }
-
-            Configure(test, harness);
-
-            // The fixed state is compiled too, so anything the test code needs to resolve it
-            // needs as well. Without this a harness source - a package stub, say - makes the
-            // two states differ by a document and the run fails on the count, saying nothing
-            // about the rewrite it was meant to check.
-            foreach (var extraSource in harness.Sources)
-            {
-                test.FixedState.Sources.Add(extraSource);
-            }
-
-            foreach (var (extraName, extraContent) in harness.NamedSources)
-            {
-                test.FixedState.Sources.Add((extraName, extraContent));
-            }
-
-            return test.RunAsync();
         }
 
         private static void Configure(AnalyzerTest<DefaultVerifier> test, RuleHarness harness)
@@ -199,6 +180,18 @@ namespace UnityPerformanceAnalyzers.Tests
                     return solution.WithProjectCompilationOptions(projectId, options.WithAllowUnsafe(true));
                 });
             }
+
+            if (harness.SpecificDiagnosticOptions.Count > 0)
+            {
+                test.SolutionTransforms.Add((solution, projectId) =>
+                {
+                    var options = solution.GetProject(projectId)!.CompilationOptions!;
+                    return solution.WithProjectCompilationOptions(
+                        projectId,
+                        options.WithSpecificDiagnosticOptions(
+                            options.SpecificDiagnosticOptions.SetItems(harness.SpecificDiagnosticOptions)));
+                });
+            }
         }
 
         private static string? BuildEditorConfig(RuleHarness harness)
@@ -208,48 +201,31 @@ namespace UnityPerformanceAnalyzers.Tests
                 return harness.RawEditorConfig;
             }
 
-            if (harness.EnabledRules.Count == 0 && harness.EditorConfig is null)
-            {
-                return null;
-            }
-
-            var text = new StringBuilder("root = true\n\n[*.cs]\n");
-            foreach (var ruleId in harness.EnabledRules)
-            {
-                text.Append("dotnet_diagnostic.").Append(ruleId).Append(".severity = warning\n");
-            }
-
-            if (harness.EditorConfig is not null)
-            {
-                text.Append(harness.EditorConfig).Append('\n');
-            }
-
-            return text.ToString();
+            return harness.EditorConfig is null
+                ? null
+                : "root = true\n\n[*.cs]\n" + harness.EditorConfig + "\n";
         }
 
         // The define set has to reach the parser, and CreateParseOptions is the only way in.
-        // Two subclasses rather than one: the analyzer and code-fix tests have separate base
-        // classes, and the four lines are cheaper than a shared abstraction over both.
         private sealed class HarnessAnalyzerTest<TAnalyzer> : CSharpAnalyzerTest<TAnalyzer, DefaultVerifier>
             where TAnalyzer : DiagnosticAnalyzer, new()
         {
             public string[] Defines { get; set; } = System.Array.Empty<string>();
 
-            protected override ParseOptions CreateParseOptions()
-            {
-                var options = base.CreateParseOptions();
-                return Defines.Length == 0
-                    ? options
-                    : ((CSharpParseOptions)options).WithPreprocessorSymbols(Defines);
-            }
-        }
+            public List<DiagnosticAnalyzer> AdditionalAnalyzers { get; } = new List<DiagnosticAnalyzer>();
 
-        private sealed class HarnessCodeFixTest<TAnalyzer, TCodeFix>
-            : CSharpCodeFixTest<TAnalyzer, TCodeFix, DefaultVerifier>
-            where TAnalyzer : DiagnosticAnalyzer, new()
-            where TCodeFix : CodeFixProvider, new()
-        {
-            public string[] Defines { get; set; } = System.Array.Empty<string>();
+            protected override IEnumerable<DiagnosticAnalyzer> GetDiagnosticAnalyzers()
+            {
+                foreach (var analyzer in base.GetDiagnosticAnalyzers())
+                {
+                    yield return analyzer;
+                }
+
+                foreach (var analyzer in AdditionalAnalyzers)
+                {
+                    yield return analyzer;
+                }
+            }
 
             protected override ParseOptions CreateParseOptions()
             {

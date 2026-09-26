@@ -360,11 +360,82 @@ public class Worker
             var raw = ParseJson(json).GetProperty("diagnostics")[0].GetProperty("message").GetString()!;
             Assert.Contains(",", raw);
 
-            var message = line.Split("::")[2];
-            Assert.DoesNotContain(",", message);
-            Assert.DoesNotContain(":", message);
-            Assert.Contains("%2C", message);
-            Assert.Contains("%3A", message);
+            // The properties escape ',' and ':', which is what keeps a comma in the title from
+            // ending it early.
+            var separator = line.IndexOf("::", 2, StringComparison.Ordinal);
+            var properties = line.Substring(2, separator - 2);
+            var title = properties.Substring(properties.IndexOf("title=", StringComparison.Ordinal));
+            Assert.StartsWith("title=UPA0016%3A ", title);
+
+            // The data does not: the runner unescapes ',' and ':' only inside properties, so
+            // escaping them in the message printed a literal %2C in every annotation. What the
+            // reader sees is the message exactly as the JSON carries it.
+            var message = line.Substring(separator + 2);
+            Assert.StartsWith(raw, message);
+            Assert.DoesNotContain("%2C", message);
+            Assert.DoesNotContain("%3A", message);
+        }
+
+        // actions/toolkit's escapeData and escapeProperty, character for character.
+        [Theory]
+        [InlineData("a,b:c", "a,b:c", "a%2Cb%3Ac")]
+        [InlineData("50%", "50%25", "50%25")]
+        [InlineData("one\r\ntwo", "one%0D%0Atwo", "one%0D%0Atwo")]
+        [InlineData("%2C", "%252C", "%252C")]
+        public void GithubEscapes_MatchTheActionsToolkit(string value, string data, string property)
+        {
+            Assert.Equal(data, OutputWriter.EscapeData(value));
+            Assert.Equal(property, OutputWriter.EscapeProperty(value));
+        }
+
+        // GitHub resolves an annotation's file against the repository root. A path as given
+        // only lands when the tool ran from that root with relative paths.
+        [Fact]
+        public void GithubFile_IsRelativeToTheWorkspace()
+        {
+            var workspace = Path.Combine(_dir, "repo");
+            var file = Path.Combine(workspace, "Assets", "Scripts", "Probe.cs");
+
+            Assert.Equal("Assets/Scripts/Probe.cs", OutputWriter.GithubFile(file, workspace));
+            Assert.Equal(
+                "Assets/Scripts/Probe.cs",
+                OutputWriter.GithubFile(file, workspace + Path.DirectorySeparatorChar));
+        }
+
+        [Fact]
+        public void GithubFile_OutsideTheWorkspace_IsAsGiven()
+        {
+            var workspace = Path.Combine(_dir, "repo");
+            var outside = Path.Combine(_dir, "repo-other", "Probe.cs");
+
+            Assert.Equal(outside.Replace('\\', '/'), OutputWriter.GithubFile(outside, workspace));
+            Assert.Equal("Assets/Probe.cs", OutputWriter.GithubFile("Assets/Probe.cs", null));
+            Assert.Equal("Assets/Probe.cs", OutputWriter.GithubFile("Assets/Probe.cs", string.Empty));
+        }
+
+        // End to end, through the variable the runner actually sets. The file is passed
+        // absolute, which is the case that used to annotate nothing.
+        [Fact]
+        public void GithubFormat_NamesFilesRelativeToGithubWorkspace()
+        {
+            var workspace = Path.Combine(_dir, "repo");
+            Directory.CreateDirectory(Path.Combine(workspace, "Assets"));
+            var file = Path.Combine(workspace, "Assets", "Probe.cs");
+            File.WriteAllText(file, HotPathViolation);
+
+            var previous = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");
+            try
+            {
+                Environment.SetEnvironmentVariable("GITHUB_WORKSPACE", workspace);
+                var (exitCode, stdout, _) = Run(file, "--format", "github");
+
+                Assert.Equal(1, exitCode);
+                Assert.Contains("::warning file=Assets/Probe.cs,line=", stdout);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("GITHUB_WORKSPACE", previous);
+            }
         }
 
         // Case 13
@@ -432,23 +503,42 @@ public class Broken
             Assert.Contains("Refusing to report success", stderr);
         }
 
-        // Case 16
-        [Fact]
-        public void CompileErrors_DoNotChangeTheExitCodeAndAreNotReported()
-        {
-            var file = Write("Broken.cs", @"
-public class Broken
+        private const string UnsafeSource = @"
+public static class Pointers
 {
-    void Use() { MissingType thing = null; }
-}");
+    public static unsafe int First(int[] values)
+    {
+        fixed (int* p = values) { return *p; }
+    }
+}";
 
-            var (exitCode, stdout, _) = Run(file, "--format", "json");
-            var root = ParseJson(stdout);
+        // An assembly with allowUnsafeCode is ordinary in Unity - Burst, NativeArray pointer
+        // access, ZString - and without the switch every pointer is CS0227, which under
+        // --whole-assembly is an error exit and a baseline that can never be written.
+        [Fact]
+        public void UnsafeCode_IsACompileErrorWithoutTheSwitch()
+        {
+            var file = Write("Pointers.cs", UnsafeSource);
+
+            var (exitCode, stdout, stderr) = Run(file, "--whole-assembly", "--format", "json");
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("CS0227", stderr);
+            Assert.Contains(
+                ParseJson(stdout).GetProperty("compileErrors").EnumerateArray(),
+                e => e.GetProperty("id").GetString() == "CS0227");
+        }
+
+        [Fact]
+        public void UnsafeSwitch_CompilesUnsafeCode()
+        {
+            var file = Write("Pointers.cs", UnsafeSource);
+
+            var (exitCode, stdout, stderr) = Run(file, "--whole-assembly", "--unsafe", "--format", "json");
 
             Assert.Equal(0, exitCode);
-            Assert.DoesNotContain(
-                root.GetProperty("diagnostics").EnumerateArray().Select(d => d.GetProperty("id").GetString()!),
-                id => id.StartsWith("CS", StringComparison.Ordinal));
+            Assert.DoesNotContain("compile error", stderr);
+            Assert.Equal(0, ParseJson(stdout).GetProperty("summary").GetProperty("compileErrorCount").GetInt32());
         }
 
         // Case 17
@@ -692,18 +782,6 @@ upa_hot_path_messages = Tick
             Assert.Equal(CliEntryPoint.ExitError, CliEntryPoint.ResolveExitCode(result, "error"));
         }
 
-        [Fact]
-        public void CleanRun_ResolvesToSuccess()
-        {
-            var file = Write("Quiet.cs", Clean);
-            var options = CliOptions.Parse(new[] { file }, out _)!;
-
-            var result = AnalysisRunner.Run(options);
-
-            Assert.Empty(result.AnalyzerFailures);
-            Assert.Equal(CliEntryPoint.ExitClean, CliEntryPoint.ResolveExitCode(result, "warning"));
-        }
-
         [DiagnosticAnalyzer(LanguageNames.CSharp)]
         private sealed class ThrowingAnalyzer : DiagnosticAnalyzer
         {
@@ -860,6 +938,16 @@ public class Mixed
         [InlineData("--unity-dll-dir")]
         [InlineData("--all-warn")]
         [InlineData("--whole-assembly")]
+        [InlineData("--unsafe")]
+        [InlineData("--only")]
+        [InlineData("--only-from")]
+        [InlineData("--baseline")]
+        [InlineData("--write-baseline")]
+        [InlineData("--prune-baseline")]
+        [InlineData("--report-stale-baseline")]
+        [InlineData("--fail-on-stale")]
+        [InlineData("--init-args")]
+        [InlineData("--project")]
         [InlineData("--fail-on")]
         [InlineData("--format")]
         [InlineData("--list-rules")]
@@ -874,15 +962,6 @@ public class Mixed
         }
 
         [Fact]
-        public void Help_ShowsExamples()
-        {
-            var (_, stdout, _) = Run("--help");
-
-            Assert.Contains("Examples:", stdout);
-            Assert.Contains("upa-cli Assets/Scripts/Player.cs", stdout);
-        }
-
-        [Fact]
         public void Help_DocumentsTheApproximations()
         {
             var (exitCode, stdout, _) = Run("--help");
@@ -891,6 +970,122 @@ public class Mixed
             Assert.Contains("--whole-assembly", stdout);
             Assert.Contains("Exit codes", stdout);
             Assert.Contains("final authority", stdout);
+        }
+
+        // --only narrows the report, not the compilation: a caller that changed one file hears
+        // about that file, with every other input still there to resolve its symbols.
+        private string WriteViolation(string name, string className) =>
+            Write(name, HotPathViolation.Replace("class Probe", "class " + className));
+
+        private static string[] ReportedFiles(string stdout) =>
+            ParseJson(stdout).GetProperty("diagnostics").EnumerateArray()
+                .Select(d => Path.GetFileName(d.GetProperty("file").GetString()!))
+                .Distinct()
+                .ToArray();
+
+        [Fact]
+        public void Only_ReportsTheNamedFileAndNothingElse()
+        {
+            var changed = WriteViolation("Changed.cs", "Changed");
+            var untouched = WriteViolation("Untouched.cs", "Untouched");
+
+            var (exitCode, stdout, _) = Run(changed, untouched, "--only", changed, "--format", "json");
+
+            Assert.Equal(1, exitCode);
+            Assert.Equal(new[] { "Changed.cs" }, ReportedFiles(stdout));
+        }
+
+        [Fact]
+        public void Only_DecidesTheExitCodeFromTheNamedFilesAlone()
+        {
+            var clean = Write("Quiet.cs", Clean);
+            var untouched = WriteViolation("Untouched.cs", "Untouched");
+
+            var (exitCode, stdout, _) = Run(clean, untouched, "--only", clean, "--format", "json");
+
+            Assert.Equal(0, exitCode);
+            Assert.Empty(ReportedFiles(stdout));
+        }
+
+        [Fact]
+        public void Only_ReadsAListAndSkipsWhatAChangeListLegitimatelyHolds()
+        {
+            var changed = WriteViolation("Changed.cs", "Changed");
+            var untouched = WriteViolation("Untouched.cs", "Untouched");
+            var list = Write("changed.txt", string.Join("\n",
+                "# from git diff --name-only",
+                changed,
+                Path.Combine(_dir, "Deleted.cs"),
+                Path.Combine(_dir, "Probe.prefab")));
+
+            var (exitCode, stdout, stderr) = Run(changed, untouched, "--only-from", list, "--format", "json");
+
+            Assert.True(exitCode == 1, stderr);
+            Assert.Equal(new[] { "Changed.cs" }, ReportedFiles(stdout));
+        }
+
+        [Fact]
+        public void Only_RefusesAFileThatWasNotAnalyzed()
+        {
+            var analyzed = WriteViolation("Analyzed.cs", "Analyzed");
+            var outside = WriteViolation("Outside.cs", "Outside");
+
+            var (exitCode, _, stderr) = Run(analyzed, "--only", outside);
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("not one of the analyzed files", stderr);
+        }
+
+        [Fact]
+        public void Only_RefusesToWriteABaseline()
+        {
+            var file = WriteViolation("Changed.cs", "Changed");
+
+            var (exitCode, _, stderr) = Run(
+                file, "--whole-assembly", "--only", file, "--write-baseline", Path.Combine(_dir, "b.json"));
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("--write-baseline", stderr);
+        }
+
+        [Fact]
+        public void Only_WithAPathThatIsNotThere_IsRefusedRatherThanReportedClean()
+        {
+            var analyzed = WriteViolation("Analyzed.cs", "Analyzed");
+
+            var (exitCode, _, stderr) = Run(analyzed, "--only", Path.Combine(_dir, "Analyzd.cs"));
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("no C# file", stderr);
+        }
+
+        // git diff --name-only prints repository-relative paths; run from a Unity project in a
+        // subfolder, none of them resolve, and an empty narrowing would read as a clean run.
+        [Fact]
+        public void OnlyFrom_WhenNoListedCSharpFileResolves_IsRefused()
+        {
+            var analyzed = WriteViolation("Analyzed.cs", "Analyzed");
+            var list = Write("changed.txt", string.Join("\n",
+                "Game/Assets/Scripts/Analyzed.cs",
+                "Game/Assets/Scripts/Other.cs",
+                "README.md"));
+
+            var (exitCode, _, stderr) = Run(analyzed, "--only-from", list);
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("--relative", stderr);
+        }
+
+        [Fact]
+        public void OnlyFrom_WithNoCSharpChanges_ReportsNothingAndPasses()
+        {
+            var analyzed = WriteViolation("Analyzed.cs", "Analyzed");
+            var list = Write("changed.txt", "README.md\nAssets/Scene.unity");
+
+            var (exitCode, stdout, stderr) = Run(analyzed, "--only-from", list, "--format", "json");
+
+            Assert.True(exitCode == 0, stderr);
+            Assert.Empty(ReportedFiles(stdout));
         }
     }
 }

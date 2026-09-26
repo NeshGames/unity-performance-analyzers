@@ -9,6 +9,17 @@ namespace UnityPerformanceAnalyzers.Cli;
 internal static class BaselinePath
 {
     /// <summary>
+    /// The directory holding the baseline file at <paramref name="baselineFile"/>: the root
+    /// every key in it is relative to, and where its entries' files are looked for. The
+    /// working directory only for a bare root path, which has no directory of its own.
+    /// </summary>
+    public static string DirectoryOf(string baselineFile)
+    {
+        var directory = Path.GetDirectoryName(Path.GetFullPath(baselineFile));
+        return string.IsNullOrEmpty(directory) ? Directory.GetCurrentDirectory() : directory;
+    }
+
+    /// <summary>
     /// The canonical form of <paramref name="path"/> relative to <paramref name="baselineDirectory"/>,
     /// or null when it lies outside that directory.
     /// </summary>

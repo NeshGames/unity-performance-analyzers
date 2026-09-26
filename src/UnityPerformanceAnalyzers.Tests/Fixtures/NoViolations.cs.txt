@@ -3,7 +3,6 @@
 //
 // expect-none UPA0001
 // expect-none UPA0002
-// expect-none UPA0005
 // expect-none UPA0006
 
 using System.Collections.Generic;

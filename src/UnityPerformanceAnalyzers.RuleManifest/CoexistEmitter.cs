@@ -4,8 +4,7 @@ namespace UnityPerformanceAnalyzers.RuleManifest;
 
 /// <summary>
 /// Writes the coexistence files: for each tool this package overlaps with, a ruleset that
-/// defers the overlapping rules to it, and an .editorconfig variant that defers them in the
-/// IDE only.
+/// defers the overlapping rules to it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,7 +24,7 @@ namespace UnityPerformanceAnalyzers.RuleManifest;
 /// </remarks>
 public static class CoexistEmitter
 {
-    /// <summary>Writes both files for one overlay into the preset directory.</summary>
+    /// <summary>Writes one ruleset per overlay into the preset directory.</summary>
     public static IReadOnlyList<string> Write(string presetDirectory)
     {
         var written = new List<string>();
@@ -33,13 +32,8 @@ public static class CoexistEmitter
         foreach (var coexist in PresetTable.Coexists)
         {
             var ruleset = Path.Combine(presetDirectory, coexist.Name + "-coexist.ruleset");
-            var editorconfig = Path.Combine(presetDirectory, coexist.Name + "-coexist.editorconfig");
-
             File.WriteAllText(ruleset, Ruleset(coexist));
-            File.WriteAllText(editorconfig, EditorConfig(coexist));
-
             written.Add(ruleset);
-            written.Add(editorconfig);
         }
 
         return written;
@@ -87,49 +81,6 @@ public static class CoexistEmitter
         return sb.ToString();
     }
 
-    /// <summary>
-    /// The IDE-only variant, and the one to reach for first. Unity does not read
-    /// .editorconfig, so these lines remove the duplicate squiggle where the duplication
-    /// actually is, while the rule keeps reporting in Unity builds and stays gateable in CI.
-    /// </summary>
-    private static string EditorConfig(PresetTable.Coexist coexist)
-    {
-        var sb = new StringBuilder();
-
-        // An overlay with nothing to defer needs a header that says so. The standard one
-        // promises deferral above an empty body, which reads as a file that failed to
-        // generate rather than one whose answer is "nothing".
-        if (coexist.Rules.Length == 0)
-        {
-            sb.Append("# unity-performance-analyzers coexistence with ").Append(coexist.Defers)
-              .Append(": nothing is deferred.\n#\n");
-            foreach (var line in Wrap(coexist.Caveat))
-            {
-                sb.Append("# ").Append(line).Append('\n');
-            }
-
-            sb.Append(GeneratedNotice("# "));
-            return sb.ToString();
-        }
-
-        sb.Append("# unity-performance-analyzers coexistence: defers to ")
-          .Append(coexist.Defers).Append(" (IDE only).\n");
-        sb.Append("# Append to your project .editorconfig. Unity does not read .editorconfig\n");
-        sb.Append("# (verified 2022.3/6000.5), so these rules keep reporting in Unity builds and in\n");
-        sb.Append("# upa-cli: you lose the duplicate squiggle and keep the gate. Use the .ruleset of\n");
-        sb.Append("# the same name only if you want them gone from builds too.\n");
-        sb.Append(GeneratedNotice("# "));
-        sb.Append("[*.cs]\n");
-
-        foreach (var (id, why) in coexist.Rules)
-        {
-            sb.Append("# ").Append(why).Append('\n');
-            sb.Append("dotnet_diagnostic.").Append(id).Append(".severity = none\n");
-        }
-
-        return sb.ToString();
-    }
-
     /// <summary>Wraps a caveat to comment width so the generated files stay readable.</summary>
     private static IEnumerable<string> Wrap(string text, int width = 74)
     {
@@ -162,7 +113,7 @@ public static class CoexistEmitter
     private static string GeneratedNotice(string prefix)
     {
         var line1 = prefix + "GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;";
-        var line2 = prefix + "regenerate via the RuleManifest presets mode.";
+        var line2 = prefix + PresetEmitter.OwnershipMarker + ".";
         var closing = prefix.TrimEnd().StartsWith("#", StringComparison.Ordinal) ? "\n" : " -->\n";
         return line1 + "\n" + line2 + closing;
     }

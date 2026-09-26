@@ -24,11 +24,9 @@ namespace Cysharp.Threading.Tasks
             string source,
             bool referenceUniTask = false)
         {
-            // UPA2012 is disabled by default; enable it the same way a preset would.
             var harness = new RuleHarness
             {
                 UnityStubs = false,
-                EnabledRules = { "UPA2012" },
                 // Both UPA2012 descriptors share the ID and severity; markup only needs ID + span.
                 MarkupOptions = MarkupOptions.UseFirstDescriptor,
             };
@@ -40,18 +38,14 @@ namespace Cysharp.Threading.Tasks
             return RuleVerifier.CreateTest<UPA2012FireAndForgetAnalyzer>(source, harness);
         }
 
-        // Same text on both sides asserts the diagnostic is reported and no fix is offered.
-        private static Task VerifyFixAsync(string source, string fixedSource) =>
-            RuleVerifier.VerifyCodeFixAsync<
-                UPA2012FireAndForgetAnalyzer,
-                CodeFixes.UPA2012ForgetCodeFixProvider>(source, fixedSource, new RuleHarness
-                {
-                    UnityStubs = false,
-                    EnabledRules = { "UPA2012" },
-                    MarkupOptions = MarkupOptions.UseFirstDescriptor,
-                    PackageAssemblies = { UpaProfile.UniTaskAssemblyName },
-                    Sources = { UniTaskStub },
-                });
+        private static Task VerifyTriggersAsync(string source) =>
+            RuleVerifier.VerifyAsync<UPA2012FireAndForgetAnalyzer>(source, new RuleHarness
+            {
+                UnityStubs = false,
+                MarkupOptions = MarkupOptions.UseFirstDescriptor,
+                PackageAssemblies = { UpaProfile.UniTaskAssemblyName },
+                Sources = { UniTaskStub },
+            });
 
         // UPA2012 test case 1 — form A
         [Fact]
@@ -224,80 +218,9 @@ class C
             return test.RunAsync();
         }
 
-        // isEnabledByDefault: false — asserted on the descriptors because the
-        // testing framework force-enables disabled-by-default rules when running analyzers.
-        [Fact]
-        public void Descriptors_AreDisabledByDefault()
-        {
-            var descriptors = new UPA2012FireAndForgetAnalyzer().SupportedDiagnostics;
-            Assert.Equal(2, descriptors.Length);
-            Assert.All(descriptors, d =>
-            {
-                Assert.Equal(UPA2012FireAndForgetAnalyzer.DiagnosticId, d.Id);
-                Assert.False(d.IsEnabledByDefault);
-            });
-        }
-
-        // UPA2012 test case 8 - Forget is what UniTask offers for exactly this, and appending
-        // it changes nothing else in the statement
-        [Fact]
-        public Task UnawaitedUniTask_CodeFix_AppendsForget()
-        {
-            return VerifyFixAsync(@"
-using Cysharp.Threading.Tasks;
-
-class C
-{
-    UniTask FooAsync() => default;
-
-    void M()
-    {
-        {|UPA2012:FooAsync()|};
-    }
-}", @"
-using Cysharp.Threading.Tasks;
-
-class C
-{
-    UniTask FooAsync() => default;
-
-    void M()
-    {
-        FooAsync().Forget();
-    }
-}");
-        }
-
-        // UPA2012 test case 9 - the call site need never have named UniTask, and Forget is an
-        // extension method, so the using has to come with the rewrite
-        [Fact]
-        public Task UnawaitedUniTask_CodeFix_AddsMissingUsing()
-        {
-            return VerifyFixAsync(@"
-class C
-{
-    Cysharp.Threading.Tasks.UniTask FooAsync() => default;
-
-    void M()
-    {
-        {|UPA2012:FooAsync()|};
-    }
-}", @"using Cysharp.Threading.Tasks;
-
-class C
-{
-    Cysharp.Threading.Tasks.UniTask FooAsync() => default;
-
-    void M()
-    {
-        FooAsync().Forget();
-    }
-}");
-        }
-
         // UPA2012 test case 10 - UniTask defines Forget on its own types; Task has none
         [Fact]
-        public Task UnawaitedTask_Triggers_WithoutFix()
+        public Task UnawaitedTask_Triggers()
         {
             const string Source = @"
 using System.Threading.Tasks;
@@ -311,13 +234,13 @@ class C
         {|UPA2012:FooAsync()|};
     }
 }";
-            return VerifyFixAsync(Source, Source);
+            return VerifyTriggersAsync(Source);
         }
 
         // UPA2012 test case 11 - form A is fixed by changing a signature, which reaches every
         // caller
         [Fact]
-        public Task AsyncVoid_Triggers_WithoutFix()
+        public Task AsyncVoid_Triggers()
         {
             const string Source = @"
 using System.Threading.Tasks;
@@ -329,13 +252,13 @@ class C
         await Task.Yield();
     }
 }";
-            return VerifyFixAsync(Source, Source);
+            return VerifyTriggersAsync(Source);
         }
 
         // UPA2012 test case 12 - another Forget on the same receiver is in scope, so appending
         // one decides nothing about which it binds to
         [Fact]
-        public Task CompetingForgetExtension_Triggers_WithoutFix()
+        public Task CompetingForgetExtension_Triggers()
         {
             const string Source = @"
 using Cysharp.Threading.Tasks;
@@ -354,7 +277,195 @@ class C
         {|UPA2012:FooAsync()|};
     }
 }";
-            return VerifyFixAsync(Source, Source);
+            return VerifyTriggersAsync(Source);
+        }
+
+        // Form A, one scope down: a local function's exceptions escape its callers the same way.
+        [Fact]
+        public Task AsyncVoidLocalFunction_Triggers()
+        {
+            return CreateTest(@"
+using System;
+using System.Threading.Tasks;
+
+class C
+{
+    void M()
+    {
+        async void {|UPA2012:Local|}()
+        {
+            await Task.Yield();
+        }
+
+        async void Handler(object sender, EventArgs e)
+        {
+            await Task.Yield();
+        }
+
+        Local();
+    }
+}").RunAsync();
+        }
+
+        private const string UnityEventStub = @"
+namespace UnityEngine.Events
+{
+    public delegate void UnityAction();
+
+    public class UnityEvent
+    {
+        public void AddListener(UnityAction call) { }
+    }
+}
+";
+
+        // The canonical Unity UI line. The delegate returns void, so the lambda is async void,
+        // and the message names the delegate because the lambda has no name of its own.
+        [Fact]
+        public Task AsyncLambdaToUnityAction_Triggers_WithLambdaAdvice()
+        {
+            var test = CreateTest(@"
+using System.Threading.Tasks;
+using UnityEngine.Events;
+" + UnityEventStub + @"
+class C
+{
+    UnityEvent onClick = new UnityEvent();
+
+    Task LoadAsync() => Task.CompletedTask;
+
+    void M()
+    {
+        onClick.AddListener({|#0:async () =>|} await LoadAsync());
+    }
+}");
+            test.ExpectedDiagnostics.Add(
+                new DiagnosticResult(UPA2012FireAndForgetAnalyzer.DiagnosticId, DiagnosticSeverity.Warning)
+                    .WithLocation(0)
+                    .WithMessage("This async lambda is async void once converted to 'UnityAction': exceptions escape every caller and completion cannot be observed. Move the body into a Task-returning method that handles its own exceptions, and call it as () => _ = TheMethod()."));
+            return test.RunAsync();
+        }
+
+        [Fact]
+        public Task AsyncLambdaToAction_WithUniTask_TriggersWithUniTaskAdvice()
+        {
+            var test = CreateTest(@"
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+class C
+{
+    void M(List<int> ids)
+    {
+        ids.ForEach({|#0:async id =>|} await Task.Yield());
+    }
+}", referenceUniTask: true);
+            test.ExpectedDiagnostics.Add(
+                new DiagnosticResult(UPA2012FireAndForgetAnalyzer.DiagnosticId, DiagnosticSeverity.Warning)
+                    .WithLocation(0)
+                    .WithMessage("This async lambda is async void once converted to 'Action<int>': exceptions escape every caller and completion cannot be observed. Wrap it in UniTask.UnityAction or UniTask.Action, or have it call an async UniTaskVoid method and Forget the result."));
+            return test.RunAsync();
+        }
+
+        [Fact]
+        public Task AsyncAnonymousMethodToAction_Triggers()
+        {
+            return CreateTest(@"
+using System;
+using System.Threading.Tasks;
+
+class C
+{
+    void M()
+    {
+        Action fire = {|UPA2012:async delegate|} { await Task.Yield(); };
+    }
+}").RunAsync();
+        }
+
+        // Where the delegate returns a task, so does the lambda, and whoever invokes it can
+        // observe it. The event-handler convention is exempt for lambdas as it is for methods,
+        // and the fix the message offers without UniTask - a non-async lambda discarding a
+        // task that handles its own exceptions - must not report either.
+        [Fact]
+        public Task AsyncLambdaReturningTaskOrEventHandler_DoesNotTrigger()
+        {
+            return CreateTest(@"
+using System;
+using System.Threading.Tasks;
+
+class C
+{
+    event EventHandler Clicked;
+
+    void M()
+    {
+        Func<Task> load = async () => await Task.Yield();
+        var run = Task.Run(async () => await Task.Yield());
+        Clicked += async (sender, e) => await Task.Yield();
+        Action fire = () => _ = LoadAndReportAsync();
+    }
+
+    async Task LoadAndReportAsync()
+    {
+        try { await Task.Yield(); }
+        catch (Exception) { }
+    }
+}").RunAsync();
+        }
+
+        // `?.` only decides whether there is a task; when there is one it is discarded all the
+        // same. The span is the whole conditional access, which is the statement being flagged.
+        [Fact]
+        public Task ConditionalAccessInvocation_Triggers()
+        {
+            return CreateTest(@"
+using System.Threading.Tasks;
+
+class Loader
+{
+    public Loader Next;
+    public Task LoadAsync() => Task.CompletedTask;
+}
+
+class C
+{
+    Loader loader;
+
+    void M()
+    {
+        {|UPA2012:loader?.LoadAsync()|};
+        {|UPA2012:loader?.Next?.LoadAsync()|};
+        {|UPA2012:loader?.Next.LoadAsync()|};
+    }
+}").RunAsync();
+        }
+
+        [Fact]
+        public Task ConditionalAccessUniTask_ForgetOrReceiver_DoesNotTrigger_BareTriggers()
+        {
+            return CreateTest(@"
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
+" + UniTaskStub + @"
+class Loader
+{
+    public UniTask LoadAsync() => default;
+    public Task Pending() => Task.CompletedTask;
+}
+
+class C
+{
+    Loader loader;
+
+    void M()
+    {
+        loader?.LoadAsync().Forget();
+        loader.Pending()?.ToString();
+        {|UPA2012:loader?.LoadAsync()|};
+    }
+}", referenceUniTask: true).RunAsync();
         }
     }
 }

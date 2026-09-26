@@ -4,8 +4,8 @@
 
 Rulesets are the channel Unity actually reads: Unity passes `Assets/Default.ruleset`
 (and per-asmdef-folder rulesets) to the C# compiler, while `.editorconfig` files are
-**not** passed at all (verified on 2022.3 and Unity 6). The `.editorconfig` variants
-here exist only to keep Rider / Visual Studio severities in sync with your ruleset.
+**not** passed at all (verified on 2022.3 and Unity 6). `upa-cli --ruleset` reads the same
+files, so a CI gate and the Unity build agree.
 
 ## Picking a preset
 
@@ -20,6 +20,13 @@ fallen behind.
 | `recommended` | + UPA performance rules as warnings. The everyday default. |
 | `strict` | Performance rules become errors, and the rules that are off by default because they ask something of the project — a logging wrapper, a sealed leaf class — start reporting. |
 | `cysharp-stack` | + ecosystem rules as errors (UniTask/ZString/R3 adoption). For codebases committed to the Cysharp stack. |
+
+`strict` and `cysharp-stack` grade rules as Error, and an Error entry fails Unity's compile.
+An Editor launched on a project that does not compile opens in Safe Mode, where the Unity
+CLI's `unity command` cannot connect — so a coding agent working through the Unity CLI loses
+the Editor over a performance finding. For that workflow keep `recommended` in
+`Assets/Default.ruleset` and apply the stricter file in CI only:
+`upa-cli @upa-args.rsp --ruleset strict.ruleset --fail-on error`.
 
 ## Install
 
@@ -44,22 +51,15 @@ only when the active build target is WebGL.
 
 ## Deferring to another tool
 
-If your project already runs Rider, Microsoft.Unity.Analyzers or UniTask's own analyzer,
-some rules here report what one of those already reports. The `*-coexist` files defer them.
+If your project already runs Microsoft.Unity.Analyzers or UniTask's own analyzer, some rules
+here report what one of those already reports. The `*-coexist` files defer them.
 
 | File | Defers to | Includes |
 |---|---|---|
-| `rider-coexist` | Rider's Unity performance inspections | `recommended` |
 | `vs-coexist` | Microsoft.Unity.Analyzers | `recommended` |
 | `unitask-coexist` | `UniTask.Analyzer` | `cysharp-stack` |
 
-**Reach for the `.editorconfig` variant first.** Unity does not read `.editorconfig`, so it
-removes the duplicate squiggle in the IDE — which is where the duplication actually is —
-while the rule keeps reporting in Unity builds and stays gateable in CI. Append it to your
-project `.editorconfig`.
-
-Use the `.ruleset` only if you want the rules gone from builds too. Copy it **and its base
-preset** into `Assets/`, then rename the coexist file `Default.ruleset`. It includes the base
+Copy the coexist file **and its base preset** into `Assets/`, then rename the coexist file `Default.ruleset`. It includes the base
 rather than being included by it, because a rule entry in the including file wins: written
 the other way round it would silence nothing while looking entirely correct.
 
@@ -68,12 +68,6 @@ the other way round it would silence nothing while looking entirely correct.
 Rulesets cannot scope by path. Copy `editor-relaxed.ruleset` into each Editor asmdef
 folder and rename it `Default.ruleset`: performance rules go quiet there while `UNT`
 correctness rules stay at error.
-
-## IDE parity (`.editorconfig` variants)
-
-Copy the matching `.editorconfig` to your project root (merge with an existing one).
-It also carries the `upa_hot_path_*` options — those are honored by IDEs only; Unity
-builds always use the built-in hot-path defaults.
 
 ## Notes
 

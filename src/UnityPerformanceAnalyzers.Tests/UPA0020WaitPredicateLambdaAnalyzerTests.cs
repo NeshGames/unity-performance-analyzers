@@ -6,10 +6,7 @@ namespace UnityPerformanceAnalyzers.Tests
     public class UPA0020WaitPredicateLambdaAnalyzerTests
     {
         private static Task VerifyAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA0020WaitPredicateLambdaAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA0020" },
-            });
+            RuleVerifier.VerifyAsync<UPA0020WaitPredicateLambdaAnalyzer>(source);
 
         // UPA0020 test case 1
         [Fact]

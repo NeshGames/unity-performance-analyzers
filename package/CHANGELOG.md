@@ -7,22 +7,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+Everything that only ever surfaced inside an IDE is gone. The project is now maintained on the
+assumption that code is written by coding agents, which read diagnostics from the Unity
+compile or from `upa-cli` rather than from an editor's lightbulb or squiggle.
 
-- **Performance rules now go quiet inside `[MenuItem]` and `[DidReloadScripts]` methods, as
-  0.9.0 said they would.** The exemption matched `UnityEditor.MenuItemAttribute` and
-  `UnityEditor.Callbacks.DidReloadScriptsAttribute`, but Unity names those classes `MenuItem`
-  and `DidReloadScripts`, so neither ever matched. The attribute types are now resolved from
-  the compilation and compared as symbols, so a project's own `MenuItemAttribute` in another
-  namespace still does not silence anything.
+Three rules also changed what they report — UPA0001 and UPA0009 report less, UPA2012 reports
+more — and performance rules now behave as documented in `[MenuItem]` methods and in `Reset()`.
+Read **Changed** and **Fixed** before upgrading.
+
+### Added
+
+- **An agent plugin for Claude Code and Codex**, from this repository:
+  `claude plugin marketplace add NeshGames/unity-performance-analyzers`. Its skill tells a
+  coding agent when to run `upa-cli`, how to read its output, to fix rather than silence, and to
+  put a suppression's reason on the same line.
+- **`upa-cli --only <path|glob>` and `--only-from <file>`** report findings for the files named
+  and nothing else, while still compiling every input so symbols resolve as in a full run. Built
+  for `git diff --name-only --relative`: deleted and non-C# entries are skipped, but a name that
+  resolves to nothing is an error rather than a clean run. With a baseline, its counts cover the
+  named files only.
+- **`upa-cli --unsafe`**, and `--init-args` carries Unity's `-unsafe` through. Assemblies with
+  `allowUnsafeCode` (Burst, pointers, ZString) no longer fail with CS0227 under
+  `--whole-assembly`, and can have a baseline written.
 
 ### Changed
 
-- **Performance rules report inside `Reset` again.** Unity sends `Reset` only in the editor,
-  but `Reset()` is also the usual name for a pooled object's runtime reinitialisation, and the
-  method name cannot tell the two apart. The pooled one runs in the build as often as objects
-  are recycled. A finding in an editor-only `Reset` can be suppressed; a missed one in a pool
-  is never seen. `OnDrawGizmos`, `OnDrawGizmosSelected` and `OnValidate` stay exempt.
+- **UPA0001 no longer reports the array-returning `GetComponents*` overloads**, which UPA0017
+  reports on the same span. A `GetComponents<T>()` in `Update` now gets one warning, not two.
+  The `List<T>` overloads stay with UPA0001, and so do the array overloads wherever UPA0017 is
+  switched off by ruleset, `/nowarn` or `.editorconfig` (not by `#pragma`, which UPA0001
+  cannot see).
+- **UPA0009 no longer suggests hoisting `Count` where that changes behaviour**: the list is a
+  field and the loop calls one of the class's own methods (`Kill(_enemies[i])` removing from
+  `_enemies`), sets or reads one of its non-auto properties or indexers
+  (`CurrentTarget = _targets[i]`), writes an engine property such as `enabled`, or constructs
+  something handed `this`; the loop reassigns the list; or it calls a local function or any
+  delegate (`OnHit?.Invoke(x)`, `callback.Invoke(x)`) that may have captured it. Expect fewer
+  UPA0009 reports. A `nameof(...)` in the loop no longer silences it.
+- **UPA2012 also reports** `async void` local functions, async lambdas and anonymous methods
+  passed where the delegate returns void — `button.onClick.AddListener(async () => …)` — with a
+  message naming the delegate type and UniTask-aware advice, and discarded task-returning calls
+  made through `?.`. Teams on the `cysharp-stack` preset should expect new warnings on async UI
+  listeners.
+- **Performance rules report inside `Reset()` again.** Unity calls its own `Reset` only in the
+  editor, but `Reset()` is also the usual name of a pooling method that runs every frame, and
+  the two cannot be told apart. `OnValidate` and `OnDrawGizmos*` are still exempt.
+- **`upa-cli --format github`** no longer shows literal `%3A`/`%2C` in messages, and names files
+  relative to `GITHUB_WORKSPACE`, so annotations land when the tool runs from a subdirectory.
+- The `strict` and `cysharp-stack` rulesets now state in their header that Error entries fail
+  Unity's compile — which, for an agent driving the Editor through the Unity CLI, means Safe Mode
+  and no `unity command` — and how to gate in CI instead.
+
+### Fixed
+
+- **Performance rules now stay quiet in `[MenuItem]` and `[DidReloadScripts]` methods**, as
+  documented. The check looked for `MenuItemAttribute` and `DidReloadScriptsAttribute`; Unity
+  names both without the suffix, so it never matched. Attributes are now matched as resolved
+  types, so a project's own attribute of the same name does not silence anything.
+- **`.editorconfig` sections for `upa_hot_path_*`, `upa_addrange_hot_path_only` and
+  `upa_enum_switch_allow_default` apply to the files they match.** They were read from whichever
+  file the compiler listed first, so a section applied everywhere or nowhere. The options file
+  still wins over `.editorconfig`.
+
+### Performance
+
+- The editor-only check no longer looks up the method's symbol for every callback of twenty-odd
+  analyzers; it does so only for methods that carry attributes or have a Unity message's name.
+  The options file is parsed once per compilation and shared.
+  UPA0003, UPA0005 and UPA0006 look up options and format messages only after their own filters.
+- `upa-cli` compiles once per run instead of twice — about a third faster, same output.
+
+### Removed
+
+- **The code fixes**, and the `UnityPerformanceAnalyzers.CodeFixes.dll` assembly that carried
+  them (UPA0003, UPA0009, UPA0019, UPA0021, UPA0026, UPA0029, UPA2000, UPA2012, UPA2031).
+  Unity loaded the assembly on every compile and never used it. Each rule page still says
+  how to rewrite the code by hand, and under what conditions the rewrite is safe.
+- **The Traditional Chinese diagnostic messages** (`zh-Hant/UnityPerformanceAnalyzers.resources.dll`).
+  The Unity Console and `upa-cli` were always English; only an IDE ever showed the
+  translation. The Traditional Chinese documentation stays.
+- **The `.editorconfig` preset variants** in the Ruleset Presets sample. Unity never read
+  them. Use the `.ruleset` of the same name — `upa-cli --ruleset` reads it too. The analyzer
+  still honours `upa_*` options and severities from an `.editorconfig` that a toolchain passes
+  (`upa-cli --editorconfig`, `dotnet build`); only the shipped files are gone.
+- **`rider-coexist.ruleset`.** It silenced rules because Rider's IDE inspections covered them,
+  and those inspections never gate a build. `vs-coexist` and `unitask-coexist` remain.
+- **The Rule Manager's "Also sync values to .editorconfig" toggle.** The options file it
+  writes is the one Unity and `upa-cli` read.
+
+### Upgrading
+
+- If you copied `rider-coexist.ruleset` in as `Assets/Default.ruleset`, replace it with
+  `recommended.ruleset`, which it included.
+- If your project `.editorconfig` came from a preset variant it keeps working wherever it
+  worked before; nothing in Unity ever read it.
 
 ## [0.9.0] - 2026-08-11
 

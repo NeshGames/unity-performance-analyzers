@@ -4,8 +4,8 @@
 
 Ruleset 才是 Unity 真正讀取的通道:Unity 會把 `Assets/Default.ruleset`
 (以及各 asmdef 資料夾的 ruleset)傳給 C# 編譯器,而 `.editorconfig` 檔案
-**完全不會**被傳入(已在 2022.3 與 Unity 6 上驗證)。這裡的 `.editorconfig`
-變體只用來讓 Rider / Visual Studio 的嚴重度與你的 ruleset 保持同步。
+**完全不會**被傳入(已在 2022.3 與 Unity 6 上驗證)。`upa-cli --ruleset` 讀的是同一批檔案,
+所以 CI 閘門與 Unity 建置的判定一致。
 
 ## 挑選 preset
 
@@ -15,6 +15,12 @@ Ruleset 才是 Unity 真正讀取的通道:Unity 會把 `Assets/Default.ruleset`
 | `recommended` | 另加 UPA 效能規則設為 warning。日常使用的預設選擇。 |
 | `strict` | 效能規則升為 error;那些因為對專案有所要求而預設關閉的規則——例如需要 logging 包裝類別、需要葉端類別 sealed——開始回報。 |
 | `cysharp-stack` | 另加生態規則設為 error(UniTask/ZString/R3 採用)。適用於決心採用 Cysharp 技術棧的程式碼庫。 |
+
+`strict` 與 `cysharp-stack` 會把規則設為 Error,而 Error 條目會讓 Unity 編譯失敗。
+專案無法編譯時啟動的 Editor 會進入 Safe Mode,Unity CLI 的 `unity command` 連不上——
+透過 Unity CLI 工作的 coding agent 會因為一個效能發現而失去對 Editor 的控制。
+這種工作流程請在 `Assets/Default.ruleset` 維持 `recommended`,只在 CI 套用較嚴格的檔案:
+`upa-cli @upa-args.rsp --ruleset strict.ruleset --fail-on error`。
 
 ## 安裝
 
@@ -39,21 +45,15 @@ Active Build Target 為 WebGL 時才生效。
 
 ## 讓渡給其他工具
 
-如果你的專案已經在跑 Rider、Microsoft.Unity.Analyzers 或 UniTask 自帶的 analyzer,
+如果你的專案已經在跑 Microsoft.Unity.Analyzers 或 UniTask 自帶的 analyzer,
 這裡有些規則會與它們報同一件事。`*-coexist` 這組檔案負責讓渡。
 
 | 檔案 | 讓渡給 | include 的基礎 |
 |---|---|---|
-| `rider-coexist` | Rider 的 Unity 效能檢查 | `recommended` |
 | `vs-coexist` | Microsoft.Unity.Analyzers | `recommended` |
 | `unitask-coexist` | `UniTask.Analyzer` | `cysharp-stack` |
 
-**先考慮 `.editorconfig` 那個版本。** Unity 不讀 `.editorconfig`,
-所以它只在 IDE——也就是重複真正發生的地方——移除重複的波浪線,
-而規則在 Unity 建置中繼續回報、在 CI 中繼續可強制。把它併進你專案的 `.editorconfig` 即可。
-
-只有在你也要讓這些規則從建置中消失時,才用 `.ruleset`。
-把它**與它的基礎 preset 一起**複製到 `Assets/`,再把 coexist 那個改名為 `Default.ruleset`。
+把 coexist 檔案**與它的基礎 preset 一起**複製到 `Assets/`,再把 coexist 那個改名為 `Default.ruleset`。
 它是去 include 基礎,而不是被基礎 include——因為包含者的規則條目會贏:
 反過來寫的話,那個檔案外觀完全正確,卻什麼都靜不掉。
 
@@ -62,12 +62,6 @@ Active Build Target 為 WebGL 時才生效。
 Ruleset 無法以路徑限定範圍。把 `editor-relaxed.ruleset` 複製到每個 Editor asmdef
 資料夾並改名為 `Default.ruleset`:效能規則在那裡會安靜下來,而 `UNT`
 正確性規則維持 error。
-
-## IDE 一致性(`.editorconfig` 變體)
-
-把對應的 `.editorconfig` 複製到專案根目錄(若已有既存檔案則合併)。
-它也帶有 `upa_hot_path_*` 選項——那些只有 IDE 會採納;Unity 建置一律使用
-內建的 hot-path 預設值。
 
 ## 備註
 

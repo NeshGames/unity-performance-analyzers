@@ -34,21 +34,24 @@ log="$root/artifacts/smoke/unity-$label.log"
 infra() { echo "INFRA [$label] $1"; exit 2; }
 product() { echo "FAIL [$label] $1"; exit 1; }
 
-# The DLLs are what a release publishes and what Unity loads; without them the project
+# The DLL is what a release publishes and what Unity loads; without it the project
 # would compile cleanly and report nothing, which is indistinguishable from a pass.
 # Not an infrastructure failure: nothing external is involved, the repository is simply
 # not in a releasable state.
-for dll in UnityPerformanceAnalyzers.dll UnityPerformanceAnalyzers.CodeFixes.dll; do
-  if [ ! -f "$root/package/Analyzers/$dll" ]; then
-    product "package/Analyzers/$dll is missing; build in Release and copy the DLLs into the package first."
-  fi
-done
+if [ ! -f "$root/package/Analyzers/UnityPerformanceAnalyzers.dll" ]; then
+  product "package/Analyzers/UnityPerformanceAnalyzers.dll is missing; build in Release and copy it into the package first."
+fi
 
 if [ ! -x "$unity" ] && [ ! -f "$unity" ]; then
   infra "Unity executable not found at $unity"
 fi
 
 mkdir -p "$(dirname "$log")" "$project/Assets"
+
+# The verdict below is read from this log, so it has to be this run's. Left in place, a run
+# in which Unity never started judged the previous run's log instead - and reported that
+# run's verdict, pass included, for a product this run never tested.
+rm -f "$log"
 
 # Generated state from an earlier run would let a cached compilation stand in for this
 # one - and a cached compilation emits no diagnostics, so every positive assertion would

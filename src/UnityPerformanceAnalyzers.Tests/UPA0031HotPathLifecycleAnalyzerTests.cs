@@ -177,10 +177,9 @@ class C : MonoBehaviour
         [InlineData("UPA0031MessageFormatDestroy")]
         public void Message_DoesNotAssertAFrequencyTheRuleCannotObserve(string key)
         {
-            var message = LocalizedText(key);
+            var message = MessageText(key);
 
             Assert.DoesNotContain("every frame", message, System.StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("每幀", LocalizedText(key, "zh-Hant"));
         }
 
         /// <summary>messageFormat is two sentences - the problem, then what to do.</summary>
@@ -189,7 +188,7 @@ class C : MonoBehaviour
         [InlineData("UPA0031MessageFormatDestroy")]
         public void Message_IsTwoSentences(string key)
         {
-            var sentences = LocalizedText(key)
+            var sentences = MessageText(key)
                 .Split('.', System.StringSplitOptions.RemoveEmptyEntries)
                 .Where(part => !string.IsNullOrWhiteSpace(part))
                 .Count();
@@ -201,9 +200,8 @@ class C : MonoBehaviour
         /// Reads the shipped .resx directly rather than through the generated accessor, so the
         /// assertion is about what users receive and not about a constant that happens to agree.
         /// </summary>
-        private static string LocalizedText(string key, string culture = "")
+        private static string MessageText(string key)
         {
-            var suffix = culture.Length == 0 ? string.Empty : "." + culture;
             // Anchored on the assembly location: other tests here change the working directory
             // and xUnit runs collections in parallel.
             var dir = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
@@ -215,7 +213,7 @@ class C : MonoBehaviour
             Assert.NotNull(dir);
             var path = System.IO.Path.Combine(
                 dir!.FullName,
-                "src", "UnityPerformanceAnalyzers", "Resources", "Strings" + suffix + ".resx");
+                "src", "UnityPerformanceAnalyzers", "Resources", "Strings.resx");
             var doc = System.Xml.Linq.XDocument.Load(path);
             var entry = doc.Root!
                 .Elements("data")

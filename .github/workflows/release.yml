@@ -172,19 +172,13 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      # The same two files a release places into the package. Unity must load the
+      # The same file a release places into the package. Unity must load the
       # assembled package, not a source tree.
       - name: Build and assemble the package
         run: |
           set -euo pipefail
           dotnet build UnityPerformanceAnalyzers.sln -c Release
           cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
-          cp src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll package/Analyzers/
-          # The satellite travels next to the analyzer: the resource loader probes relative
-          # to the assembly's own location, so a package without it reports in English on
-          # the machines that would otherwise read Chinese.
-          mkdir -p package/Analyzers/zh-Hant
-          cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/zh-Hant/UnityPerformanceAnalyzers.resources.dll package/Analyzers/zh-Hant/
 
       # Records a verdict rather than just passing or failing, because the two ways this
       # can fail are not the same thing. "The package is wrong" must block the release.
@@ -378,7 +372,6 @@ jobs:
       - name: Test
         run: >
           dotnet test UnityPerformanceAnalyzers.sln -c Release --no-build
-          --filter "Category!=RequiresUnity"
           --logger "console;verbosity=minimal"
 
       - name: Sync package.json version
@@ -386,19 +379,12 @@ jobs:
           jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' package/package.json > package/package.json.tmp
           mv package/package.json.tmp package/package.json
 
-      # Both assemblies carry the RoslynAnalyzer label. Unity hands them to csc as
-      # analyzers and the IDE picks up the code fixes from the same classification;
-      # the unity-smoke job above compiles a project against exactly these two files on
-      # every supported editor version.
-      - name: Place analyzer DLLs into the package
+      # The assembly carries the RoslynAnalyzer label, so Unity hands it to csc as an
+      # analyzer; the unity-smoke job above compiles a project against exactly this file
+      # on every supported editor version.
+      - name: Place the analyzer DLL into the package
         run: |
           cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
-          cp src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll package/Analyzers/
-          # The satellite travels next to the analyzer: the resource loader probes relative
-          # to the assembly's own location, so a package without it reports in English on
-          # the machines that would otherwise read Chinese.
-          mkdir -p package/Analyzers/zh-Hant
-          cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/zh-Hant/UnityPerformanceAnalyzers.resources.dll package/Analyzers/zh-Hant/
 
       # The committed catalog may go stale during development; the released tag never does.
       - name: Regenerate the rule catalog for the Rule Manager window
@@ -448,28 +434,14 @@ jobs:
       # a permanent tag. Publishing still happens after, since a NuGet version should not
       # exist without the tag it names.
       - name: Pack upa-cli
-        run: |
-          set -euo pipefail
-          dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release --no-build -o artifacts/nuget
-          test -f "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.${{ steps.version.outputs.version }}.nupkg"
+        run: dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release --no-build -o artifacts/nuget
 
-      # Proves the package installs and starts before the tag is cut; dotnet pack
-      # succeeding says nothing about whether the tool runs.
+      # Proves the package is at the path the release attaches, installs and starts before
+      # the tag is cut; dotnet pack succeeding says nothing about whether the tool runs.
       - name: The packed tool installs and runs
-        run: |
-          set -euo pipefail
-          work=$(mktemp -d)
-          cd "$work"
-          dotnet new tool-manifest
-          dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli \
-            --add-source "$GITHUB_WORKSPACE/artifacts/nuget" \
-            --version "${{ steps.version.outputs.version }}"
-          reported=$(dotnet upa-cli --version)
-          if [ "$reported" != "${{ steps.version.outputs.version }}" ]; then
-            echo "::error::packed tool reports $reported, expected ${{ steps.version.outputs.version }}"
-            exit 1
-          fi
-          dotnet upa-cli --list-rules > /dev/null
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: bash .github/release/verify-cli-package.sh artifacts/nuget "$VERSION"
 
       - name: Commit, tag, push
         run: |
@@ -482,8 +454,6 @@ jobs:
           git add src/UnityPerformanceAnalyzers/AnalyzerReleases.Shipped.md
           git add src/UnityPerformanceAnalyzers/AnalyzerReleases.Unshipped.md
           git add -f package/Analyzers/UnityPerformanceAnalyzers.dll
-          git add -f package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
-          git add -f package/Analyzers/zh-Hant/UnityPerformanceAnalyzers.resources.dll
 
           # How a release was verified says so on the commit it tags. A job summary is gone
           # in a fortnight; whoever asks later why a version misbehaves reads the history.
@@ -575,9 +545,6 @@ jobs:
       #
       # --all-warn because UPA0005 is off by default, and a probe that cannot fail proves
       # nothing. Exit 1 is the success case here: it means violations were found.
-      # Starting is not the same as working, and the difference is exactly the failure the
-      # step above is shaped to avoid: a binary that resolves no reference assemblies still
-      # prints its version happily and reports nothing on every file it is given.
       #
       # The decision lives in a script with its own self-test, which the pull request workflow
       # runs. Inline, it ran under the runner's `bash -e` -- which `set -uo pipefail` does not
@@ -684,14 +651,9 @@ jobs:
           test "$VERSION" = "$package"
           test "$VERSION" = "$catalog"
           test -f package/Analyzers/UnityPerformanceAnalyzers.dll
-          test -f package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
-          test -f package/Analyzers/zh-Hant/UnityPerformanceAnalyzers.resources.dll
 
       - name: Pack upa-cli from the tag
-        run: |
-          set -euo pipefail
-          dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release -o artifacts/nuget
-          test -f "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.${{ steps.tag.outputs.version }}.nupkg"
+        run: dotnet pack src/UnityPerformanceAnalyzers.Cli -c Release -o artifacts/nuget
 
       # Also present before the tag is cut, where it fails cheaply. It is repeated here
       # because this is the step that cannot be undone, and because that one packed the
@@ -701,20 +663,7 @@ jobs:
       - name: The packed tool installs and runs
         env:
           VERSION: ${{ steps.tag.outputs.version }}
-        run: |
-          set -euo pipefail
-          work=$(mktemp -d)
-          cd "$work"
-          dotnet new tool-manifest
-          dotnet tool install NeshGames.UnityPerformanceAnalyzers.Cli \
-            --add-source "$GITHUB_WORKSPACE/artifacts/nuget" \
-            --version "$VERSION"
-          reported=$(dotnet upa-cli --version)
-          if [ "$reported" != "$VERSION" ]; then
-            echo "::error::packed tool reports $reported, expected $VERSION"
-            exit 1
-          fi
-          dotnet upa-cli --list-rules > /dev/null
+        run: bash .github/release/verify-cli-package.sh artifacts/nuget "$VERSION"
 
       # continue-on-error for the same reason the smoke verdicts use it: a download that
       # fails leaves no files, and the step below reads that as "not built", which is the
@@ -833,8 +782,6 @@ jobs:
           # reason - attaching a rebuild would attach something nothing has started.
           assets=(
             package/Analyzers/UnityPerformanceAnalyzers.dll
-            package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
-            package/Analyzers/zh-Hant/UnityPerformanceAnalyzers.resources.dll
             "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.$VERSION.nupkg"
             "$RUNNER_TEMP/cli/upa-cli-$VERSION-linux-x64.tar.gz"
             "$RUNNER_TEMP/cli/upa-cli-$VERSION-osx-arm64.tar.gz"

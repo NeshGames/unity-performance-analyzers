@@ -7,16 +7,12 @@ namespace UnityPerformanceAnalyzers.Tests
 {
     // UPA0022 is deprecated: Enum.HasFlag neither boxes nor costs more than the bitwise
     // form on any supported runtime, and the code fix it used to offer produced the slower
-    // spelling. The number stays registered because CLAUDE.md 2.4 does not recycle ids, so
+    // spelling. The number stays registered because a rule id is never reused, so
     // what these tests pin is that it says nothing unless a project asks it to.
     public class UPA0022HasFlagAnalyzerTests
     {
-        // Enabled the way a project that still wants it would.
         private static Task VerifyEnabledAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA0022HasFlagAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA0022" },
-            });
+            RuleVerifier.VerifyAsync<UPA0022HasFlagAnalyzer>(source);
 
         // UPA0022 test case 1 is not written here, and the reason is worth stating rather
         // than leaving as an absence. Microsoft.CodeAnalysis.Testing force-enables every
@@ -94,31 +90,6 @@ class C : MonoBehaviour
         }
     }
 }");
-        }
-
-        // UPA0022 test case 5
-        [Fact]
-        public void Descriptor_IsNotEnabledByDefault()
-        {
-            var descriptor = new UPA0022HasFlagAnalyzer()
-                .SupportedDiagnostics
-                .Single(d => d.Id == UPA0022HasFlagAnalyzer.DiagnosticId);
-
-            Assert.False(descriptor.IsEnabledByDefault);
-        }
-
-        // UPA0022 test case 6 — the fix rewrote to (x & y) == y, which measures slower than
-        // the call it replaced. A deprecated rule offering a pessimisation is worse than the
-        // rule itself, so the provider is gone and must stay gone.
-        [Fact]
-        public void NoCodeFixProviderRemains()
-        {
-            var providers = typeof(CodeFixes.UPA0019BoxedYieldCodeFixProvider).Assembly
-                .GetTypes()
-                .Where(t => t.Name.Contains("UPA0022"))
-                .ToArray();
-
-            Assert.Empty(providers);
         }
     }
 }

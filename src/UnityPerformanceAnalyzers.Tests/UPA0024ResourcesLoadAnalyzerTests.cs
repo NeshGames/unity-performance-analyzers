@@ -6,10 +6,7 @@ namespace UnityPerformanceAnalyzers.Tests
     public class UPA0024ResourcesLoadAnalyzerTests
     {
         private static Task VerifyAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA0024ResourcesLoadAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA0024" },
-            });
+            RuleVerifier.VerifyAsync<UPA0024ResourcesLoadAnalyzer>(source);
 
         // UPA0024 test case 1
         [Fact]

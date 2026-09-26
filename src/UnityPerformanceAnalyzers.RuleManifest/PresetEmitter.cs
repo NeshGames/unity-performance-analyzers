@@ -6,28 +6,14 @@ using UnityPerformanceAnalyzers.Catalog;
 namespace UnityPerformanceAnalyzers.RuleManifest;
 
 /// <summary>
-/// Writes every preset file from <see cref="PresetTable"/>: the four main presets in both
-/// formats, the editor-relaxed pair, the webgl-addon pair, and the sandbox verification
-/// ruleset. Output is deterministic (fixed ordering, LF line endings) so CI can regenerate
-/// and fail on any drift with a plain git diff.
+/// Writes every preset ruleset from <see cref="PresetTable"/>: the four main presets, the
+/// editor-relaxed and webgl-addon rulesets, the coexistence overlays, and the sandbox
+/// verification ruleset. Output is deterministic (fixed ordering, LF line endings) so CI can
+/// regenerate and fail on any drift, including a file that should no longer exist.
 /// </summary>
 public static class PresetEmitter
 {
     private sealed record Preset(string Name, Func<PresetTable.Row, string> Severity);
-
-    /// <summary>
-    /// Rules whose claim is per-frame cost, read from the analyzers' own <c>[UpaClaim]</c> —
-    /// the same source the analyzers' editor-only filter reads.
-    /// </summary>
-    /// <remarks>
-    /// This used to be "category is Performance", which is a different question with a
-    /// different answer. UPA0019 is categorised Performance and reports a defect, so the
-    /// category form downgraded it under <c>[**/Editor/**.cs]</c> while the analyzer went on
-    /// reporting it — one rule, two mechanisms, opposite verdicts, and nothing in either
-    /// output to show for it.
-    /// </remarks>
-    private static readonly HashSet<string> s_perFrameCostRules =
-        new HashSet<string>(UpaClaims.RuleIdsClaiming(UpaClaimKind.PerFrameCost), StringComparer.Ordinal);
 
     private static readonly Preset[] s_mainPresets =
     {
@@ -37,8 +23,21 @@ public static class PresetEmitter
         new("cysharp-stack", r => r.Cysharp),
     };
 
+    /// <summary>
+    /// The phrase every generated preset carries in its notice, and what marks a file in the
+    /// preset directory as this generator's to delete.
+    /// </summary>
+    public const string OwnershipMarker = "regenerate via the RuleManifest presets mode";
+
     /// <summary>Writes all generated files under the repo root; returns the paths written.</summary>
-    public static IReadOnlyList<string> WriteAll(string repoRoot)
+    public static IReadOnlyList<string> WriteAll(string repoRoot) => WriteAll(repoRoot, out _);
+
+    /// <summary>
+    /// Writes all generated files under the repo root and deletes the generated presets it no
+    /// longer produces; returns the paths written and, through <paramref name="removed"/>, the
+    /// paths deleted.
+    /// </summary>
+    public static IReadOnlyList<string> WriteAll(string repoRoot, out IReadOnlyList<string> removed)
     {
         var presetDir = Path.Combine(repoRoot, "package", "Samples~", "Ruleset Presets");
         var sandboxRuleset = Path.Combine(repoRoot, "sandbox", "UnityProject", "Assets", "Default.ruleset");
@@ -55,16 +54,51 @@ public static class PresetEmitter
         foreach (var preset in s_mainPresets)
         {
             Write(Path.Combine(presetDir, preset.Name + ".ruleset"), MainRuleset(preset));
-            Write(Path.Combine(presetDir, preset.Name + ".editorconfig"), MainEditorconfig(preset));
         }
 
         Write(Path.Combine(presetDir, "editor-relaxed.ruleset"), EditorRelaxedRuleset());
-        Write(Path.Combine(presetDir, "editor-relaxed.editorconfig"), EditorRelaxedEditorconfig());
         Write(Path.Combine(presetDir, "webgl-addon.ruleset"), WebGlRuleset());
-        Write(Path.Combine(presetDir, "webgl-addon.editorconfig"), WebGlEditorconfig());
         Write(sandboxRuleset, SandboxRuleset());
         written.AddRange(CoexistEmitter.Write(presetDir));
+        removed = RemoveStale(presetDir, written);
         return written;
+    }
+
+    /// <summary>
+    /// Deletes the generated presets in <paramref name="directory"/> that this run did not
+    /// write. Without it a preset dropped from the table stayed in the package, still carrying
+    /// its "generated" notice, and a drift check that regenerated and compared saw nothing
+    /// wrong: the file it should have flagged was one the generator never looked at again.
+    /// </summary>
+    /// <remarks>
+    /// Only files carrying this generator's notice are touched. The directory also holds the
+    /// hand-written READMEs, and anything without the notice is somebody's to delete, not ours.
+    /// </remarks>
+    public static IReadOnlyList<string> RemoveStale(string directory, IEnumerable<string> keep)
+    {
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var kept = new HashSet<string>(keep.Select(Path.GetFullPath), comparer);
+        var removed = new List<string>();
+
+        foreach (var file in Directory.EnumerateFiles(directory).OrderBy(f => f, StringComparer.Ordinal))
+        {
+            if (kept.Contains(Path.GetFullPath(file)) || !IsGenerated(file))
+            {
+                continue;
+            }
+
+            File.Delete(file);
+            removed.Add(file);
+        }
+
+        return removed;
+    }
+
+    private static bool IsGenerated(string file)
+    {
+        var text = File.ReadAllText(file);
+        return text.Contains("GENERATED FILE - do not edit.", StringComparison.Ordinal)
+            && text.Contains(OwnershipMarker, StringComparison.Ordinal);
     }
 
     private static string MainRuleset(Preset preset)
@@ -75,6 +109,19 @@ public static class PresetEmitter
         sb.Append("     Copy this file to Assets/Default.ruleset (project-wide).\n");
         sb.Append("     A Default.ruleset inside an asmdef folder overrides it for that assembly.\n");
         sb.Append("     To add the WebGL rules: <Include Path=\"webgl-addon.ruleset\" Action=\"Default\" />\n");
+        if (PresetTable.UpaRows.Any(row => preset.Severity(row) == "error"))
+        {
+            // Stated in the file because the file is what gets copied. An Error entry fails
+            // Unity's compile, and an Editor launched on a project that does not compile opens
+            // in Safe Mode, where the Pipeline package the Unity CLI talks to does not load.
+            // No double hyphen may appear in an XML comment, so the CLI flags are spelled out.
+            sb.Append("\n");
+            sb.Append("     Error entries fail Unity's compile. An Editor launched on a project that\n");
+            sb.Append("     does not compile opens in Safe Mode, where the Unity CLI cannot reach it.\n");
+            sb.Append("     To gate at this level without that, keep recommended in Assets and pass\n");
+            sb.Append("     this file to upa-cli in CI as its ruleset, failing on error.\n");
+        }
+
         sb.Append(GeneratedNotice("     "));
         sb.Append($"<RuleSet Name=\"UPA {preset.Name}\" ToolsVersion=\"10.0\">\n");
         sb.Append("  <Rules AnalyzerId=\"UnityPerformanceAnalyzers\" RuleNamespace=\"UnityPerformanceAnalyzers\">\n");
@@ -86,74 +133,6 @@ public static class PresetEmitter
         sb.Append("  </Rules>\n");
         sb.Append(UntRulesBlock(preset.Name == "minimal" ? "none" : preset.Name == "recommended" ? "warning" : "error"));
         sb.Append("</RuleSet>\n");
-        return sb.ToString();
-    }
-
-    private static string MainEditorconfig(Preset preset)
-    {
-        var sb = new StringBuilder();
-        sb.Append($"# unity-performance-analyzers preset: {preset.Name} (IDE parity variant)\n");
-        sb.Append("# Unity itself does not read .editorconfig (verified 2022.3/6000.5) - use the\n");
-        sb.Append("# .ruleset of the same name for Unity builds. This file keeps Rider/VS in sync\n");
-        sb.Append("# and carries the IDE-only hot-path options.\n");
-        sb.Append(GeneratedNotice("# "));
-        sb.Append("root = true\n\n[*.cs]\n");
-        foreach (var row in PresetTable.UpaRows)
-        {
-            sb.Append($"dotnet_diagnostic.{row.Id}.severity = {PresetTable.ToEditorconfigSeverity(preset.Severity(row))}\n");
-        }
-
-        foreach (var id in PresetTable.UntCorrectness)
-        {
-            sb.Append($"dotnet_diagnostic.{id}.severity = error\n");
-        }
-
-        var untPerf = preset.Name == "minimal" ? "none" : preset.Name == "recommended" ? "warning" : "error";
-        foreach (var id in PresetTable.UntPerformance)
-        {
-            sb.Append($"dotnet_diagnostic.{id}.severity = {untPerf}\n");
-        }
-
-        sb.Append('\n');
-        // Generated from UpaOptionCatalog. A hand-written copy of this block is how the
-        // documented default for upa_hot_path_attributes came to name an attribute the
-        // analyzers have never recognised.
-        sb.Append("# Analyzer options, with their defaults. Setting them here reaches the IDE;\n");
-        sb.Append("# put them in " + UpaOptionCatalog.OptionsFileName + " to reach Unity builds too.\n");
-        foreach (var option in UpaOptionCatalog.Options)
-        {
-            sb.Append(("# " + option.Key + " = " + option.Default).TrimEnd()).Append('\n');
-        }
-
-        sb.Append('\n');
-        sb.Append("# Editor tooling: relax performance pressure (IDE side; for Unity builds place\n");
-        sb.Append("# editor-relaxed.ruleset as Default.ruleset in your Editor asmdef folders)\n");
-        sb.Append("#\n");
-        sb.Append("# Both the glob and the per-rule keys below are load-bearing, and this section\n");
-        sb.Append("# relaxed nothing at all before 0.9.0 because each was written the other way:\n");
-        sb.Append("#   - `**.cs`, not `**/*.cs`. The latter does not match a file sitting directly\n");
-        sb.Append("#     in an Editor folder, which is where nearly every editor script sits.\n");
-        sb.Append("#   - one line per rule id, not a category line. Severity by rule id outranks\n");
-        sb.Append("#     severity by category however specific the section is, so a category line\n");
-        sb.Append("#     here always lost to the [*.cs] entries above.\n");
-        sb.Append("[**/Editor/**.cs]\n");
-        foreach (var row in PresetTable.UpaRows)
-        {
-            // Only per-frame cost is irrelevant in editor tooling. A rule about how a type is
-            // declared is not, and a rule already off has nothing to relax - writing it back
-            // as `suggestion` would turn relaxation into an increase.
-            if (row.Id == "UPA0005"
-                || !s_perFrameCostRules.Contains(row.Id)
-                || PresetTable.IsEditorRelaxedException(row.Id)
-                || preset.Severity(row) == "none")
-            {
-                continue;
-            }
-
-            sb.Append($"dotnet_diagnostic.{row.Id}.severity = suggestion\n");
-        }
-
-        sb.Append("dotnet_diagnostic.UPA0005.severity = none\n");
         return sb.ToString();
     }
 
@@ -195,35 +174,6 @@ public static class PresetEmitter
         return sb.ToString();
     }
 
-    private static string EditorRelaxedEditorconfig()
-    {
-        var sb = new StringBuilder();
-        sb.Append("# unity-performance-analyzers: relaxed severities for Editor tooling (IDE parity variant).\n");
-        sb.Append("# For Unity builds use editor-relaxed.ruleset in the Editor asmdef folder instead.\n");
-        sb.Append("# Merge into the .editorconfig scope that covers your editor assemblies.\n");
-        sb.Append(GeneratedNotice("# "));
-        sb.Append("[*.cs]\n");
-        foreach (var row in PresetTable.UpaRows)
-        {
-            var severity = PresetTable.IsEditorRelaxedException(row.Id)
-                ? PresetTable.ToEditorconfigSeverity(row.Recommended)
-                : "none";
-            sb.Append($"dotnet_diagnostic.{row.Id}.severity = {severity}\n");
-        }
-
-        foreach (var id in PresetTable.WebGlRules)
-        {
-            sb.Append($"dotnet_diagnostic.{id}.severity = none\n");
-        }
-
-        foreach (var id in PresetTable.UntCorrectness)
-        {
-            sb.Append($"dotnet_diagnostic.{id}.severity = error\n");
-        }
-
-        return sb.ToString();
-    }
-
     private static string WebGlRuleset()
     {
         var sb = new StringBuilder();
@@ -245,21 +195,6 @@ public static class PresetEmitter
 
         sb.Append("  </Rules>\n");
         sb.Append("</RuleSet>\n");
-        return sb.ToString();
-    }
-
-    private static string WebGlEditorconfig()
-    {
-        var sb = new StringBuilder();
-        sb.Append("# unity-performance-analyzers add-on: WebGL unsupported-API rules (IDE parity variant).\n");
-        sb.Append("# Append these lines to your project .editorconfig [*.cs] section.\n");
-        sb.Append("# Unity builds use webgl-addon.ruleset instead; the rules need UPA_TARGET_WEBGL defined.\n");
-        sb.Append(GeneratedNotice("# "));
-        foreach (var id in PresetTable.WebGlRules)
-        {
-            sb.Append($"dotnet_diagnostic.{id}.severity = warning\n");
-        }
-
         return sb.ToString();
     }
 
@@ -314,7 +249,7 @@ public static class PresetEmitter
     private static string GeneratedNotice(string prefix)
     {
         var line1 = prefix + "GENERATED FILE - do not edit. Severities live in PresetTable.cs;";
-        var line2 = prefix + "regenerate via the RuleManifest presets mode (see that file's header).";
+        var line2 = prefix + OwnershipMarker + " (see that file's header).";
         var closing = prefix.TrimEnd().StartsWith("#") ? "\n" : " -->\n";
         return line1 + "\n" + line2 + closing;
     }

@@ -78,13 +78,45 @@ namespace UnityPerformanceAnalyzers.Tests
             }
         }
 
+        // A preset dropped from the table used to stay in the package with its "generated"
+        // notice intact, and regenerating could not notice: the generator never looked at a
+        // file it no longer wrote. Only files carrying its own notice are its to delete.
+        [Fact]
+        public void Regenerating_RemovesGeneratedPresetsNoLongerProduced()
+        {
+            var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "upa-preset-stale-" + System.Guid.NewGuid().ToString("N"));
+            var presets = System.IO.Path.Combine(dir, "package", "Samples~", "Ruleset Presets");
+            try
+            {
+                System.IO.Directory.CreateDirectory(presets);
+                var stale = System.IO.Path.Combine(presets, "retired.editorconfig");
+                System.IO.File.WriteAllText(stale,
+                    "# GENERATED FILE - do not edit. Severities live in PresetTable.cs;\n"
+                    + "# " + RuleManifest.PresetEmitter.OwnershipMarker + " (see that file's header).\n");
+                var handWritten = System.IO.Path.Combine(presets, "team.ruleset");
+                System.IO.File.WriteAllText(handWritten, "<RuleSet Name=\"ours\" ToolsVersion=\"10.0\" />\n");
+                var readme = System.IO.Path.Combine(presets, "README.md");
+                System.IO.File.WriteAllText(readme, "GENERATED FILE - do not edit. (quoted, not a notice)\n");
+
+                var written = RuleManifest.PresetEmitter.WriteAll(dir, out var removed);
+
+                Assert.False(System.IO.File.Exists(stale), "the retired generated preset survived");
+                Assert.Equal(new[] { stale }, removed);
+                Assert.True(System.IO.File.Exists(handWritten), "a file without the notice was deleted");
+                Assert.True(System.IO.File.Exists(readme), "a file quoting half the notice was deleted");
+                Assert.All(written, path => Assert.True(System.IO.File.Exists(path), path + " was written and then removed"));
+            }
+            finally
+            {
+                System.IO.Directory.Delete(dir, recursive: true);
+            }
+        }
+
         [Fact]
         public void SeverityMappings_MatchChannelConventions()
         {
             Assert.Equal("Info", PresetTable.ToRulesetAction("info"));
-            Assert.Equal("suggestion", PresetTable.ToEditorconfigSeverity("info"));
             Assert.Equal("None", PresetTable.ToRulesetAction("none"));
-            Assert.Equal("error", PresetTable.ToEditorconfigSeverity("error"));
         }
     }
 }

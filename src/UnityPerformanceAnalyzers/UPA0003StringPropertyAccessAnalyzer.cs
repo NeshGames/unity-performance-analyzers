@@ -53,23 +53,14 @@ namespace UnityPerformanceAnalyzers
             var monoBehaviourType = ctx.Type("UnityEngine.MonoBehaviour");
             var scriptableObjectType = ctx.Type("UnityEngine.ScriptableObject");
 
-            var options = UpaOptions.Resolve(ctx.Options);
-            var configProvider = ctx.Options.AnalyzerConfigOptionsProvider;
-            var hotPathDetector = ctx.HotPath;
-
             ctx.RegisterOperationAction(
                 opCtx => AnalyzeInvocation(
                     opCtx,
+                    ctx,
                     materialType,
                     propertyBlockType,
                     shaderType,
                     animatorType,
-                    // Read at the call site, not once for the compilation: an .editorconfig
-                    // section applies to the files it globs, and answering from the first
-                    // syntax tree gave every file whatever the first one was configured with.
-                    options.GetBool(
-                        HotPathOnlyOptionKey, opCtx.Operation.Syntax.SyntaxTree, configProvider, fallback: false),
-                    hotPathDetector,
                     monoBehaviourType,
                     scriptableObjectType),
                 OperationKind.Invocation);
@@ -77,12 +68,11 @@ namespace UnityPerformanceAnalyzers
 
         private static void AnalyzeInvocation(
             OperationAnalysisContext context,
+            UpaCompilationContext ctx,
             INamedTypeSymbol? materialType,
             INamedTypeSymbol? propertyBlockType,
             INamedTypeSymbol? shaderType,
             INamedTypeSymbol? animatorType,
-            bool hotPathOnly,
-            HotPathDetector hotPathDetector,
             INamedTypeSymbol? monoBehaviourType,
             INamedTypeSymbol? scriptableObjectType)
         {
@@ -117,11 +107,14 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (hotPathOnly)
+            // Read here, after every cheap test, rather than for every invocation in the
+            // compilation - and at the call site, not once for the compilation: an
+            // .editorconfig section applies to the files it globs.
+            if (ctx.GetBool(HotPathOnlyOptionKey, invocation.Syntax.SyntaxTree, fallback: false))
             {
                 var semanticModel = invocation.SemanticModel;
                 if (semanticModel is null ||
-                    !hotPathDetector.IsInHotPath(invocation.Syntax, semanticModel, context.CancellationToken))
+                    !ctx.HotPath.IsInHotPath(invocation.Syntax, semanticModel, context.CancellationToken))
                 {
                     return;
                 }

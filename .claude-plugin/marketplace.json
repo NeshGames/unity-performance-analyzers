@@ -1,0 +1,15 @@
+{
+  "name": "unity-performance-analyzers",
+  "description": "Agent skill for the unity-performance-analyzers Roslyn rules: check Unity C# for per-frame performance and correctness problems with upa-cli, and act on what it reports.",
+  "owner": {
+    "name": "NeshGames",
+    "url": "https://github.com/NeshGames"
+  },
+  "plugins": [
+    {
+      "name": "unity-performance-analyzers",
+      "source": "./",
+      "description": "Run the UPA rules over Unity C# with upa-cli, read the findings, fix them or suppress them with a stated reason."
+    }
+  ]
+}

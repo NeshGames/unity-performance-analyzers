@@ -5,11 +5,9 @@ namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0005DirectDebugLoggingAnalyzerTests
     {
-        // UPA0005 is disabled by default; enable it the same way a preset would.
         private static Task VerifyAsync(string source, string? extraConfig = null) =>
             RuleVerifier.VerifyAsync<UPA0005DirectDebugLoggingAnalyzer>(source, new RuleHarness
             {
-                EnabledRules = { "UPA0005" },
                 EditorConfig = extraConfig,
             });
 
@@ -202,7 +200,6 @@ static class GameLog
 }",
                 new RuleHarness
                 {
-                    EnabledRules = { "UPA0005" },
                     OptionsFile = "upa_log_wrapper_types = GameLog",
                 });
         }

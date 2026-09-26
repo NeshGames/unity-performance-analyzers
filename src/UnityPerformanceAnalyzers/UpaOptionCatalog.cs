@@ -45,9 +45,8 @@ namespace UnityPerformanceAnalyzers
     /// <para>
     /// An option is only real if it reaches all of its channels: the options file (the one
     /// Unity passes to the compiler, so the only one that works in a build),
-    /// <c>.editorconfig</c>, the catalog the Rule Manager window reads, and the commented
-    /// examples in the generated presets. Keeping the list in each channel meant keeping four
-    /// lists in step by hand, and two of the seven keys had fallen out of three of them:
+    /// <c>.editorconfig</c>, and the catalog the Rule Manager window reads. Keeping the list in
+    /// each channel meant keeping the lists in step by hand, and two of the seven keys had fallen out of three of them:
     /// <c>upa_shader_property_hot_path_only</c> and <c>upa_log_wrapper_types</c> read
     /// <c>.editorconfig</c> directly, so they did nothing at all in a Unity build.
     /// </para>
@@ -59,8 +58,8 @@ namespace UnityPerformanceAnalyzers
     /// </remarks>
     public static class UpaOptionCatalog
     {
-        /// <summary>The file Unity passes to the compiler, and so the only channel that
-        /// applies to a build rather than only to the IDE.</summary>
+        /// <summary>The file Unity passes to the compiler, and so the only option channel
+        /// that applies to a Unity build.</summary>
         public const string OptionsFileName = UpaOptions.FileName;
 
         private static readonly UpaOptionDefinition[] s_options =

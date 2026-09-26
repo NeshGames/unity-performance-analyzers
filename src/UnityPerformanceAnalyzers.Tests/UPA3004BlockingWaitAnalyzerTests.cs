@@ -25,8 +25,7 @@ namespace UnityEngine.ResourceManagement.AsyncOperations
 
         private static Task VerifyAsync(string source, bool defineWebGlTarget = true, bool includeAddressablesStub = false)
         {
-            // UPA3004 is disabled by default; enable it as the webgl-addon preset would.
-            var harness = new RuleHarness { UnityStubs = false, EnabledRules = { "UPA3004" } };
+            var harness = new RuleHarness { UnityStubs = false };
             if (defineWebGlTarget)
             {
                 harness.Defines.Add(UpaProfile.WebGlDefine);

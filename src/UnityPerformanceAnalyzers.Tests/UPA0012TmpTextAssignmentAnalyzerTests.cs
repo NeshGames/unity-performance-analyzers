@@ -6,10 +6,7 @@ namespace UnityPerformanceAnalyzers.Tests
     public class UPA0012TmpTextAssignmentAnalyzerTests
     {
         private static Task VerifyAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA0012TmpTextAssignmentAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA0012" },
-            });
+            RuleVerifier.VerifyAsync<UPA0012TmpTextAssignmentAnalyzer>(source);
 
         // UPA0012 test case 1
         [Fact]

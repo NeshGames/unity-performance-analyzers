@@ -15,7 +15,7 @@ to tell the two apart.
 
 **Pinned compilers** — runs on every pull request, takes seconds, needs no Unity.
 `analyzer-load.sh` downloads the exact C# compilers the supported Unity versions ship
-(listed in `toolsets.proj`), compiles the probe against each with both analyzer DLLs
+(listed in `toolsets.proj`), compiles the probe against each with the analyzer DLL
 loaded, and asserts on the diagnostics. It also checks the `.meta` labels.
 
 **Unity itself** — runs before a release tag is cut, on a developer machine. `unity-load.sh`
@@ -57,7 +57,7 @@ dotnet build UnityPerformanceAnalyzers.sln -c Release
 bash .github/smoke/analyzer-load.sh
 ```
 
-For the Unity layer, build first, copy the two DLLs into `package/Analyzers/`, then point
+For the Unity layer, build first, copy the analyzer DLL into `package/Analyzers/`, then point
 the script at an editor:
 
 ```bash

@@ -95,8 +95,21 @@ internal static class AnalysisRunner
         // separately because a count alone leaves nothing to act on - under --whole-assembly
         // they are fatal and writing a baseline is refused, and "145 compile errors" does not
         // tell anyone which type is missing.
-        var compileErrors = input.Compilation
-            .GetDiagnostics(cancellationToken)
+        //
+        // One pass for both. Asking the compilation for its diagnostics and then for the
+        // analyzers' compiled everything twice: the analyzer driver has to bind every method
+        // body to raise the events the analyzers subscribe to, and it does that by asking a
+        // copy of the compilation for its diagnostics - which it then discarded.
+        // GetAllDiagnosticsAsync keeps them. Compiler diagnostics are told apart by the tag
+        // the compiler puts on every one of its own; AD0001 carries a different one.
+        var all = input.Compilation
+            .WithAnalyzers(analyzers, input.Options)
+            .GetAllDiagnosticsAsync(cancellationToken)
+            .GetAwaiter()
+            .GetResult();
+
+        var compileErrors = all
+            .Where(IsCompilerDiagnostic)
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .Select(d => ToCompileError(d))
             .OrderBy(e => e.File, StringComparer.Ordinal)
@@ -104,11 +117,7 @@ internal static class AnalysisRunner
             .ThenBy(e => e.Column)
             .ToImmutableArray();
 
-        var diagnostics = input.Compilation
-            .WithAnalyzers(analyzers, input.Options)
-            .GetAnalyzerDiagnosticsAsync(cancellationToken)
-            .GetAwaiter()
-            .GetResult();
+        var diagnostics = all.Where(d => !IsCompilerDiagnostic(d)).ToImmutableArray();
 
         // An analyzer crash is an execution failure, not a finding: it is reported
         // separately so it cannot be weighed against a severity threshold.
@@ -130,6 +139,17 @@ internal static class AnalysisRunner
             .ThenBy(r => r.Id, StringComparer.Ordinal)
             .ToImmutableArray();
 
+        // --only narrows what this run speaks for, not what it compiled. Narrowing here, before
+        // a baseline is applied, is what keeps the baseline's numbers about the same files as
+        // the findings: the suppressed and stale counts cover the named files only, instead of
+        // whole-run totals printed beside a narrowed report.
+        IEnumerable<string> reportedFiles = options.Files;
+        if (options.OnlyFiles is { } only)
+        {
+            records = records.RemoveAll(r => !only.Contains(Path.GetFullPath(r.File)));
+            reportedFiles = options.Files.Where(f => only.Contains(Path.GetFullPath(f)));
+        }
+
         var result = new AnalysisResult(records, excludedRules, compileErrors, analyzerFailures);
         if (baselineDirectory is null)
         {
@@ -138,9 +158,12 @@ internal static class AnalysisRunner
 
         return result with
         {
-            AnalyzedFiles = NormalizeInputs(options.Files, baselineDirectory),
+            AnalyzedFiles = NormalizeInputs(reportedFiles, baselineDirectory),
         };
     }
+
+    private static bool IsCompilerDiagnostic(Diagnostic diagnostic) =>
+        diagnostic.Descriptor.CustomTags.Contains(WellKnownDiagnosticTags.Compiler);
 
     /// <summary>
     /// The analyzed file set in baseline form. A file outside the baseline's directory cannot

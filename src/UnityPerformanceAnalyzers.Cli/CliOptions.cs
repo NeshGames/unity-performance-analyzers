@@ -29,6 +29,29 @@ internal sealed class CliOptions
     public string? UnityDllDir { get; private set; }
     public bool AllWarn { get; private set; }
     public bool WholeAssembly { get; private set; }
+
+    /// <summary>
+    /// Compile with unsafe code allowed, as an assembly with <c>allowUnsafeCode</c> is. Without
+    /// it every pointer and <c>unsafe</c> block is CS0227, which under --whole-assembly makes
+    /// the run an error and a baseline unwritable.
+    /// </summary>
+    public bool AllowUnsafe { get; private set; }
+
+    /// <summary>
+    /// What --only and --only-from asked for, as given: paths, patterns, and list files
+    /// (a list is stored with an '@' prefix, which no path the caller typed can carry because
+    /// the response-file expander consumes a leading '@' first). Resolved into
+    /// <see cref="OnlyFiles"/> once the analyzed set is known.
+    /// </summary>
+    public List<string> Only { get; } = new();
+
+    /// <summary>
+    /// Full paths of the analyzed files whose findings are reported; null when --only was not
+    /// given and everything is reported. The compilation still holds every input file, so
+    /// symbols resolve exactly as in a full run - only the report is narrowed.
+    /// </summary>
+    public HashSet<string>? OnlyFiles { get; private set; }
+
     public string? BaselinePath { get; private set; }
     public string? WriteBaselinePath { get; private set; }
 
@@ -49,20 +72,10 @@ internal sealed class CliOptions
     /// to the working directory would key the same file differently depending on where the
     /// command was run, and a baseline is meant to travel between machines.
     /// </summary>
-    public string BaselineDirectory
-    {
-        get
-        {
-            var path = BaselinePath ?? WriteBaselinePath;
-            if (path is null)
-            {
-                return Directory.GetCurrentDirectory();
-            }
-
-            var directory = Path.GetDirectoryName(Path.GetFullPath(path));
-            return string.IsNullOrEmpty(directory) ? Directory.GetCurrentDirectory() : directory;
-        }
-    }
+    public string BaselineDirectory =>
+        (BaselinePath ?? WriteBaselinePath) is { } path
+            ? global::UnityPerformanceAnalyzers.Cli.BaselinePath.DirectoryOf(path)
+            : Directory.GetCurrentDirectory();
     public string FailOn { get; private set; } = "warning";
     public OutputFormat Format { get; private set; } = OutputFormat.Text;
     public bool ListRules { get; private set; }
@@ -149,6 +162,17 @@ internal sealed class CliOptions
                     break;
                 case "--whole-assembly":
                     options.WholeAssembly = true;
+                    break;
+                case "--unsafe":
+                    options.AllowUnsafe = true;
+                    break;
+                case "--only":
+                    if (TakeValue() is not { } only) return (null, error);
+                    options.Only.Add(only);
+                    break;
+                case "--only-from":
+                    if (TakeValue() is not { } onlyFrom) return (null, error);
+                    options.Only.Add("@" + onlyFrom);
                     break;
                 case "--reference":
                     if (TakeValue() is not { } reference) return (null, error);
@@ -308,6 +332,27 @@ internal sealed class CliOptions
             return (null, error);
         }
 
+        // Each of these judges the baseline against everything the run saw. A narrowed
+        // report would freeze, prune or call stale the quota of every file it left out.
+        if (options.Only.Count > 0)
+        {
+            foreach (var (given, flag) in new[]
+                     {
+                         (options.WriteBaselinePath is object, "--write-baseline"),
+                         (options.PruneBaseline, "--prune-baseline"),
+                         (options.ReportStaleBaseline, "--report-stale-baseline"),
+                         (options.FailOnStale, "--fail-on-stale"),
+                     })
+            {
+                if (given)
+                {
+                    error = $"--only/--only-from cannot be combined with {flag}: that needs the "
+                        + "findings of every analyzed file, and --only reports some of them.";
+                    return (null, error);
+                }
+            }
+        }
+
         // Patterns are expanded here rather than left to the shell, which would make the
         // same command line behave differently depending on where it was typed.
         var resolved = new List<string>();
@@ -366,7 +411,116 @@ internal sealed class CliOptions
             return (null, error);
         }
 
+        if (options.Only.Count > 0 && ResolveOnly(options) is { } onlyError)
+        {
+            return (null, onlyError);
+        }
+
         return (options, null);
+    }
+
+    /// <summary>
+    /// Narrows the report to the files --only and --only-from name, for a caller that changed
+    /// a few files and wants to hear about those without compiling them out of context.
+    /// </summary>
+    /// <remarks>
+    /// The failure to guard against is a narrowed run that names nothing it analyzed and so
+    /// reports "clean" - a typo, or a change list whose paths are relative to somewhere other
+    /// than the working directory (<c>git diff --name-only</c> prints repository-relative
+    /// paths; run from a Unity project in a subfolder, none of them resolve). So an explicit
+    /// <c>--only</c> must name an analyzed .cs file or a pattern matching one. A list is
+    /// allowed what a change list legitimately holds - deleted files, non-C# paths - but if
+    /// it names C# files and none of them resolve, that is the wrong-base case, not a clean one.
+    /// </remarks>
+    private static string? ResolveOnly(CliOptions options)
+    {
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var analyzed = new HashSet<string>(options.Files.Select(Path.GetFullPath), comparer);
+        var only = new HashSet<string>(comparer);
+
+        string? Take(string candidate)
+        {
+            var full = Path.GetFullPath(candidate);
+            if (!analyzed.Contains(full))
+            {
+                return $"--only names {candidate}, which is not one of the analyzed files; "
+                    + "its findings could not be reported. Add it to the inputs.";
+            }
+
+            only.Add(full);
+            return null;
+        }
+
+        foreach (var entry in options.Only)
+        {
+            if (entry.StartsWith('@'))
+            {
+                var listPath = entry.Substring(1);
+                if (!File.Exists(listPath))
+                {
+                    return $"--only-from list not found: {listPath}";
+                }
+
+                var listed = File.ReadAllLines(listPath)
+                    .Select(line => line.Trim())
+                    .Where(line => line.Length > 0 && !line.StartsWith('#'))
+                    .Where(line => line.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var present = listed.Where(File.Exists).ToList();
+
+                if (listed.Count > 0 && present.Count == 0)
+                {
+                    return $"--only-from {listPath} names {listed.Count} C# file(s) and none exists "
+                        + $"relative to {Directory.GetCurrentDirectory()}. Paths in the list are read "
+                        + "from the working directory; from a subfolder, generate it with "
+                        + "git diff --name-only --relative.";
+                }
+
+                foreach (var candidate in present)
+                {
+                    if (Take(candidate) is { } listError)
+                    {
+                        return listError;
+                    }
+                }
+
+                continue;
+            }
+
+            if (FileGlob.HasWildcard(entry))
+            {
+                var matches = FileGlob.Expand(entry)
+                    .Where(match => match.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (matches.Count == 0)
+                {
+                    return $"--only matched no C# files: {entry}";
+                }
+
+                foreach (var match in matches)
+                {
+                    if (Take(match) is { } globError)
+                    {
+                        return globError;
+                    }
+                }
+
+                continue;
+            }
+
+            if (!entry.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || !File.Exists(entry))
+            {
+                return $"--only: no C# file at {entry}";
+            }
+
+            if (Take(entry) is { } fileError)
+            {
+                return fileError;
+            }
+        }
+
+        options.OnlyFiles = only;
+        return null;
     }
 
     private static IEnumerable<(string? Path, string Label)> EnumeratePathOptions(CliOptions options)

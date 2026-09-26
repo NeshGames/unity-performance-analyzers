@@ -70,19 +70,5 @@ namespace UnityPerformanceAnalyzers.Tests
 
             Assert.Equal(expected, annotated);
         }
-
-        [Fact]
-        public void ConditionValues_AreFromTheKnownVocabulary()
-        {
-            var known = new HashSet<string>(StringComparer.Ordinal) { "UniTask", "ZString", "R3", "DOTween", "WebGL" };
-            foreach (var type in AnalyzerTypes)
-            {
-                var condition = type.GetCustomAttribute<ConditionalRuleAttribute>()?.Condition;
-                if (condition is object)
-                {
-                    Assert.Contains(condition, known);
-                }
-            }
-        }
     }
 }

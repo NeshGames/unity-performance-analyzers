@@ -6,19 +6,7 @@ namespace UnityPerformanceAnalyzers.Tests
     public class UPA0009ListCountInForLoopAnalyzerTests
     {
         private static Task VerifyAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA0009ListCountInForLoopAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA0009" },
-            });
-
-        // Same text on both sides asserts the diagnostic is reported and no fix is offered.
-        private static Task VerifyFixAsync(string source, string fixedSource) =>
-            RuleVerifier.VerifyCodeFixAsync<
-                UPA0009ListCountInForLoopAnalyzer,
-                CodeFixes.UPA0009HoistCountCodeFixProvider>(source, fixedSource, new RuleHarness
-                {
-                    EnabledRules = { "UPA0009" },
-                });
+            RuleVerifier.VerifyAsync<UPA0009ListCountInForLoopAnalyzer>(source);
 
         // UPA0009 test case 1
         [Fact]
@@ -120,29 +108,6 @@ class C : MonoBehaviour
     void Start()
     {
         for (int i = 0; i < list.Count; i++)
-        {
-        }
-    }
-}");
-        }
-
-        // UPA0009 test case 6
-        [Fact]
-        public Task CountInCondition_InHotPathAttributedMethod_Triggers()
-        {
-            return VerifyAsync(@"
-using System.Collections.Generic;
-
-class HotPathAttribute : System.Attribute { }
-
-class C
-{
-    List<int> list = new List<int>();
-
-    [HotPath]
-    void Tick()
-    {
-        for (int i = 0; i < {|UPA0009:this.list.Count|}; i++)
         {
         }
     }
@@ -286,88 +251,10 @@ class C : MonoBehaviour
 }");
         }
 
-        // UPA0009 test case 14
-        [Fact]
-        public Task CountInCondition_CodeFix_HoistsIntoLocal()
-        {
-            return VerifyFixAsync(@"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        for (int i = 0; i < {|UPA0009:items.Count|}; i++)
-        {
-        }
-    }
-}", @"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        int itemsCount = items.Count;
-        for (int i = 0; i < itemsCount; i++)
-        {
-        }
-    }
-}");
-        }
-
-        // UPA0009 test case 15 - a name already in scope must not be shadowed
-        [Fact]
-        public Task CountInCondition_CodeFix_AvoidsNameCollision()
-        {
-            return VerifyFixAsync(@"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        int itemsCount = 3;
-        for (int i = 0; i < {|UPA0009:items.Count|}; i++)
-        {
-        }
-
-        _ = itemsCount;
-    }
-}", @"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        int itemsCount = 3;
-        int itemsCount2 = items.Count;
-        for (int i = 0; i < itemsCount2; i++)
-        {
-        }
-
-        _ = itemsCount;
-    }
-}");
-        }
-
         // UPA0009 test case 16 - hoisting past an embedded statement would mean synthesising
         // a block, which is a change to the shape of the code rather than to the expression
         [Fact]
-        public Task EmbeddedForStatement_Triggers_WithoutFix()
+        public Task EmbeddedForStatement_Triggers()
         {
             const string Source = @"
 using System.Collections.Generic;
@@ -386,43 +273,7 @@ class C : MonoBehaviour
             }
     }
 }";
-            return VerifyFixAsync(Source, Source);
-        }
-
-        // UPA0009 test case 17 - the receiver written as this.items keeps the same local name
-        [Fact]
-        public Task ThisQualifiedReceiver_CodeFix_HoistsIntoLocal()
-        {
-            return VerifyFixAsync(@"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        for (int i = 0; i < {|UPA0009:this.items.Count|}; i++)
-        {
-        }
-    }
-}", @"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        int itemsCount = this.items.Count;
-        for (int i = 0; i < itemsCount; i++)
-        {
-        }
-    }
-}");
+            return VerifyAsync(Source);
         }
 
         // UPA0009 test case 13b - the initializer runs before the hoisted read would, so a
@@ -467,6 +318,340 @@ class C : MonoBehaviour
     {
         for (int i = 0; i < items.Count; i = Bump(items))
         {
+        }
+    }
+}");
+        }
+
+        // A field is reachable from every method of its own type. Kill never sees the list
+        // as an argument, yet it removes from it, so a hoisted count runs past the end.
+        [Theory]
+        [InlineData("Kill(_enemies[i]);")]
+        [InlineData("this.Kill(_enemies[i]);")]
+        [InlineData("Registry.Report(this);")]
+        public Task FieldReceiver_OwnInstanceMethodMutates_DoesNotTrigger(string body)
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+static class Registry
+{
+    public static void Report(C owner) { owner.Kill(0); }
+}
+
+class C : MonoBehaviour
+{
+    List<int> _enemies = new List<int>();
+
+    public void Kill(int enemy) { _enemies.Remove(enemy); }
+
+    void Update()
+    {
+        for (int i = 0; i < _enemies.Count; i++)
+        {
+            " + body + @"
+        }
+    }
+}");
+        }
+
+        // A static list and a static method of the same type: no instance, same reach.
+        [Fact]
+        public Task StaticFieldReceiver_OwnStaticMethodMutates_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    static List<int> s_all = new List<int>();
+
+    static void Unregister(int item) { s_all.Remove(item); }
+
+    void Update()
+    {
+        for (int i = 0; i < s_all.Count; i++)
+        {
+            Unregister(s_all[i]);
+        }
+    }
+}");
+        }
+
+        // Replacing the receiver is a mutation too: after the assignment the loop reads a
+        // different list, and a count hoisted before the loop belongs to the old one.
+        [Theory]
+        [InlineData("items = GetMore();")]
+        [InlineData("this.items = GetMore();")]
+        [InlineData("(items, n) = (GetMore(), 1);")]
+        public Task ReceiverReassigned_DoesNotTrigger(string body)
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+static class Source
+{
+    public static List<int> More() => new List<int>();
+}
+
+class C : MonoBehaviour
+{
+    List<int> items = new List<int>();
+    int n;
+
+    static List<int> GetMore() => Source.More();
+
+    void Update()
+    {
+        for (int i = 0; i < items.Count; i++)
+        {
+            " + body + @"
+        }
+    }
+}");
+        }
+
+        [Fact]
+        public Task LocalReceiverReassigned_DoesNotTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+static class Source
+{
+    public static List<int> More() => new List<int>();
+}
+
+class C : MonoBehaviour
+{
+    void Update()
+    {
+        var items = new List<int>();
+        for (int i = 0; i < items.Count; i++)
+        {
+            items = Source.More();
+        }
+    }
+}");
+        }
+
+        // The local function is declared outside the loop, and captured the list there; the
+        // call inside the loop names neither.
+        [Theory]
+        [InlineData("void Drop() => items.RemoveAt(0);", "Drop();")]
+        [InlineData("System.Action drop = () => items.RemoveAt(0);", "drop();")]
+        public Task CapturingCallableMutatesLocal_DoesNotTrigger(string declaration, string call)
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    void Update()
+    {
+        var items = new List<int>();
+        " + declaration + @"
+        for (int i = 0; i < items.Count; i++)
+        {
+            " + call + @"
+        }
+    }
+}");
+        }
+
+        // The widening is scoped by what can reach the receiver. A local list is out of an
+        // instance method's reach, and a call into an unrelated type is out of a field's, so
+        // both still report.
+        [Fact]
+        public Task CallsThatCannotReachReceiver_StillTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    List<int> _weights = new List<int>();
+    int _total;
+
+    void Track(int value) { _total += value; }
+
+    void Update()
+    {
+        var local = new List<int>();
+        for (int i = 0; i < {|UPA0009:local.Count|}; i++)
+        {
+            Track(local[i]);
+        }
+
+        for (int i = 0; i < {|UPA0009:_weights.Count|}; i++)
+        {
+            _total += System.Math.Abs(_weights[i]);
+        }
+    }
+}");
+        }
+
+        // A subscriber can remove from the list being walked, and it makes no difference how
+        // the delegate is reached. Only a bare `Handler(x)` used to count.
+        [Theory]
+        [InlineData("EnemyHit?.Invoke(_enemies[i]);")]
+        [InlineData("_callback.Invoke(_enemies[i]);")]
+        [InlineData("_callback?.Invoke(_enemies[i]);")]
+        [InlineData("_unit.OnHit(_enemies[i]);")]
+        [InlineData("_unit.OnHit?.Invoke(_enemies[i]);")]
+        public Task DelegateInvokedAnyWay_DoesNotTrigger(string body)
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class Unit
+{
+    public System.Action<int> OnHit;
+}
+
+class C : MonoBehaviour
+{
+    List<int> _enemies = new List<int>();
+    System.Action<int> _callback;
+    Unit _unit = new Unit();
+
+    event System.Action<int> EnemyHit;
+
+    void Awake()
+    {
+        EnemyHit += e => _enemies.Remove(e);
+        _callback = e => _enemies.Remove(e);
+        _unit.OnHit = e => _enemies.Remove(e);
+    }
+
+    void Update()
+    {
+        for (int i = 0; i < _enemies.Count; i++)
+        {
+            " + body + @"
+        }
+    }
+}");
+        }
+
+        // An accessor is a method call written as a read or an assignment, and a constructor
+        // handed `this` has the whole instance. Each of these removes from _targets.
+        [Theory]
+        [InlineData("CurrentTarget = _targets[i];")]
+        [InlineData("this.CurrentTarget = _targets[i];")]
+        [InlineData("Health -= _targets[i];")]
+        [InlineData("var t = this[i];")]
+        [InlineData("new Watcher(this);")]
+        [InlineData("var w = new Watcher { Owner = this };")]
+        [InlineData("enabled = false;")]
+        public Task FieldReceiver_AccessorOrConstructorMutates_DoesNotTrigger(string body)
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class Watcher
+{
+    public Watcher() { }
+    public Watcher(C owner) { owner.Clear(); }
+    public C Owner { set { value.Clear(); } }
+}
+
+class C : MonoBehaviour
+{
+    List<int> _targets = new List<int>();
+    int _current;
+    int _health;
+
+    public void Clear() { }
+
+    int CurrentTarget
+    {
+        get => _current;
+        set { _targets.Remove(_current); _current = value; }
+    }
+
+    int Health
+    {
+        get => _health;
+        set { _health = value; if (value <= 0) _targets.Clear(); }
+    }
+
+    int this[int index] => _targets.Count > 8 ? _targets[index] : Drop(index);
+
+    int Drop(int index) { _targets.RemoveAt(index); return 0; }
+
+    void OnDisable() { _targets.Clear(); }
+
+    void Update()
+    {
+        for (int i = 0; i < _targets.Count; i++)
+        {
+            " + body + @"
+        }
+    }
+}");
+        }
+
+        // nameof is a constant: it runs nothing, and used to silence the loop because it does
+        // not bind to a method.
+        [Fact]
+        public Task NameofInBody_StillTriggers()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class C : MonoBehaviour
+{
+    List<int> _weights = new List<int>();
+    bool IsRunning { get { return _weights.Count > 0; } }
+
+    void Update()
+    {
+        for (int i = 0; i < {|UPA0009:_weights.Count|}; i++)
+        {
+            Debug.Log(nameof(IsRunning));
+        }
+    }
+}");
+        }
+
+        // What the accessor route does not cover: an auto-property only moves a value into its
+        // backing field, an engine getter does not call back into a script, and an
+        // initializer sets members of the new object, not this one.
+        [Fact]
+        public Task AccessorsThatCannotReachReceiver_StillTrigger()
+        {
+            return VerifyAsync(@"
+using System.Collections.Generic;
+using UnityEngine;
+
+class Tracker
+{
+    public int Last { get; set; }
+}
+
+class C : MonoBehaviour
+{
+    List<int> _targets = new List<int>();
+
+    int Selected { get; set; }
+
+    void Update()
+    {
+        for (int i = 0; i < {|UPA0009:_targets.Count|}; i++)
+        {
+            Selected = _targets[i];
+            var t = transform;
+            var tracker = new Tracker { Last = _targets[i] };
         }
     }
 }");

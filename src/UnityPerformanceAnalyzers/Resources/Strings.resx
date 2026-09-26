@@ -189,8 +189,11 @@
   <data name="UPA2012MessageFormatFireAndForget" xml:space="preserve">
     <value>The result of '{0}' is discarded, so its exceptions are silently lost. {1}</value>
   </data>
+  <data name="UPA2012MessageFormatAsyncLambda" xml:space="preserve">
+    <value>This async lambda is async void once converted to '{0}': exceptions escape every caller and completion cannot be observed. {1}</value>
+  </data>
   <data name="UPA2012Description" xml:space="preserve">
-    <value>Exceptions thrown by an async void method cannot be caught by any caller and its completion cannot be observed; a Task or UniTask whose result is discarded at the call site silently swallows its exceptions the same way. Both are debugging black holes. Return an awaitable type and observe it at the call sites, or make fire-and-forget explicit — with UniTask, return UniTaskVoid and call Forget. Event-handler-signature async void methods and explicit discard assignments are excluded as established conventions.</value>
+    <value>Exceptions thrown by an async void method, local function or lambda cannot be caught by any caller and its completion cannot be observed; a Task or UniTask whose result is discarded at the call site silently swallows its exceptions the same way. Both are debugging black holes. Return an awaitable type and observe it at the call sites, or make fire-and-forget explicit — with UniTask, return UniTaskVoid and call Forget. Event-handler-signature async void methods and explicit discard assignments are excluded as established conventions.</value>
   </data>
   <data name="UPA2012AdviceAsyncVoidDefault" xml:space="preserve">
     <value>Return Task instead, and await or store it at the call sites.</value>
@@ -203,6 +206,12 @@
   </data>
   <data name="UPA2012AdviceFireAndForgetUniTask" xml:space="preserve">
     <value>Await it, or make fire-and-forget explicit with Forget.</value>
+  </data>
+  <data name="UPA2012AdviceAsyncLambdaDefault" xml:space="preserve">
+    <value>Move the body into a Task-returning method that handles its own exceptions, and call it as () =&gt; _ = TheMethod().</value>
+  </data>
+  <data name="UPA2012AdviceAsyncLambdaUniTask" xml:space="preserve">
+    <value>Wrap it in UniTask.UnityAction or UniTask.Action, or have it call an async UniTaskVoid method and Forget the result.</value>
   </data>
   <data name="UPA2021Title" xml:space="preserve">
     <value>Public Action event used for observable state</value>
@@ -256,7 +265,7 @@
     <value>'{0}' allocates a new array on every call. Use the List&lt;T&gt; overload with a list cached in a field instead.</value>
   </data>
   <data name="UPA0017Description" xml:space="preserve">
-    <value>The array-returning GetComponents, GetComponentsInChildren, and GetComponentsInParent overloads allocate a fresh array on every call, like all Unity APIs that return arrays. The List&lt;T&gt; overloads fill a caller-provided list instead, avoiding the allocation when the list is cached in a field. There is no automatic fix — introducing the reusable list field is a type-level change. Only per-frame Unity messages and methods marked with a hot-path attribute are checked; the singular GetComponent lookups are UPA0001's territory.</value>
+    <value>The array-returning GetComponents, GetComponentsInChildren, and GetComponentsInParent overloads allocate a fresh array on every call, like all Unity APIs that return arrays. The List&lt;T&gt; overloads fill a caller-provided list instead, avoiding the allocation when the list is cached in a field. There is no automatic fix — introducing the reusable list field is a type-level change. Only per-frame Unity messages and methods marked with a hot-path attribute are checked; the singular lookups and the List&lt;T&gt; overloads are UPA0001's territory.</value>
   </data>
   <data name="UPA0019Title" xml:space="preserve">
     <value>Boxed value yielded from coroutine</value>
@@ -283,7 +292,7 @@
     <value>Comparing '{0}' computes a square root. Compare sqrMagnitude against the squared threshold instead.</value>
   </data>
   <data name="UPA0021Description" xml:space="preserve">
-    <value>The magnitude property and the Vector Distance methods compute a square root. When the result is only compared against a threshold, comparing sqrMagnitude against the squared threshold is equivalent and much faster. Comparisons with a magnitude or Distance expression on both sides are not reported — rewriting those brings no gain. The code fix applies only when the other side is a plain numeric literal; other thresholds must be squared by hand.</value>
+    <value>The magnitude property and the Vector Distance methods compute a square root. When the result is only compared against a threshold, comparing sqrMagnitude against the squared threshold is equivalent and much faster. Comparisons with a magnitude or Distance expression on both sides are not reported — rewriting those brings no gain. Square a plain numeric literal threshold directly; any other threshold must be squared by hand, e.g. multiplied by itself.</value>
   </data>
   <data name="UPA0022Title" xml:space="preserve">
     <value>Enum.HasFlag in per-frame method</value>

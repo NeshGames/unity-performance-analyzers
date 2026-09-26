@@ -3,7 +3,7 @@
 # ship, compiles a probe, and asserts on what comes back. Seconds, no Unity install.
 #
 #   usage: analyzer-load.sh
-#   env:   UPA_ANALYZER_DIR   directory holding the two analyzer DLLs
+#   env:   UPA_ANALYZER_DIR   directory holding the analyzer DLL
 #                             (default: the Release output under src/)
 #
 # Why a pinned compiler rather than the SDK's: an analyzer built against a newer Roslyn
@@ -20,14 +20,10 @@ packages="$work/packages"
 
 analyzer_dir=${UPA_ANALYZER_DIR:-}
 analyzer="${analyzer_dir:-$root/src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0}/UnityPerformanceAnalyzers.dll"
-codefixes="${analyzer_dir:-$root/src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0}/UnityPerformanceAnalyzers.CodeFixes.dll"
 stubs="$root/src/UnityStubs/bin/Release/netstandard2.0/UnityStubs.dll"
 ruleset="$root/package/Samples~/Ruleset Presets/recommended.ruleset"
 
-# Both DLLs, not just the analyzer one: the package labels both for the compiler, so
-# both are loaded on every compile in every consuming project, and a code fix assembly
-# that fails to load is reported exactly like an analyzer that fails to load.
-for f in "$analyzer" "$codefixes" "$stubs" "$ruleset"; do
+for f in "$analyzer" "$stubs" "$ruleset"; do
   if [ ! -f "$f" ]; then
     echo "missing: $f" >&2
     echo "build the solution in Release first (dotnet build -c Release)." >&2
@@ -35,8 +31,12 @@ for f in "$analyzer" "$codefixes" "$stubs" "$ruleset"; do
   fi
 done
 
-rm -rf "$work"
+# Per-run outputs go; the restored compilers stay. Wiping the whole directory made every run
+# download both pinned toolsets again, and they are the slow part of this script. Nothing
+# stale can survive in packages/: restore fetches exactly the versions toolsets.proj pins,
+# and the compilers below are looked up under those version directories.
 mkdir -p "$work"
+find "$work" -mindepth 1 -maxdepth 1 ! -name packages -exec rm -rf {} +
 
 # ---------------------------------------------------------------------------
 # The import settings Unity reads.
@@ -91,8 +91,13 @@ fi
 
 # The package layout moved between the two versions (tasks/net6.0 vs tasks/netcore),
 # so find the compiler rather than assuming where it sits.
-compilers=$(find "$packages/microsoft.net.compilers.toolset" -path '*/bincore/csc.dll' | sort)
-if [ -z "$compilers" ]; then
+# An array, not a word-split string: a checkout under a path with a space in it split every
+# compiler path in two and asserted on logs that were never written.
+compilers=()
+while IFS= read -r csc; do
+  compilers+=("$csc")
+done < <(find "$packages/microsoft.net.compilers.toolset" -path '*/bincore/csc.dll' | sort)
+if [ ${#compilers[@]} -eq 0 ]; then
   echo "no csc.dll was restored under $packages" >&2
   exit 1
 fi
@@ -112,12 +117,12 @@ compile() {   # $1 = csc.dll, $2 = log, remaining = extra csc arguments
 }
 
 status=0
-for csc in $compilers; do
+for csc in "${compilers[@]}"; do
   version=$(echo "$csc" | sed -E 's|.*/microsoft.net.compilers.toolset/([^/]+)/.*|\1|')
   echo
   echo "== Roslyn $version"
   log="$work/roslyn-$version.log"
-  compile "$csc" "$log" -analyzer:"$analyzer" -analyzer:"$codefixes"
+  compile "$csc" "$log" -analyzer:"$analyzer"
   cat "$log"
   bash "$here/assert-diagnostics.sh" "$log" "Roslyn $version" "$here/Probe.cs" "$here/NoTrigger.cs" || status=1
 

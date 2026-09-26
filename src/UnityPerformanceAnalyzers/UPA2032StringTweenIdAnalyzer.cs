@@ -109,12 +109,7 @@ namespace UnityPerformanceAnalyzers
                     continue;
                 }
 
-                var value = argument.Value;
-                while (value is IConversionOperation conversion)
-                {
-                    value = conversion.Operand;
-                }
-
+                var value = OperationFacts.Unwrap(argument.Value);
                 if (value.Type?.SpecialType == SpecialType.System_String)
                 {
                     return true;

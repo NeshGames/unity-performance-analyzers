@@ -34,7 +34,6 @@ public static class RuleManagerProbe
             ProbeCatalog(assembly);
             ProbeRulesetRoundTrip(assembly);
             ProbeOptionsRoundTrip(assembly);
-            ProbeEditorConfigSync(assembly);
         }
         catch (Exception exception)
         {
@@ -116,59 +115,6 @@ public static class RuleManagerProbe
         Check(saved.Contains("mystery_key = keep me"), "options file: unknown key preserved");
         Check(saved.Contains("upa_hot_path_messages = LateUpdate"), "options file: value written");
         Check(!saved.Contains("include_lambdas"), "options file: removed key is gone");
-    }
-
-    private static void ProbeEditorConfigSync(Assembly assembly)
-    {
-        // The sync must manage the [*.cs] section only — a key with the same name in a
-        // scoped section (Editor folders here) has different semantics and must survive.
-        const string path = ".editorconfig";
-        var hadFile = File.Exists(path);
-        var original = hadFile ? File.ReadAllText(path) : null;
-        try
-        {
-            File.WriteAllText(path, string.Join("\n",
-                "root = true",
-                "",
-                "[*.cs]",
-                "upa_hot_path_messages = Update",
-                "",
-                "[Assets/Editor/**.cs]",
-                "upa_hot_path_messages = LateUpdate",
-                ""));
-
-            var optionsType = assembly.GetType("NeshGames.UnityPerformanceAnalyzers.Editor.OptionsFile");
-            optionsType.GetMethod("SyncToEditorConfig").Invoke(null, new object[]
-            {
-                new System.Collections.Generic.Dictionary<string, string>
-                {
-                    ["upa_hot_path_messages"] = "OnGUI",
-                    ["upa_enum_switch_allow_default"] = "false",
-                },
-            });
-
-            var saved = File.ReadAllText(path);
-            var scopedSectionStart = saved.IndexOf("[Assets/Editor/**.cs]", StringComparison.Ordinal);
-            Check(scopedSectionStart >= 0, "editorconfig sync: scoped section still present");
-            Check(saved.Substring(scopedSectionStart).Contains("upa_hot_path_messages = LateUpdate"),
-                "editorconfig sync: scoped override untouched");
-            var mainSection = saved.Substring(0, scopedSectionStart);
-            Check(mainSection.Contains("upa_hot_path_messages = OnGUI"),
-                "editorconfig sync: [*.cs] value rewritten");
-            Check(mainSection.Contains("upa_enum_switch_allow_default = false"),
-                "editorconfig sync: new key inserted inside [*.cs]");
-        }
-        finally
-        {
-            if (hadFile)
-            {
-                File.WriteAllText(path, original);
-            }
-            else
-            {
-                File.Delete(path);
-            }
-        }
     }
 
     private static void Check(bool condition, string description)

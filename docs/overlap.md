@@ -26,36 +26,9 @@ So "Rider already covers UPA0001" is true about the *information* and false abou
 *enforcement*. Deciding what to disable requires separating those two, which is what the
 recommendation column does.
 
-**The practical consequence: most Rider overlap should be resolved in the IDE, not in the ruleset.**
-
-Unity reads `.ruleset` files and passes additional files to the compiler; it does **not** pass
-`.editorconfig` to the compiler. That is measured rather than assumed: on both Unity 2022.3 and
-Unity 6, the response files Unity hands to `csc` carry `-ruleset:` and no `-analyzerconfig:`,
-and a rule enabled only through `.editorconfig` does not report in a batch-mode build. The same
-run also confirms the asmdef-folder ruleset takes precedence over the one in `Assets/`.
-
-That asymmetry is useful here:
-
-```
-Assets/Default.ruleset      → Unity compile + upa-cli + IDE
-.editorconfig               → IDE only
-```
-
-So you can silence a rule where Rider already indicates it — in the editor, where the duplicate
-noise actually is — while it keeps reporting in Unity builds and stays enforceable in CI:
-
-```ini
-# .editorconfig — IDE-side only. Rider already indicates these.
-[*.cs]
-dotnet_diagnostic.UPA0001.severity = none
-dotnet_diagnostic.UPA0014.severity = none
-dotnet_diagnostic.UPA0015.severity = none
-```
-
-Leave `Assets/Default.ruleset` alone. You lose the duplicate squiggle and keep the gate.
-
-The `*-coexist.ruleset` files described at the bottom of this page are for teams that would
-rather defer entirely; the `.editorconfig` route above is the recommended default.
+**The practical consequence: Rider overlap is not a reason to turn a UPA rule off.** Rider and
+ReSharper inspections are IDE-only and never gate a build, so the UPA rules they overlap with
+are kept — they are the half of the pair that can be enforced in the Unity compile and in CI.
 
 ---
 
@@ -140,7 +113,7 @@ rule list is not a description of what ships today.
 
 | UPA | Reports | Rider | UNT | Project Auditor | Package-native | Recommendation |
 |---|---|---|---|---|---|---|
-| **UPA0001** | `GetComponent` family in per-frame methods | ● *Avoid usage of GetComponent methods in performance critical context* | ◐ UNT0026 (`GetComponent` always allocates), ◐ UNT0039 (`RequireComponent` on self-invoke) | ? PAC — API database includes `GetComponent` | ○ | Rider is stronger (propagates through calls). Silence in `.editorconfig` if you use Rider; **keep in the ruleset** — this is the rule most worth gating |
+| **UPA0001** | `GetComponent` family in per-frame methods | ● *Avoid usage of GetComponent methods in performance critical context* | ◐ UNT0026 (`GetComponent` always allocates), ◐ UNT0039 (`RequireComponent` on self-invoke) | ? PAC — API database includes `GetComponent` | ○ | **Keep.** Rider is stronger as information (propagates through calls), but it cannot gate a build — and this is the rule most worth gating |
 | **UPA0002** | `name` / `tag` accessed in per-frame methods | ◐ *Use CompareTag instead of explicit string comparison* — narrower | ◐ UNT0002 *Inefficient tag comparison* — narrower | ? PAC | ○ | Keep. Both alternatives only cover the comparison shape; `name` access and bare `tag` reads are not covered by either |
 | **UPA0003** | String-based shader / animator property access | ● *Avoid using string based names for setting and getting properties on Animators, Shaders and Materials* | ● UNT0041 (`Animator.StringToHash` for repeated calls) — repeat-call heuristic only | ? PAC | ○ | Overlap is narrower than it looks. **Keep.** UNT0041 sees only `Animator`; measured across three real games, one of fourteen UPA0003 findings was an Animator call and it was a false positive, while all three true positives were `Material` and `MaterialPropertyBlock` calls UNT0041 cannot see (2026-08-11) |
 | **UPA0004** | Instantiating accessors (`Renderer.material`, …) in per-frame | ○ | ○ | ? PAC (material instantiation is a known descriptor) | ○ | **Keep.** Distinctive rule; the leak, not just the cost, is the point |
@@ -153,19 +126,19 @@ rule list is not a description of what ships today.
 | **UPA0011** | `SetActive` to toggle UI visibility *(off)* | ○ | ○ | ○ | ○ | Keep as-is |
 | **UPA0012** | TMP `text` assignment instead of `SetText` *(off)* | ○ | ○ | ○ | ○ | Keep as-is |
 | **UPA0013** | `System.Linq` in per-frame *(off)* | ○ | ○ | ◐ | ○ | Keep as-is. UnityEngineAnalyzer has no LINQ rule - `UEA0009` is InvokeFunctionMissing, and this page said otherwise until its rule list was actually read (2026-08-10) |
-| **UPA0014** | Scene-search APIs in per-frame | ● *Avoid usage of Find methods in performance critical context* — same API set, plus quick-fixes | ○ | ? PAC | ○ | Rider is stronger and offers a fix. Silence in `.editorconfig` under Rider; keep in the ruleset for CI |
-| **UPA0015** | `Camera.main` in per-frame *(Info)* | ● *Camera.main is inefficient in frequently called methods* — with a cache-to-`Awake` context action | ○ | ? PAC | ○ | Already Info severity, so low noise. Silence in `.editorconfig` under Rider |
-| **UPA0016** | `SendMessage` / `BroadcastMessage` | ● *Avoid using string based Method Invocation* | ○ | ? PAC | ○ | Silence in `.editorconfig` under Rider. Keep for Unity/CI — this one is worth gating at error |
+| **UPA0014** | Scene-search APIs in per-frame | ● *Avoid usage of Find methods in performance critical context* — same API set, plus quick-fixes | ○ | ? PAC | ○ | **Keep.** Rider is stronger as information, but its inspection never gates a build; this rule is the CI gate |
+| **UPA0015** | `Camera.main` in per-frame *(Info)* | ● *Camera.main is inefficient in frequently called methods* — with a cache-to-`Awake` context action | ○ | ? PAC | ○ | **Keep.** Already Info severity, so low noise; Rider's inspection is IDE-only |
+| **UPA0016** | `SendMessage` / `BroadcastMessage` | ● *Avoid using string based Method Invocation* | ○ | ? PAC | ○ | **Keep.** Rider's inspection is IDE-only; this one is worth gating at error |
 | **UPA0017** | Array-returning `GetComponents` overloads | ◐ | ◐ UNT0026 | ? PAC | ○ | **Keep.** The `List<T>` overload advice is more specific than either |
 | **UPA0018** | Allocating array-returning Unity APIs | ○ | ◐ UNT0042 (`Mesh` array property in loop) — one API, loop-scoped | ● PAC API database | ○ | **Keep.** UNT0042 is a single case of this; add a cross-reference in the rule doc |
 | **UPA0019** | Value types yielded from coroutines | ○ | ○ | ○ | ○ | **Keep — flagship.** Nothing else catches this, and the failure (Unity treats the boxed value as `null`) is a correctness bug, not just an allocation |
 | **UPA0020** | Lambdas in `WaitUntil` / `WaitWhile` *(off)* | ○ | ◐ UNT0038 *Cache `WaitForSeconds`* — sibling concern, different API | ○ | ○ | Keep as-is. Cross-reference UNT0038 in the rule doc |
-| **UPA0021** | `magnitude` / `Distance` where `sqrMagnitude` suffices | ○ | ◐ UNT0024 *Prefer scalar over vector calculations* | ○ | ○ | **Keep.** UNT0024 is a different rewrite. Ours has a code fix |
+| **UPA0021** | `magnitude` / `Distance` where `sqrMagnitude` suffices | ○ | ◐ UNT0024 *Prefer scalar over vector calculations* | ○ | ○ | **Keep.** UNT0024 is a different rewrite |
 | **UPA0022** | `Enum.HasFlag` *(deprecated)* | — | — | — | — | Deprecated; excluded from all coexistence rulesets |
 | **UPA0023** | `OnGUI` in player code *(Info, off)* | ◐ *base.OnGUI() will print "no GUI implemented"* — different issue | ○ | ○ | ○ | Keep as-is |
 | **UPA0024** | `Resources.Load` in per-frame *(off)* | ○ | ○ | ? PAC | ○ | Keep as-is |
 | **UPA0025** | Finalizers in runtime code | ○ | ○ | ○ | ◐ General C# analyzers (CA1821 covers *empty* finalizers only) | **Keep.** CA1821 is a narrower case |
-| **UPA0026** | Boxing via an inherited `GetType()` on a value type | ○ | ○ | ● PAC boxing | ○ | **Keep.** Ours has a code fix and runs per-compile |
+| **UPA0026** | Boxing via an inherited `GetType()` on a value type | ○ | ○ | ● PAC boxing | ○ | **Keep.** Ours runs per-compile |
 | **UPA0027** | `params` overloads called in expanded form | ○ | ○ | ● PAC has a params-array allocation diagnostic | ○ | **Keep.** Same finding, different cadence |
 | **UPA0028** | Structs as collection keys without `IEquatable<T>` | ○ | ○ | ◐ | ○ | **Keep — flagship.** Backed by measurement; see `enum-dictionary-keys.md` |
 | **UPA0029** | Copy loops replaceable with `AddRange` | ○ | ○ | ○ | ○ | **Keep** |
@@ -179,7 +152,7 @@ rule list is not a description of what ships today.
 | UPA | Reports | Rider | UNT | Other | Recommendation |
 |---|---|---|---|---|---|
 | **UPA1000** | Leaf classes not sealed *(deprecated)* | — | — | UnityEngineAnalyzer had `UnsealedDerivedClass` | Deprecated after measurement; excluded from coexistence rulesets |
-| **UPA1001** | Enum switches missing declared members | ○ | ○ | ● **IDE0010** / **IDE0072** (*Add missing cases*) ship with Roslyn | **Real overlap, and it is not with a Unity tool.** If IDE0010/IDE0072 are graded in your project, set `UPA1001 = none`. Differences: ours honours `upa_enum_switch_allow_default`, and unlike IDE0010 it reports through Unity's compiler, not only in the IDE. Document this trade-off in `UPA1001.md` |
+| **UPA1001** | Enum switches missing declared members | ○ | ○ | ● **IDE0010** / **IDE0072** (*Add missing cases*) ship with Roslyn | **Real overlap, and it is not with a Unity tool.** If IDE0010/IDE0072 are graded in your project, set `UPA1001 = none`. Differences: ours honours `upa_enum_switch_allow_default`, and unlike IDE0010 it reports through Unity's compiler, not only in the IDE |
 
 ---
 
@@ -190,10 +163,10 @@ reference the package *and* enable the rule.
 
 | UPA | Reports | Package-native equivalent | Recommendation |
 |---|---|---|---|
-| **UPA2000** | String building in per-frame (ZString-aware) | ○ | **Keep.** Has a code fix |
+| **UPA2000** | String building in per-frame (ZString-aware) | ○ | **Keep.** No package-native equivalent |
 | **UPA2010** | `async Task` methods (UniTask referenced) | ○ | **Keep.** Opinionated by design |
 | **UPA2011** | Coroutine `IEnumerator` on MonoBehaviours (UniTask referenced) | ○ | **Keep.** Opinionated by design |
-| **UPA2012** | `async void` / discarded task calls | ● **`UniTask.Analyzer`** ships with UniTask and detects unawaited `UniTask`-returning calls. Also ◐ **CS4014** (unawaited `Task`) and ◐ UNT0012 (unused coroutine return value) | **The clearest genuine duplicate in the whole set.** If you reference UniTask you already have its analyzer, so you get two diagnostics for one problem. **Recommend `UPA2012 = none` when UniTask is present**, unless you specifically want the `.Forget()` code fix, which `UniTask.Analyzer` does not offer. Specified as `unitask-coexist.ruleset` below |
+| **UPA2012** | `async void` / discarded task calls | ● **`UniTask.Analyzer`** ships with UniTask and detects unawaited `UniTask`-returning calls. Also ◐ **CS4014** (unawaited `Task`) and ◐ UNT0012 (unused coroutine return value) | **The clearest genuine duplicate in the whole set.** If you reference UniTask you already have its analyzer, so you get two diagnostics for one problem. **Recommend `UPA2012 = none` when UniTask is present.** Specified as `unitask-coexist.ruleset` below |
 | **UPA2021** | Public `Action` events modelling observable state (R3 referenced) | ○ | **Keep.** Architectural, not mechanical |
 | **UPA2030** | Tweens created in per-frame (DOTween) | ○ | **Keep** |
 | **UPA2031** | Discarded infinite tweens without `SetLink` | ○ | **Keep — flagship.** This is a lifetime bug, not a style preference, and DOTween ships no analyzer |
@@ -254,9 +227,7 @@ Install all of them. This package is designed to sit alongside, not instead.
 
 ## Coexistence rulesets
 
-Shipped in the **Ruleset Presets** sample, each as a pair: a `.ruleset` that defers the rules
-everywhere, and an `.editorconfig` of the same name that defers them in the IDE only. The
-`.editorconfig` is the one to reach for first, for the reason at the top of this page.
+Shipped in the **Ruleset Presets** sample as `.ruleset` files.
 
 **The direction is the opposite of what you would expect, and it matters.** Each coexistence
 ruleset **includes** the base preset rather than being included by it, because a rule entry in
@@ -269,21 +240,6 @@ inverting the two silenced it.
 So you copy the coexistence file **and** its base preset into `Assets/`, and rename the
 coexistence file to `Default.ruleset`. To defer from a different base, change one `Include`
 line.
-
-### `rider-coexist.ruleset` — includes `recommended`
-
-Sets to `None`: **UPA0005, UPA0014, UPA0015, UPA0016**.
-
-UPA0005 is inert over the `recommended` base, which already holds it at `none`; it is listed
-so that switching the `Include` to `strict` or `cysharp-stack` still defers it.
-
-Deliberately **not** included: UPA0001, UPA0002, UPA0003. Rider's coverage of these is narrower
-than the corresponding UPA rule (see the table), and UPA0001 is the single rule most worth
-gating in CI.
-
-> Prefer the `.editorconfig` route at the top of this page. This ruleset disables the rules in
-> Unity and in `upa-cli` too, which means Rider — a tool that cannot fail a build — becomes your
-> only coverage for them. Use it only if you have decided that is acceptable.
 
 ### `vs-coexist.ruleset` — includes `recommended`
 
@@ -302,8 +258,6 @@ Sets to `None`: **UPA2012** (defers to `UniTask.Analyzer`).
 
 This one includes `cysharp-stack` rather than `recommended`, because that is the only preset
 that turns UPA2012 on — over any other base the file would silence something already silent.
-
-Silencing it also gives up the `.Forget()` code fix, which `UniTask.Analyzer` does not offer.
 
 ---
 
@@ -327,8 +281,6 @@ claim in this repository.
 - [ ] Confirm whether IDE0010 / IDE0072 fire under Unity's compiler or IDE-only, which decides
       how strongly to recommend disabling UPA1001
 - [ ] Re-check Rider's inspection list per major release — JetBrains adds inspections regularly
-- [x] The `.editorconfig`-is-IDE-only asymmetry: measured on 2022.3 and Unity 6. Re-check when a
-      new Unity major ships, since the entire recommendation at the top of this page rests on it
 
 **Ownership**
 

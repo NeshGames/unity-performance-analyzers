@@ -60,11 +60,8 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            var hotPathOnly = ReadHotPathOnlyOption(ctx.Compilation, ctx.Options);
-            var hotPathDetector = hotPathOnly ? ctx.HotPath : null;
-
             ctx.RegisterOperationAction(
-                opCtx => AnalyzeLoop(opCtx, enumerableInterface, listType, hotPathDetector),
+                opCtx => AnalyzeLoop(opCtx, enumerableInterface, listType, ctx),
                 OperationKind.Loop);
         }
 
@@ -72,33 +69,36 @@ namespace UnityPerformanceAnalyzers
             OperationAnalysisContext context,
             INamedTypeSymbol enumerableInterface,
             INamedTypeSymbol listType,
-            HotPathDetector? hotPathDetector)
+            UpaCompilationContext ctx)
         {
             switch (context.Operation)
             {
                 case IForEachLoopOperation:
-                    AnalyzeForEach(context, enumerableInterface, listType, hotPathDetector);
+                    AnalyzeForEach(context, enumerableInterface, listType, ctx);
                     break;
                 case IForLoopOperation forLoop:
-                    AnalyzeIndexedFor(context, forLoop, enumerableInterface, listType, hotPathDetector);
+                    AnalyzeIndexedFor(context, forLoop, enumerableInterface, listType, ctx);
                     break;
             }
         }
 
-        private static bool ReadHotPathOnlyOption(Compilation compilation, AnalyzerOptions analyzerOptions)
-        {
-            return UpaOptions.Resolve(analyzerOptions).GetBool(
-                HotPathOnlyOptionKey,
-                compilation.SyntaxTrees.FirstOrDefault(),
-                analyzerOptions.AnalyzerConfigOptionsProvider,
-                fallback: false);
-        }
+        /// <summary>
+        /// Asked last, once the loop is already a finding, and of the file the loop is in: an
+        /// .editorconfig section applies to the files it globs, and reading the option once
+        /// from the compilation's first syntax tree gave every file that one's setting.
+        /// </summary>
+        private static bool IsExcludedAsColdPath(
+            IOperation loop,
+            UpaCompilationContext ctx,
+            System.Threading.CancellationToken cancellationToken)
+            => ctx.GetBool(HotPathOnlyOptionKey, loop.Syntax.SyntaxTree, fallback: false)
+                && ctx.HotPath.IsOutsideHotPath(loop, cancellationToken);
 
         private static void AnalyzeForEach(
             OperationAnalysisContext context,
             INamedTypeSymbol enumerableInterface,
             INamedTypeSymbol listType,
-            HotPathDetector? hotPathDetector)
+            UpaCompilationContext ctx)
         {
             if (!(context.Operation is IForEachLoopOperation loop))
             {
@@ -138,7 +138,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (hotPathDetector is object && hotPathDetector.IsOutsideHotPath(loop, context.CancellationToken))
+            if (IsExcludedAsColdPath(loop, ctx, context.CancellationToken))
             {
                 return;
             }
@@ -157,7 +157,7 @@ namespace UnityPerformanceAnalyzers
             IForLoopOperation loop,
             INamedTypeSymbol enumerableInterface,
             INamedTypeSymbol listType,
-            HotPathDetector? hotPathDetector)
+            UpaCompilationContext ctx)
         {
             var indexSymbol = GetZeroInitializedIndex(loop);
             if (indexSymbol is null || !IsSimpleIncrementOf(loop, indexSymbol))
@@ -209,7 +209,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (hotPathDetector is object && hotPathDetector.IsOutsideHotPath(loop, context.CancellationToken))
+            if (IsExcludedAsColdPath(loop, ctx, context.CancellationToken))
             {
                 return;
             }

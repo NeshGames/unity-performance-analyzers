@@ -4,9 +4,9 @@ namespace UnityPerformanceAnalyzers.RuleManifest;
 /// The single source of truth for preset severities. Every file under
 /// package/Samples~/Ruleset Presets/ and the sandbox Default.ruleset is generated from
 /// this table by <see cref="PresetEmitter"/> — edit here, then regenerate with
-/// <c>RuleManifest --presets &lt;repo root&gt;</c>; never edit the generated files.
-/// Canonical severity values: none / info / warning / error (ruleset Actions capitalize,
-/// .editorconfig writes info as suggestion).
+/// <c>RuleManifest --all &lt;repo root&gt;</c> (<c>--presets</c> for these files alone); never edit
+/// the generated files.
+/// Canonical severity values: none / info / warning / error (ruleset Actions capitalize).
 /// </summary>
 public static class PresetTable
 {
@@ -167,30 +167,12 @@ public static class PresetTable
     /// silence anything the base preset already grades. Measured on 2026-08-10 with this
     /// repository's own CLI — the inverted arrangement left the rule reporting.
     /// <para>
-    /// What is deliberately absent matters as much as what is here. Rider's coverage of
-    /// UPA0001, UPA0002 and UPA0003 is narrower than the rule it would silence, and UPA0001
-    /// is the single rule most worth gating, so none of the three is in the Rider file.
+    /// There is no Rider overlay. Rider's inspections live in the IDE only and never gate a
+    /// build, so deferring to them would leave nothing enforcing the rule.
     /// </para>
     /// </summary>
     public static readonly Coexist[] Coexists =
     {
-        new(
-            "rider",
-            "Rider's Unity performance inspections",
-            "recommended",
-            new[]
-            {
-                // Inert under the recommended base, which already holds UPA0005 at none.
-                // Kept so switching the Include to strict or cysharp-stack still defers it.
-                ("UPA0005", "Avoid usage of Debug.Log methods in performance critical context"),
-                ("UPA0014", "Avoid usage of Find methods in performance critical context, with quick-fixes"),
-                ("UPA0015", "Camera.main is inefficient in frequently called methods, with a cache-to-Awake action"),
-                ("UPA0016", "Avoid using string based Method Invocation"),
-            },
-            "Rider's indicators carry no severity and cannot fail a build. This file removes "
-            + "these rules from Unity compiles and from upa-cli as well, which leaves a tool "
-            + "that cannot gate as your only coverage. The .editorconfig variant next to this "
-            + "file silences them in the IDE only, and is the better default."),
         // Deliberately empty. This overlay used to defer UPA0003 to UNT0041, and measurement
         // on real game code showed that trade is a bad one: of fourteen UPA0003 findings only
         // one was on an Animator - the single thing UNT0041 can see - and that one was a false
@@ -223,8 +205,7 @@ public static class PresetTable
                 ("UPA2012", "UniTask ships an analyzer that detects unawaited UniTask-returning calls"),
             },
             "UPA2012 is off by default and only the cysharp-stack preset turns it on, which "
-            + "is why this file includes that preset rather than recommended. Silencing it "
-            + "also gives up the .Forget() code fix, which UniTask.Analyzer does not offer."),
+            + "is why this file includes that preset rather than recommended."),
     };
 
     /// <summary>Canonical severity → ruleset Action attribute value.</summary>
@@ -234,16 +215,6 @@ public static class PresetTable
         "info" => "Info",
         "warning" => "Warning",
         "error" => "Error",
-        _ => throw new ArgumentOutOfRangeException(nameof(severity), severity, "unknown canonical severity"),
-    };
-
-    /// <summary>Canonical severity → .editorconfig severity value (info becomes suggestion).</summary>
-    public static string ToEditorconfigSeverity(string severity) => severity switch
-    {
-        "none" => "none",
-        "info" => "suggestion",
-        "warning" => "warning",
-        "error" => "error",
         _ => throw new ArgumentOutOfRangeException(nameof(severity), severity, "unknown canonical severity"),
     };
 }

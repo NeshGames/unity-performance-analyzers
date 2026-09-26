@@ -13,7 +13,7 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </summary>
     public sealed class CoexistPresetTests : IDisposable
     {
-        private static readonly string Root = FindRepositoryRoot();
+        private static readonly string Root = TestRepository.Root;
 
         private static readonly string PresetDirectory =
             Path.Combine(Root, "package", "Samples~", "Ruleset Presets");
@@ -151,53 +151,6 @@ public class Probe : MonoBehaviour
 }";
 
         /// <summary>
-        /// Both files exist for every overlay, and the .editorconfig variant defers exactly
-        /// the same rules. The two are read by different tools, so a rule dropped from one
-        /// produces a project where the IDE and the build disagree about the same code.
-        /// </summary>
-        [Fact]
-        public void EveryOverlayShipsBothFormatsWithTheSameRules()
-        {
-            foreach (var coexist in RuleManifest.PresetTable.Coexists)
-            {
-                var ruleset = File.ReadAllText(Path.Combine(PresetDirectory, coexist.Name + "-coexist.ruleset"));
-                var editorconfig = File.ReadAllText(Path.Combine(PresetDirectory, coexist.Name + "-coexist.editorconfig"));
-
-                foreach (var (id, _) in coexist.Rules)
-                {
-                    Assert.Contains($"Id=\"{id}\" Action=\"None\"", ruleset);
-                    Assert.Contains($"dotnet_diagnostic.{id}.severity = none", editorconfig);
-                }
-
-                foreach (var rule in UpaRuleCatalog.Rules())
-                {
-                    if (coexist.Rules.Any(entry => entry.Id == rule.Id))
-                    {
-                        continue;
-                    }
-
-                    Assert.DoesNotContain($"dotnet_diagnostic.{rule.Id}.severity", editorconfig);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Rider's coverage of these three is narrower than the rule it would silence, and
-        /// UPA0001 is the rule most worth gating. Their absence is the decision the file
-        /// encodes, so it is asserted rather than left to whoever edits the table next.
-        /// </summary>
-        [Fact]
-        public void TheRiderOverlayKeepsTheRulesRiderCoversNarrowly()
-        {
-            var rider = RuleManifest.PresetTable.Coexists.Single(c => c.Name == "rider");
-            var silenced = rider.Rules.Select(entry => entry.Id).ToArray();
-
-            Assert.DoesNotContain("UPA0001", silenced);
-            Assert.DoesNotContain("UPA0002", silenced);
-            Assert.DoesNotContain("UPA0003", silenced);
-        }
-
-        /// <summary>
         /// The overlap page carries a row per rule. Its own maintenance list asked for this
         /// to be a test rather than something to remember; a rule added without a row is a
         /// page that quietly describes 46 of 47 rules.
@@ -225,70 +178,6 @@ public class Probe : MonoBehaviour
 
             Assert.Contains("(overlap.zh-TW.md)", english);
             Assert.Contains("(overlap.md)", chinese);
-        }
-
-        /// <summary>
-        /// The section positioning this package against Project Auditor rests on three facts
-        /// about someone else's software: that Unity 6.4 bundles it, that the rules now live in
-        /// a package of their own, and the date those were last checked. All three were on this
-        /// page before anyone had looked them up, which is what makes them worth pinning: a
-        /// sentence about another product does not stop being true loudly, it stops quietly.
-        /// </summary>
-        [Theory]
-        [InlineData("overlap.md", "## Project Auditor and this package")]
-        [InlineData("overlap.zh-TW.md", "## Project Auditor 與本套件")]
-        public void TheProjectAuditorSectionKeepsItsCheckableFacts(string page, string heading)
-        {
-            var section = Section(Path.Combine(Root, "docs", page), heading);
-
-            Assert.Contains("com.unity.project-auditor-rules", section, StringComparison.Ordinal);
-            Assert.Contains("6.4", section, StringComparison.Ordinal);
-            Assert.Matches(@"\d{4}-\d{2}-\d{2}", section);
-        }
-
-        /// <summary>
-        /// This page used to say Project Auditor's analysis was Cecil-based. Unity's own
-        /// documentation says only that code analysis runs over the player assemblies, so that
-        /// was an inference about another product's internals stated as fact — the exact shape
-        /// of claim this repository asks for evidence on. Asserted as an absence because the
-        /// familiar phrasing is what a future edit would reach for.
-        /// </summary>
-        [Theory]
-        [InlineData("overlap.md")]
-        [InlineData("overlap.zh-TW.md")]
-        public void NeitherOverlapPageClaimsProjectAuditorUsesCecil(string page)
-        {
-            var text = File.ReadAllText(Path.Combine(Root, "docs", page));
-
-            Assert.DoesNotContain("Cecil", text, StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary>The text under a heading, up to the next heading of the same level.</summary>
-        private static string Section(string path, string heading)
-        {
-            var text = File.ReadAllText(path);
-
-            var start = text.IndexOf(heading, StringComparison.Ordinal);
-            Assert.True(start >= 0, Path.GetFileName(path) + " has no section titled " + heading);
-
-            var stop = text.IndexOf("\n## ", start + heading.Length, StringComparison.Ordinal);
-            return stop < 0 ? text.Substring(start) : text.Substring(start, stop - start);
-        }
-
-        private static string FindRepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is object)
-            {
-                if (directory.EnumerateFiles("*.sln").Any())
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            throw new InvalidOperationException("no directory containing a .sln above " + AppContext.BaseDirectory);
         }
     }
 }

@@ -1,8 +1,8 @@
 using System;
 
-// Editor-only entry points. EditorOnlyMethods resolves these by metadata name, so the class
-// names and namespaces must match Unity's exactly - including which ones carry the
-// "Attribute" suffix and which do not. With no stubs here that mismatch shipped unnoticed.
+// The editor callback attributes, with Unity's own names and namespaces. Two of them have no
+// Attribute suffix, which is the whole reason these exist: a check written against the
+// conventional spelling passed every test that never compiled the real one.
 namespace UnityEditor
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
@@ -25,12 +25,16 @@ namespace UnityEditor
     public class InitializeOnLoadMethodAttribute : Attribute
     {
     }
+
+    public abstract class CallbackOrderAttribute : Attribute
+    {
+    }
 }
 
 namespace UnityEditor.Callbacks
 {
     [AttributeUsage(AttributeTargets.Method)]
-    public sealed class DidReloadScripts : Attribute
+    public sealed class DidReloadScripts : CallbackOrderAttribute
     {
         public DidReloadScripts()
         {

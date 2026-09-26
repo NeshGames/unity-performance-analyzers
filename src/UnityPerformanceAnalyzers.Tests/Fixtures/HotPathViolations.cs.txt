@@ -5,7 +5,6 @@
 // expect UPA0001
 // expect UPA0002
 // expect UPA0006
-// expect-none UPA0005
 //
 // Kept to rules that resolve only UnityEngine core types. Rules over BCL symbols see a
 // different reference set from each pipeline, and can legitimately disagree there.

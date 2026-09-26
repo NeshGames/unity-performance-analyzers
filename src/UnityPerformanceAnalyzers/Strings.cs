@@ -132,11 +132,14 @@ namespace UnityPerformanceAnalyzers
         internal const string UPA2012Title = nameof(UPA2012Title);
         internal const string UPA2012MessageFormatAsyncVoid = nameof(UPA2012MessageFormatAsyncVoid);
         internal const string UPA2012MessageFormatFireAndForget = nameof(UPA2012MessageFormatFireAndForget);
+        internal const string UPA2012MessageFormatAsyncLambda = nameof(UPA2012MessageFormatAsyncLambda);
         internal const string UPA2012Description = nameof(UPA2012Description);
         internal const string UPA2012AdviceAsyncVoidDefault = nameof(UPA2012AdviceAsyncVoidDefault);
         internal const string UPA2012AdviceAsyncVoidUniTask = nameof(UPA2012AdviceAsyncVoidUniTask);
         internal const string UPA2012AdviceFireAndForgetDefault = nameof(UPA2012AdviceFireAndForgetDefault);
         internal const string UPA2012AdviceFireAndForgetUniTask = nameof(UPA2012AdviceFireAndForgetUniTask);
+        internal const string UPA2012AdviceAsyncLambdaDefault = nameof(UPA2012AdviceAsyncLambdaDefault);
+        internal const string UPA2012AdviceAsyncLambdaUniTask = nameof(UPA2012AdviceAsyncLambdaUniTask);
 
         internal const string UPA2021Title = nameof(UPA2021Title);
         internal const string UPA2021MessageFormat = nameof(UPA2021MessageFormat);

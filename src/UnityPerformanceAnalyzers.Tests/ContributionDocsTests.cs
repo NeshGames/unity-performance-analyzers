@@ -24,7 +24,7 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </remarks>
     public class ContributionDocsTests
     {
-        private static readonly string Root = FindRepositoryRoot();
+        private static readonly string Root = TestRepository.Root;
 
         /// <summary>
         /// Paths inside backticks that name something in this repository. Placeholders such
@@ -81,18 +81,17 @@ namespace UnityPerformanceAnalyzers.Tests
         {
             var workflow = File.ReadAllText(Path.Combine(Root, ".github", "workflows", "pr.yml"));
 
+            // One command for everything generated: separate ones were how a contributor
+            // regenerated two of three and left the third for CI to find.
+            Assert.Contains("src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- --all .", workflow);
+
             foreach (var guide in Guides)
             {
                 var text = File.ReadAllText(Path.Combine(Root, guide));
-                foreach (var mode in new[] { "--readme", "--presets" })
-                {
-                    Assert.True(
-                        text.Contains($"--project src/UnityPerformanceAnalyzers.RuleManifest -c Release -- {mode}",
-                            StringComparison.Ordinal),
-                        $"{guide} does not give the {mode} command in the form CI runs it");
-
-                    Assert.Contains($"src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- {mode}", workflow);
-                }
+                Assert.True(
+                    text.Contains("--project src/UnityPerformanceAnalyzers.RuleManifest -c Release -- --all .",
+                        StringComparison.Ordinal),
+                    $"{guide} does not give the --all command in the form CI runs it");
             }
         }
 
@@ -158,22 +157,6 @@ namespace UnityPerformanceAnalyzers.Tests
             var next = template.IndexOf("- type:", start, StringComparison.Ordinal);
             var field = next < 0 ? template.Substring(start) : template.Substring(start, next - start);
             return field.Contains("required: true", StringComparison.Ordinal);
-        }
-
-        private static string FindRepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is object)
-            {
-                if (directory.EnumerateFiles("*.sln").Any())
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            throw new InvalidOperationException("no directory containing a .sln above " + AppContext.BaseDirectory);
         }
     }
 }

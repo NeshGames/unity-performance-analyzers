@@ -90,8 +90,7 @@ internal sealed class BaselineSession
         var existing = BaselineDocument.Read(path);
         BaselineWriter.EnsureCoversExistingBaseline(path, existing, result.AnalyzedFiles);
 
-        var directory = Path.GetDirectoryName(Path.GetFullPath(path));
-        var root = string.IsNullOrEmpty(directory) ? Directory.GetCurrentDirectory() : directory;
+        var root = BaselinePath.DirectoryOf(path);
 
         // The diagnostics the filter already suppressed are the occurrences that matched, so
         // pruning has to see the unfiltered set. Reported plus suppressed is not recoverable

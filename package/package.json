@@ -21,7 +21,7 @@
   "samples": [
     {
       "displayName": "Ruleset Presets",
-      "description": "minimal / recommended / strict / cysharp-stack / webgl-addon severity presets. Copy the one you want to Assets/Default.ruleset; .editorconfig variants included for IDE parity.",
+      "description": "minimal / recommended / strict / cysharp-stack / webgl-addon severity presets. Copy the one you want to Assets/Default.ruleset.",
       "path": "Samples~/Ruleset Presets"
     },
     {

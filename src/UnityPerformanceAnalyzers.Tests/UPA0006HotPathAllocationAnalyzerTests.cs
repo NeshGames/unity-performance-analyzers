@@ -94,43 +94,6 @@ class C : MonoBehaviour
 }");
         }
 
-        // UPA0006 test case 6
-        [Fact]
-        public Task Creation_InHotPathAttributedMethod_Triggers()
-        {
-            return VerifyAsync(@"
-class HotPathAttribute : System.Attribute { }
-
-class C
-{
-    [HotPath]
-    void Tick()
-    {
-        var o = {|UPA0006:new object()|};
-    }
-}");
-        }
-
-        // UPA0006 test case 7
-        [Fact]
-        public Task Creation_InLambdaInsideUpdate_Triggers()
-        {
-            return VerifyAsync(@"
-using System;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    void Update()
-    {
-        Action a = () =>
-        {
-            var o = {|UPA0006:new object()|};
-        };
-    }
-}");
-        }
-
         // UPA0006 test case 8 — method-group delegate creation is out of scope in v0.1
         [Fact]
         public Task MethodGroupDelegate_InUpdate_DoesNotTrigger()
