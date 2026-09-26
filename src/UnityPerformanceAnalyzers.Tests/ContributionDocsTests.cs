@@ -81,18 +81,17 @@ namespace UnityPerformanceAnalyzers.Tests
         {
             var workflow = File.ReadAllText(Path.Combine(Root, ".github", "workflows", "pr.yml"));
 
+            // One command for everything generated: separate ones were how a contributor
+            // regenerated two of three and left the third for CI to find.
+            Assert.Contains("src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- --all .", workflow);
+
             foreach (var guide in Guides)
             {
                 var text = File.ReadAllText(Path.Combine(Root, guide));
-                foreach (var mode in new[] { "--readme", "--presets" })
-                {
-                    Assert.True(
-                        text.Contains($"--project src/UnityPerformanceAnalyzers.RuleManifest -c Release -- {mode}",
-                            StringComparison.Ordinal),
-                        $"{guide} does not give the {mode} command in the form CI runs it");
-
-                    Assert.Contains($"src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- {mode}", workflow);
-                }
+                Assert.True(
+                    text.Contains("--project src/UnityPerformanceAnalyzers.RuleManifest -c Release -- --all .",
+                        StringComparison.Ordinal),
+                    $"{guide} does not give the --all command in the form CI runs it");
             }
         }
 

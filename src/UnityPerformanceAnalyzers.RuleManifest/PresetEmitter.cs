@@ -9,7 +9,7 @@ namespace UnityPerformanceAnalyzers.RuleManifest;
 /// Writes every preset ruleset from <see cref="PresetTable"/>: the four main presets, the
 /// editor-relaxed and webgl-addon rulesets, the coexistence overlays, and the sandbox
 /// verification ruleset. Output is deterministic (fixed ordering, LF line endings) so CI can
-/// regenerate and fail on any drift with a plain git diff.
+/// regenerate and fail on any drift, including a file that should no longer exist.
 /// </summary>
 public static class PresetEmitter
 {
@@ -23,8 +23,21 @@ public static class PresetEmitter
         new("cysharp-stack", r => r.Cysharp),
     };
 
+    /// <summary>
+    /// The phrase every generated preset carries in its notice, and what marks a file in the
+    /// preset directory as this generator's to delete.
+    /// </summary>
+    public const string OwnershipMarker = "regenerate via the RuleManifest presets mode";
+
     /// <summary>Writes all generated files under the repo root; returns the paths written.</summary>
-    public static IReadOnlyList<string> WriteAll(string repoRoot)
+    public static IReadOnlyList<string> WriteAll(string repoRoot) => WriteAll(repoRoot, out _);
+
+    /// <summary>
+    /// Writes all generated files under the repo root and deletes the generated presets it no
+    /// longer produces; returns the paths written and, through <paramref name="removed"/>, the
+    /// paths deleted.
+    /// </summary>
+    public static IReadOnlyList<string> WriteAll(string repoRoot, out IReadOnlyList<string> removed)
     {
         var presetDir = Path.Combine(repoRoot, "package", "Samples~", "Ruleset Presets");
         var sandboxRuleset = Path.Combine(repoRoot, "sandbox", "UnityProject", "Assets", "Default.ruleset");
@@ -47,7 +60,45 @@ public static class PresetEmitter
         Write(Path.Combine(presetDir, "webgl-addon.ruleset"), WebGlRuleset());
         Write(sandboxRuleset, SandboxRuleset());
         written.AddRange(CoexistEmitter.Write(presetDir));
+        removed = RemoveStale(presetDir, written);
         return written;
+    }
+
+    /// <summary>
+    /// Deletes the generated presets in <paramref name="directory"/> that this run did not
+    /// write. Without it a preset dropped from the table stayed in the package, still carrying
+    /// its "generated" notice, and a drift check that regenerated and compared saw nothing
+    /// wrong: the file it should have flagged was one the generator never looked at again.
+    /// </summary>
+    /// <remarks>
+    /// Only files carrying this generator's notice are touched. The directory also holds the
+    /// hand-written READMEs, and anything without the notice is somebody's to delete, not ours.
+    /// </remarks>
+    public static IReadOnlyList<string> RemoveStale(string directory, IEnumerable<string> keep)
+    {
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var kept = new HashSet<string>(keep.Select(Path.GetFullPath), comparer);
+        var removed = new List<string>();
+
+        foreach (var file in Directory.EnumerateFiles(directory).OrderBy(f => f, StringComparer.Ordinal))
+        {
+            if (kept.Contains(Path.GetFullPath(file)) || !IsGenerated(file))
+            {
+                continue;
+            }
+
+            File.Delete(file);
+            removed.Add(file);
+        }
+
+        return removed;
+    }
+
+    private static bool IsGenerated(string file)
+    {
+        var text = File.ReadAllText(file);
+        return text.Contains("GENERATED FILE - do not edit.", StringComparison.Ordinal)
+            && text.Contains(OwnershipMarker, StringComparison.Ordinal);
     }
 
     private static string MainRuleset(Preset preset)
@@ -185,7 +236,7 @@ public static class PresetEmitter
     private static string GeneratedNotice(string prefix)
     {
         var line1 = prefix + "GENERATED FILE - do not edit. Severities live in PresetTable.cs;";
-        var line2 = prefix + "regenerate via the RuleManifest presets mode (see that file's header).";
+        var line2 = prefix + OwnershipMarker + " (see that file's header).";
         var closing = prefix.TrimEnd().StartsWith("#") ? "\n" : " -->\n";
         return line1 + "\n" + line2 + closing;
     }

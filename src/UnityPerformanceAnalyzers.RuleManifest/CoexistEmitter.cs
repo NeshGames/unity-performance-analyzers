@@ -113,7 +113,7 @@ public static class CoexistEmitter
     private static string GeneratedNotice(string prefix)
     {
         var line1 = prefix + "GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;";
-        var line2 = prefix + "regenerate via the RuleManifest presets mode.";
+        var line2 = prefix + PresetEmitter.OwnershipMarker + ".";
         var closing = prefix.TrimEnd().StartsWith("#", StringComparison.Ordinal) ? "\n" : " -->\n";
         return line1 + "\n" + line2 + closing;
     }

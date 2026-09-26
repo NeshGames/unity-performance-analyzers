@@ -4,7 +4,8 @@ namespace UnityPerformanceAnalyzers.RuleManifest;
 /// The single source of truth for preset severities. Every file under
 /// package/Samples~/Ruleset Presets/ and the sandbox Default.ruleset is generated from
 /// this table by <see cref="PresetEmitter"/> — edit here, then regenerate with
-/// <c>RuleManifest --presets &lt;repo root&gt;</c>; never edit the generated files.
+/// <c>RuleManifest --all &lt;repo root&gt;</c> (<c>--presets</c> for these files alone); never edit
+/// the generated files.
 /// Canonical severity values: none / info / warning / error (ruleset Actions capitalize).
 /// </summary>
 public static class PresetTable
