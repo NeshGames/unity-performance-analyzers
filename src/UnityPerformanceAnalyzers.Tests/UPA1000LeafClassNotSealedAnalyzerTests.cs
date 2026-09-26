@@ -114,18 +114,5 @@ class C
 
             Assert.False(descriptor.IsEnabledByDefault);
         }
-
-        // UPA1000 test case 9 — a fix was planned for v1.0 and the plan is off. Offering to
-        // apply advice whose payoff cannot be measured spends the reader's attention twice.
-        [Fact]
-        public void NoCodeFixProviderExists()
-        {
-            var providers = typeof(CodeFixes.UPA0019BoxedYieldCodeFixProvider).Assembly
-                .GetTypes()
-                .Where(t => t.Name.Contains("UPA1000"))
-                .ToArray();
-
-            Assert.Empty(providers);
-        }
     }
 }

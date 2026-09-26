@@ -26,7 +26,7 @@ surface is small but not empty:
 - **The analyzers run inside your compiler.** They do no file IO beyond the additional
   files Roslyn hands them, hold no mutable static state, and open no network connections.
   Anything that contradicts that is a vulnerability, not a design choice.
-- **The Editor window writes into your project** — rulesets, `.editorconfig` and the
+- **The Editor window writes into your project** — rulesets and the
   options file. Writing outside the project, or to a path derived from untrusted input,
   is in scope.
 

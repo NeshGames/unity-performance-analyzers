@@ -24,35 +24,8 @@ JetBrains 明講那些**不是 warning 也不是 suggestion**——程式碼沒�
 所以「Rider 已經涵蓋 UPA0001」這句話,對*資訊*而言是真的,對*強制力*而言是假的。
 要決定關掉什麼,必須先把這兩件事分開——那正是建議欄在做的事。
 
-**實務結論:與 Rider 的重疊,多數該在 IDE 解決,而不是在 ruleset 解決。**
-
-Unity 讀 `.ruleset`、也會把 additional file 傳給編譯器,但它**不把 `.editorconfig` 傳給編譯器**。
-這是量出來的,不是假設:在 Unity 2022.3 與 Unity 6 上,Unity 交給 `csc` 的回應檔都帶
-`-ruleset:` 而沒有 `-analyzerconfig:`,只靠 `.editorconfig` 啟用的規則在批次建置中不會回報。
-同一次量測也確認了 asmdef 資料夾內的 ruleset 優先於 `Assets/` 的那份。
-
-這個不對稱在這裡很有用:
-
-```
-Assets/Default.ruleset      → Unity 編譯 + upa-cli + IDE
-.editorconfig               → 只到 IDE
-```
-
-於是你可以**在 Rider 已經標示的地方把規則靜音**——也就是重複噪音真正發生的地方——
-同時讓它在 Unity 建置中繼續回報、在 CI 中繼續可強制:
-
-```ini
-# .editorconfig —— 只作用於 IDE。這些 Rider 已經標了。
-[*.cs]
-dotnet_diagnostic.UPA0001.severity = none
-dotnet_diagnostic.UPA0014.severity = none
-dotnet_diagnostic.UPA0015.severity = none
-```
-
-`Assets/Default.ruleset` 不要動。你少掉重複的波浪線,關卡還留著。
-
-本頁最後那組 `*-coexist.ruleset` 是給「寧可整個讓渡」的團隊用的;
-上面這條 `.editorconfig` 路線才是建議的預設。
+**實務結論:與 Rider 重疊,不是關掉 UPA 規則的理由。** Rider / ReSharper 的檢查只存在於 IDE,
+永遠不會擋下建置,所以與它們重疊的 UPA 規則都保留——在 Unity 編譯與 CI 裡能強制的,是這一半。
 
 ---
 
@@ -131,7 +104,7 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 
 | UPA | 回報什麼 | Rider | UNT | Project Auditor | 套件自帶 | 建議 |
 |---|---|---|---|---|---|---|
-| **UPA0001** | 逐幀方法內的 `GetComponent` 家族 | ● *Avoid usage of GetComponent methods in performance critical context* | ◐ UNT0026、◐ UNT0039 | ? PAC——API 資料庫含 `GetComponent` | ○ | Rider 更強(會跨呼叫傳播)。用 Rider 就在 `.editorconfig` 靜音;**ruleset 裡保留**——這是最值得設成關卡的一條 |
+| **UPA0001** | 逐幀方法內的 `GetComponent` 家族 | ● *Avoid usage of GetComponent methods in performance critical context* | ◐ UNT0026、◐ UNT0039 | ? PAC——API 資料庫含 `GetComponent` | ○ | **保留。** 就資訊而言 Rider 更強(會跨呼叫傳播),但它無法擋下建置——而這是最值得設成關卡的一條 |
 | **UPA0002** | 逐幀方法內存取 `name` / `tag` | ◐ *Use CompareTag instead of explicit string comparison*——較窄 | ◐ UNT0002 *Inefficient tag comparison*——較窄 | ? PAC | ○ | 保留。兩個替代方案都只涵蓋「比較」那個形狀;`name` 存取與單純讀 `tag` 兩者都不管 |
 | **UPA0003** | 以字串存取 shader / animator 屬性 | ● *Avoid using string based names…* | ● UNT0041(重複呼叫才建議 `StringToHash`) | ? PAC | ○ | 重疊比看起來窄。**保留。** UNT0041 只看得到 `Animator`;在三個真實遊戲上實測,14 則 UPA0003 裡只有 1 則是 Animator 呼叫而且那是誤報,3 則真陽性全是 UNT0041 看不到的 `Material` / `MaterialPropertyBlock`(2026-08-11) |
 | **UPA0004** | 逐幀方法內的實體化存取子(`Renderer.material` 等) | ○ | ○ | ? PAC(材質實體化是已知描述子) | ○ | **保留。** 具辨識度的規則;重點是洩漏,不只是成本 |
@@ -144,19 +117,19 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 | **UPA0011** | 以 `SetActive` 切換 UI 顯示(預設關閉) | ○ | ○ | ○ | ○ | 維持現狀 |
 | **UPA0012** | TMP 指派 `text` 而非 `SetText`(預設關閉) | ○ | ○ | ○ | ○ | 維持現狀 |
 | **UPA0013** | 逐幀方法內的 `System.Linq`(預設關閉) | ○ | ○ | ◐ | ○ | 維持現狀。UnityEngineAnalyzer 沒有 LINQ 規則——`UEA0009` 是 InvokeFunctionMissing,本頁在 2026-08-10 真的去讀它的規則清單之前寫錯了 |
-| **UPA0014** | 逐幀方法內的場景搜尋 API | ● *Avoid usage of Find methods in performance critical context*——同一組 API,還附快速修正 | ○ | ? PAC | ○ | Rider 更強且有修正。用 Rider 就在 `.editorconfig` 靜音;ruleset 保留給 CI |
-| **UPA0015** | 逐幀方法內的 `Camera.main`(Info) | ● *Camera.main is inefficient…*——附「快取到 `Awake`」的 context action | ○ | ? PAC | ○ | 本來就是 Info,噪音低。用 Rider 就在 `.editorconfig` 靜音 |
-| **UPA0016** | `SendMessage` / `BroadcastMessage` | ● *Avoid using string based Method Invocation* | ○ | ? PAC | ○ | 用 Rider 就在 `.editorconfig` 靜音。Unity / CI 保留——這條值得設成 error |
+| **UPA0014** | 逐幀方法內的場景搜尋 API | ● *Avoid usage of Find methods in performance critical context*——同一組 API,還附快速修正 | ○ | ? PAC | ○ | **保留。** 就資訊而言 Rider 更強,但它的檢查永遠不會擋下建置;CI 的關卡是這條 |
+| **UPA0015** | 逐幀方法內的 `Camera.main`(Info) | ● *Camera.main is inefficient…*——附「快取到 `Awake`」的 context action | ○ | ? PAC | ○ | **保留。** 本來就是 Info,噪音低;Rider 的檢查只在 IDE |
+| **UPA0016** | `SendMessage` / `BroadcastMessage` | ● *Avoid using string based Method Invocation* | ○ | ? PAC | ○ | **保留。** Rider 的檢查只在 IDE;這條值得設成 error |
 | **UPA0017** | 回傳陣列的 `GetComponents` 多載 | ◐ | ◐ UNT0026 | ? PAC | ○ | **保留。** 「改用 `List<T>` 多載」的建議比兩者都具體 |
 | **UPA0018** | 會配置的、回傳陣列的 Unity API | ○ | ◐ UNT0042(`Mesh` 陣列屬性在迴圈內)——單一 API、限迴圈 | ● PAC API 資料庫 | ○ | **保留。** UNT0042 是本規則的其中一例;規則頁補交叉引用 |
 | **UPA0019** | 協程 yield 出實質型別 | ○ | ○ | ○ | ○ | **保留——旗艦規則。** 沒有別的東西抓得到,而且失敗形式(Unity 把裝箱值當成 `null`)是正確性 bug,不只是配置 |
 | **UPA0020** | `WaitUntil` / `WaitWhile` 內的 lambda(預設關閉) | ○ | ◐ UNT0038 *Cache `WaitForSeconds`*——兄弟關切點、不同 API | ○ | ○ | 維持現狀。規則頁交叉引用 UNT0038 |
-| **UPA0021** | 可用 `sqrMagnitude` 的 `magnitude` / `Distance` 比較 | ○ | ◐ UNT0024 *Prefer scalar over vector calculations* | ○ | ○ | **保留。** UNT0024 是不同的改寫。我們這條有 code fix |
+| **UPA0021** | 可用 `sqrMagnitude` 的 `magnitude` / `Distance` 比較 | ○ | ◐ UNT0024 *Prefer scalar over vector calculations* | ○ | ○ | **保留。** UNT0024 是不同的改寫 |
 | **UPA0022** | `Enum.HasFlag`(已廢止) | — | — | — | — | 已廢止;不納入任何 coexistence ruleset |
 | **UPA0023** | player 程式碼中的 `OnGUI`(Info,預設關閉) | ◐ *base.OnGUI() will print "no GUI implemented"*——不同問題 | ○ | ○ | ○ | 維持現狀 |
 | **UPA0024** | 逐幀方法內的 `Resources.Load`(預設關閉) | ○ | ○ | ? PAC | ○ | 維持現狀 |
 | **UPA0025** | 執行期程式碼中的完成項 | ○ | ○ | ○ | ◐ 一般 C# analyzer(CA1821 只涵蓋*空的*完成項) | **保留。** CA1821 是更窄的情況 |
-| **UPA0026** | 對實質型別呼叫繼承來的 `GetType()` 造成裝箱 | ○ | ○ | ● PAC boxing | ○ | **保留。** 我們這條有 code fix,而且逐次編譯就跑 |
+| **UPA0026** | 對實質型別呼叫繼承來的 `GetType()` 造成裝箱 | ○ | ○ | ● PAC boxing | ○ | **保留。** 我們這條逐次編譯就跑 |
 | **UPA0027** | 以展開形式呼叫 `params` 多載 | ○ | ○ | ● PAC 有 params 陣列配置的診斷 | ○ | **保留。** 同樣的發現,不同的節奏 |
 | **UPA0028** | 未實作 `IEquatable<T>` 的 struct 當集合鍵 | ○ | ○ | ◐ | ○ | **保留——旗艦規則。** 有量測支撐 |
 | **UPA0029** | 可用 `AddRange` 取代的複製迴圈 | ○ | ○ | ○ | ○ | **保留** |
@@ -180,10 +153,10 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 
 | UPA | 回報什麼 | 套件自帶的對等物 | 建議 |
 |---|---|---|---|
-| **UPA2000** | 逐幀方法內的字串組建(知道 ZString) | ○ | **保留。** 有 code fix |
+| **UPA2000** | 逐幀方法內的字串組建(知道 ZString) | ○ | **保留。** 沒有套件原生的對應 |
 | **UPA2010** | `async Task` 方法(已引用 UniTask) | ○ | **保留。** 設計上就是有主張的 |
 | **UPA2011** | MonoBehaviour 上的協程 `IEnumerator`(已引用 UniTask) | ○ | **保留。** 設計上就是有主張的 |
-| **UPA2012** | `async void` / 被丟棄的 task 呼叫 | ● **`UniTask.Analyzer`** 隨 UniTask 出貨,偵測未 await 的 `UniTask` 回傳呼叫。另有 ◐ **CS4014**、◐ UNT0012 | **全套規則裡最明確的真重複。** 引用 UniTask 就已經有它的 analyzer,同一個問題會得到兩份診斷。**UniTask 存在時建議 `UPA2012 = none`**,除非你就是要那個 `.Forget()` code fix——那是 `UniTask.Analyzer` 沒有的。見下方 `unitask-coexist.ruleset` |
+| **UPA2012** | `async void` / 被丟棄的 task 呼叫 | ● **`UniTask.Analyzer`** 隨 UniTask 出貨,偵測未 await 的 `UniTask` 回傳呼叫。另有 ◐ **CS4014**、◐ UNT0012 | **全套規則裡最明確的真重複。** 引用 UniTask 就已經有它的 analyzer,同一個問題會得到兩份診斷。**UniTask 存在時建議 `UPA2012 = none`。** 見下方 `unitask-coexist.ruleset` |
 | **UPA2021** | 以公開 `Action` 事件表達可觀察狀態(已引用 R3) | ○ | **保留。** 架構性的,不是機械性的 |
 | **UPA2030** | 逐幀方法內建立 tween(DOTween) | ○ | **保留** |
 | **UPA2031** | 丟棄無限 tween 而未 `SetLink` | ○ | **保留——旗艦規則。** 這是生命週期 bug,不是風格偏好,而且 DOTween 沒有出貨 analyzer |
@@ -247,8 +220,7 @@ Rider 與 Microsoft.Unity.Analyzers 都與平台無關。
 
 ## Coexistence ruleset
 
-已隨 **Ruleset Presets** sample 出貨,每組兩個檔:一個 `.ruleset`(所有地方都讓渡)
-與一個同名 `.editorconfig`(只在 IDE 讓渡)。基於本頁開頭的理由,**先考慮 `.editorconfig` 那個**。
+以 `.ruleset` 檔隨 **Ruleset Presets** sample 出貨。
 
 **方向與直覺相反,而且這件事很重要。** 每個 coexistence ruleset 是**去 include 基礎 preset**,
 而不是被 preset include——因為**包含者的規則條目會蓋過被包含檔案裡同一條**,
@@ -258,19 +230,6 @@ Rider 與 Microsoft.Unity.Analyzers 都與平台無關。
 
 所以做法是:把 coexistence 檔**與它的基礎 preset**一起複製到 `Assets/`,
 再把 coexistence 檔改名為 `Default.ruleset`。要換基礎,只需改一行 `Include`。
-
-### `rider-coexist.ruleset` —— include `recommended`
-
-設為 `None`:**UPA0005、UPA0014、UPA0015、UPA0016**。
-
-在 `recommended` 基礎下,UPA0005 那條是無作用的(該 preset 本來就把它設為 `none`);
-之所以還列著,是為了讓你把 `Include` 換成 `strict` 或 `cysharp-stack` 時它依然生效。
-
-刻意**不**納入:UPA0001、UPA0002、UPA0003。Rider 對這三條的涵蓋範圍都比對應的 UPA 規則窄
-(見上表),而 UPA0001 是最值得設成 CI 關卡的一條。
-
-> 請優先考慮本頁開頭的 `.editorconfig` 路線。這個 ruleset 連 Unity 與 `upa-cli` 也一併關掉,
-> 等於讓「一個無法讓建置失敗的工具」成為這幾條的唯一涵蓋。確定可以接受再用。
 
 ### `vs-coexist.ruleset` —— include `recommended`
 
@@ -288,8 +247,6 @@ Roslyn 的嚴重度無法只針對 Animator 多載,因此沒有「部分讓位�
 
 這一個 include 的是 `cysharp-stack` 而不是 `recommended`,因為那是唯一會把 UPA2012 打開的 preset
 ——在其他任何基礎上,這個檔案都只是在靜音一件本來就靜著的事。
-
-靜音它同時也放棄了 `.Forget()` code fix,而 `UniTask.Analyzer` 沒有提供那個。
 
 ---
 
@@ -310,8 +267,6 @@ Roslyn 的嚴重度無法只針對 Animator 多載,因此沒有「部分讓位�
 - [ ] 確認 IDE0010 / IDE0072 是否會在 Unity 的編譯器下觸發,或僅限 IDE
       ——這決定了「建議關掉 UPA1001」該說得多強
 - [ ] 每個 Rider 大版本重新核對其檢查清單——JetBrains 會定期新增
-- [x] `.editorconfig` 只到 IDE 的不對稱:已在 2022.3 與 Unity 6 實測。
-      新的 Unity 大版本出來時要重驗,因為本頁開頭那整段建議都建立在它上面
 - [x] coexistence ruleset 的 include 方向:已用本 repo 的 CLI 實測,並由測試守住
 
 **維護方式**

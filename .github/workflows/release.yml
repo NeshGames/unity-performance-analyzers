@@ -172,19 +172,13 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      # The same two files a release places into the package. Unity must load the
+      # The same file a release places into the package. Unity must load the
       # assembled package, not a source tree.
       - name: Build and assemble the package
         run: |
           set -euo pipefail
           dotnet build UnityPerformanceAnalyzers.sln -c Release
           cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
-          cp src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll package/Analyzers/
-          # The satellite travels next to the analyzer: the resource loader probes relative
-          # to the assembly's own location, so a package without it reports in English on
-          # the machines that would otherwise read Chinese.
-          mkdir -p package/Analyzers/zh-Hant
-          cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/zh-Hant/UnityPerformanceAnalyzers.resources.dll package/Analyzers/zh-Hant/
 
       # Records a verdict rather than just passing or failing, because the two ways this
       # can fail are not the same thing. "The package is wrong" must block the release.
@@ -386,19 +380,12 @@ jobs:
           jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' package/package.json > package/package.json.tmp
           mv package/package.json.tmp package/package.json
 
-      # Both assemblies carry the RoslynAnalyzer label. Unity hands them to csc as
-      # analyzers and the IDE picks up the code fixes from the same classification;
-      # the unity-smoke job above compiles a project against exactly these two files on
-      # every supported editor version.
-      - name: Place analyzer DLLs into the package
+      # The assembly carries the RoslynAnalyzer label, so Unity hands it to csc as an
+      # analyzer; the unity-smoke job above compiles a project against exactly this file
+      # on every supported editor version.
+      - name: Place the analyzer DLL into the package
         run: |
           cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.dll package/Analyzers/
-          cp src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0/UnityPerformanceAnalyzers.CodeFixes.dll package/Analyzers/
-          # The satellite travels next to the analyzer: the resource loader probes relative
-          # to the assembly's own location, so a package without it reports in English on
-          # the machines that would otherwise read Chinese.
-          mkdir -p package/Analyzers/zh-Hant
-          cp src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0/zh-Hant/UnityPerformanceAnalyzers.resources.dll package/Analyzers/zh-Hant/
 
       # The committed catalog may go stale during development; the released tag never does.
       - name: Regenerate the rule catalog for the Rule Manager window
@@ -482,8 +469,6 @@ jobs:
           git add src/UnityPerformanceAnalyzers/AnalyzerReleases.Shipped.md
           git add src/UnityPerformanceAnalyzers/AnalyzerReleases.Unshipped.md
           git add -f package/Analyzers/UnityPerformanceAnalyzers.dll
-          git add -f package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
-          git add -f package/Analyzers/zh-Hant/UnityPerformanceAnalyzers.resources.dll
 
           # How a release was verified says so on the commit it tags. A job summary is gone
           # in a fortnight; whoever asks later why a version misbehaves reads the history.
@@ -684,8 +669,6 @@ jobs:
           test "$VERSION" = "$package"
           test "$VERSION" = "$catalog"
           test -f package/Analyzers/UnityPerformanceAnalyzers.dll
-          test -f package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
-          test -f package/Analyzers/zh-Hant/UnityPerformanceAnalyzers.resources.dll
 
       - name: Pack upa-cli from the tag
         run: |
@@ -833,8 +816,6 @@ jobs:
           # reason - attaching a rebuild would attach something nothing has started.
           assets=(
             package/Analyzers/UnityPerformanceAnalyzers.dll
-            package/Analyzers/UnityPerformanceAnalyzers.CodeFixes.dll
-            package/Analyzers/zh-Hant/UnityPerformanceAnalyzers.resources.dll
             "artifacts/nuget/NeshGames.UnityPerformanceAnalyzers.Cli.$VERSION.nupkg"
             "$RUNNER_TEMP/cli/upa-cli-$VERSION-linux-x64.tar.gz"
             "$RUNNER_TEMP/cli/upa-cli-$VERSION-osx-arm64.tar.gz"

@@ -11,15 +11,6 @@ namespace UnityPerformanceAnalyzers.Tests
                 EnabledRules = { "UPA0009" },
             });
 
-        // Same text on both sides asserts the diagnostic is reported and no fix is offered.
-        private static Task VerifyFixAsync(string source, string fixedSource) =>
-            RuleVerifier.VerifyCodeFixAsync<
-                UPA0009ListCountInForLoopAnalyzer,
-                CodeFixes.UPA0009HoistCountCodeFixProvider>(source, fixedSource, new RuleHarness
-                {
-                    EnabledRules = { "UPA0009" },
-                });
-
         // UPA0009 test case 1
         [Fact]
         public Task CountInCondition_InUpdate_Triggers()
@@ -286,88 +277,10 @@ class C : MonoBehaviour
 }");
         }
 
-        // UPA0009 test case 14
-        [Fact]
-        public Task CountInCondition_CodeFix_HoistsIntoLocal()
-        {
-            return VerifyFixAsync(@"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        for (int i = 0; i < {|UPA0009:items.Count|}; i++)
-        {
-        }
-    }
-}", @"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        int itemsCount = items.Count;
-        for (int i = 0; i < itemsCount; i++)
-        {
-        }
-    }
-}");
-        }
-
-        // UPA0009 test case 15 - a name already in scope must not be shadowed
-        [Fact]
-        public Task CountInCondition_CodeFix_AvoidsNameCollision()
-        {
-            return VerifyFixAsync(@"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        int itemsCount = 3;
-        for (int i = 0; i < {|UPA0009:items.Count|}; i++)
-        {
-        }
-
-        _ = itemsCount;
-    }
-}", @"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        int itemsCount = 3;
-        int itemsCount2 = items.Count;
-        for (int i = 0; i < itemsCount2; i++)
-        {
-        }
-
-        _ = itemsCount;
-    }
-}");
-        }
-
         // UPA0009 test case 16 - hoisting past an embedded statement would mean synthesising
         // a block, which is a change to the shape of the code rather than to the expression
         [Fact]
-        public Task EmbeddedForStatement_Triggers_WithoutFix()
+        public Task EmbeddedForStatement_Triggers()
         {
             const string Source = @"
 using System.Collections.Generic;
@@ -386,43 +299,7 @@ class C : MonoBehaviour
             }
     }
 }";
-            return VerifyFixAsync(Source, Source);
-        }
-
-        // UPA0009 test case 17 - the receiver written as this.items keeps the same local name
-        [Fact]
-        public Task ThisQualifiedReceiver_CodeFix_HoistsIntoLocal()
-        {
-            return VerifyFixAsync(@"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        for (int i = 0; i < {|UPA0009:this.items.Count|}; i++)
-        {
-        }
-    }
-}", @"
-using System.Collections.Generic;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    List<int> items = new List<int>();
-
-    void Update()
-    {
-        int itemsCount = this.items.Count;
-        for (int i = 0; i < itemsCount; i++)
-        {
-        }
-    }
-}");
+            return VerifyAsync(Source);
         }
 
         // UPA0009 test case 13b - the initializer runs before the hoisted read would, so a

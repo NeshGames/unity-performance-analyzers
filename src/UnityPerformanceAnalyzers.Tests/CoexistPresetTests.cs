@@ -151,53 +151,6 @@ public class Probe : MonoBehaviour
 }";
 
         /// <summary>
-        /// Both files exist for every overlay, and the .editorconfig variant defers exactly
-        /// the same rules. The two are read by different tools, so a rule dropped from one
-        /// produces a project where the IDE and the build disagree about the same code.
-        /// </summary>
-        [Fact]
-        public void EveryOverlayShipsBothFormatsWithTheSameRules()
-        {
-            foreach (var coexist in RuleManifest.PresetTable.Coexists)
-            {
-                var ruleset = File.ReadAllText(Path.Combine(PresetDirectory, coexist.Name + "-coexist.ruleset"));
-                var editorconfig = File.ReadAllText(Path.Combine(PresetDirectory, coexist.Name + "-coexist.editorconfig"));
-
-                foreach (var (id, _) in coexist.Rules)
-                {
-                    Assert.Contains($"Id=\"{id}\" Action=\"None\"", ruleset);
-                    Assert.Contains($"dotnet_diagnostic.{id}.severity = none", editorconfig);
-                }
-
-                foreach (var rule in UpaRuleCatalog.Rules())
-                {
-                    if (coexist.Rules.Any(entry => entry.Id == rule.Id))
-                    {
-                        continue;
-                    }
-
-                    Assert.DoesNotContain($"dotnet_diagnostic.{rule.Id}.severity", editorconfig);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Rider's coverage of these three is narrower than the rule it would silence, and
-        /// UPA0001 is the rule most worth gating. Their absence is the decision the file
-        /// encodes, so it is asserted rather than left to whoever edits the table next.
-        /// </summary>
-        [Fact]
-        public void TheRiderOverlayKeepsTheRulesRiderCoversNarrowly()
-        {
-            var rider = RuleManifest.PresetTable.Coexists.Single(c => c.Name == "rider");
-            var silenced = rider.Rules.Select(entry => entry.Id).ToArray();
-
-            Assert.DoesNotContain("UPA0001", silenced);
-            Assert.DoesNotContain("UPA0002", silenced);
-            Assert.DoesNotContain("UPA0003", silenced);
-        }
-
-        /// <summary>
         /// The overlap page carries a row per rule. Its own maintenance list asked for this
         /// to be a test rather than something to remember; a rule added without a row is a
         /// page that quietly describes 46 of 47 rules.

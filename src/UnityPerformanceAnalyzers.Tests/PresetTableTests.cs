@@ -82,9 +82,7 @@ namespace UnityPerformanceAnalyzers.Tests
         public void SeverityMappings_MatchChannelConventions()
         {
             Assert.Equal("Info", PresetTable.ToRulesetAction("info"));
-            Assert.Equal("suggestion", PresetTable.ToEditorconfigSeverity("info"));
             Assert.Equal("None", PresetTable.ToRulesetAction("none"));
-            Assert.Equal("error", PresetTable.ToEditorconfigSeverity("error"));
         }
     }
 }

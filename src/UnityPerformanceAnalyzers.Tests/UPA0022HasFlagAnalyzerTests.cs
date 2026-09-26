@@ -106,19 +106,5 @@ class C : MonoBehaviour
 
             Assert.False(descriptor.IsEnabledByDefault);
         }
-
-        // UPA0022 test case 6 — the fix rewrote to (x & y) == y, which measures slower than
-        // the call it replaced. A deprecated rule offering a pessimisation is worse than the
-        // rule itself, so the provider is gone and must stay gone.
-        [Fact]
-        public void NoCodeFixProviderRemains()
-        {
-            var providers = typeof(CodeFixes.UPA0019BoxedYieldCodeFixProvider).Assembly
-                .GetTypes()
-                .Where(t => t.Name.Contains("UPA0022"))
-                .ToArray();
-
-            Assert.Empty(providers);
-        }
     }
 }

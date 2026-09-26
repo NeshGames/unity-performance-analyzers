@@ -3,7 +3,7 @@
 # ship, compiles a probe, and asserts on what comes back. Seconds, no Unity install.
 #
 #   usage: analyzer-load.sh
-#   env:   UPA_ANALYZER_DIR   directory holding the two analyzer DLLs
+#   env:   UPA_ANALYZER_DIR   directory holding the analyzer DLL
 #                             (default: the Release output under src/)
 #
 # Why a pinned compiler rather than the SDK's: an analyzer built against a newer Roslyn
@@ -20,14 +20,10 @@ packages="$work/packages"
 
 analyzer_dir=${UPA_ANALYZER_DIR:-}
 analyzer="${analyzer_dir:-$root/src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0}/UnityPerformanceAnalyzers.dll"
-codefixes="${analyzer_dir:-$root/src/UnityPerformanceAnalyzers.CodeFixes/bin/Release/netstandard2.0}/UnityPerformanceAnalyzers.CodeFixes.dll"
 stubs="$root/src/UnityStubs/bin/Release/netstandard2.0/UnityStubs.dll"
 ruleset="$root/package/Samples~/Ruleset Presets/recommended.ruleset"
 
-# Both DLLs, not just the analyzer one: the package labels both for the compiler, so
-# both are loaded on every compile in every consuming project, and a code fix assembly
-# that fails to load is reported exactly like an analyzer that fails to load.
-for f in "$analyzer" "$codefixes" "$stubs" "$ruleset"; do
+for f in "$analyzer" "$stubs" "$ruleset"; do
   if [ ! -f "$f" ]; then
     echo "missing: $f" >&2
     echo "build the solution in Release first (dotnet build -c Release)." >&2
@@ -117,7 +113,7 @@ for csc in $compilers; do
   echo
   echo "== Roslyn $version"
   log="$work/roslyn-$version.log"
-  compile "$csc" "$log" -analyzer:"$analyzer" -analyzer:"$codefixes"
+  compile "$csc" "$log" -analyzer:"$analyzer"
   cat "$log"
   bash "$here/assert-diagnostics.sh" "$log" "Roslyn $version" "$here/Probe.cs" "$here/NoTrigger.cs" || status=1
 

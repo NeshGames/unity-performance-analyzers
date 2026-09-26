@@ -17,7 +17,7 @@ assembly 引用的套件(UniTask、ZString、R3、DOTween)以及專案是否以 
 
 ![Unity Console 列出兩個腳本的效能警告](.github/images/console-warnings.png)
 
-規則跑在 Unity 自己的編譯裡,所以 Console 會報、IDE 打字時就會報、CI 上用 `upa-cli`
+規則跑在 Unity 自己的編譯裡,所以 Console 會報;CI(或 coding agent)用 `upa-cli`
 不需要 Editor 也不需要授權。哪些規則能讓建置失敗,由 ruleset 決定。
 
 > **狀態:pre-1.0。** 全部 <!-- generated:rule-count -->46<!-- /generated:rule-count --> 條規則已實作,並在 Unity 2022.3 與 Unity 6 的
@@ -55,12 +55,10 @@ analyzer 會自動套用到**專案內的每一個 assembly**——不需要任�
   需要 `UPA_TARGET_WEBGL` scripting define(見 sample 內說明)
 - `editor-relaxed.ruleset` — 放進 Editor asmdef 資料夾改名 `Default.ruleset`,
   讓工具程式碼不受效能規則干擾
-- `rider-coexist`、`vs-coexist`、`unitask-coexist` —— 把「你專案裡另一個工具已經在報」的規則
+- `vs-coexist`、`unitask-coexist` —— 把「你專案裡另一個 analyzer 已經在報」的規則
   讓渡出去。每一個都**去 include** 它的基礎 preset(兩個檔一起複製到 `Assets/`,
   再把 coexist 那個改名為 `Default.ruleset`),因為包含者的條目會贏——
-  反過來寫的檔案外觀正確但什麼都靜不掉。同名的 `.editorconfig` 只在 IDE 讓渡,
-  多數情況那才是你要的:見[與其他工具的規則重疊](docs/overlap.zh-TW.md)
-- 各 preset 的 `.editorconfig` 對照版,供 Rider / Visual Studio 同步嚴重度
+  反過來寫的檔案外觀正確但什麼都靜不掉。見[與其他工具的規則重疊](docs/overlap.zh-TW.md)
 
 Unity 只讀 ruleset——它不會把 `.editorconfig` 傳給編譯器(已於 2022.3 與 Unity 6
 實測確認)。asmdef 資料夾內的 `Default.ruleset` 會覆寫全專案那份,只影響該 assembly。
@@ -79,7 +77,7 @@ Console 應立即亮起警告。
   不需先匯入 sample);WebGL 開關會同時維護**所有** build target 的
   `UPA_TARGET_WEBGL` define 與 `webgl-addon.ruleset` 的 Include。
   asmdef 資料夾的 ruleset 覆寫以唯讀清單列出。
-- **Options 頁籤**——編輯通用選項檔(見下一節),可選同步寫入 `.editorconfig`。
+- **Options 頁籤**——編輯通用選項檔(見下一節)。
 
 視窗對 `Assets/Default.ruleset` 的改寫是保守的:其他 analyzer 的條目、
 `<Include>` 與註解都原樣保留。
@@ -87,7 +85,7 @@ Console 應立即亮起警告。
 ## Analyzer 選項(通用選項檔)
 
 `Assets/Rules.UnityPerformanceAnalyzers.additionalfile` 以 `key = value` 形式承載
-所有 analyzer 選項,**Unity 建置與 IDE 分析都會讀取**——Unity 會把 additional file
+所有 analyzer 選項,**Unity 建置與 `upa-cli` 都會讀取**——Unity 會把 additional file
 傳給編譯器,`.editorconfig` 則不會。判定逐 key 進行:選項檔優先於
 `.editorconfig`,再優先於內建預設值。
 
@@ -135,15 +133,8 @@ upa_enum_switch_allow_default = true
 **語料是 sandbox 專案,它很小**——大型正式專案的數字本專案還沒量過,量到之前不會公布。
 以 `sandbox/measure-analyzer-cost.sh` 重現。
 
-**診斷訊息有繁體中文版**,套件本身就帶著這份翻譯。你看不看得到,取決於是誰在問:
-
-| | 語言 |
-|---|---|
-| Unity Console | **一律英文。** Unity 把編譯器語言固定為 `en-US`,而且會把它附加在專案 `csc.rsp` 之後,所以你設什麼都蓋不過去 |
-| `upa-cli` | 一律英文。這個工具刻意以不變語系執行,才能在沒有 ICU 的極簡 CI 容器上啟動得起來 |
-| Rider / Visual Studio | IDE 自己的語言——這才是這份翻譯真正要落地的地方 |
-
-所以「IDE 是中文、Console 是英文」是預期結果,不是裝壞了。
+**診斷訊息一律為英文**:Unity Console、`upa-cli` 與其他任何建置皆同。
+下方的規則文件則有英文與繁體中文兩個版本。
 
 每條規則的完整文件:[`docs/rules/`](docs/rules/)。
 版本號與規則編號各自承諾了什麼、升版可能在你腳下改變什麼:
@@ -225,40 +216,6 @@ upa_enum_switch_allow_default = true
 per-assembly、全自動、零設定。
 <!-- /generated:rules -->
 
-## Code fix
-
-九條規則附自動修正,由 IDE 在診斷出現處提供:
-
-![IDE 提供 UPA0003 的修正,含預覽與 Fix All 範圍](.github/images/ide-inline.png)
-
-診斷訊息跟隨 IDE 的語言——上圖是繁體中文,本套件自帶這份翻譯。
-Unity Console 一律英文,那是 Unity 自己的設定,專案蓋不過去。
-
-![套用後:ID 被快取在發出呼叫的那個型別上](.github/images/codefix-result.png)
-
-Fix All 在同一型別內同一名稱只產生一個欄位。這正是它在真的會出現這條規則的檔案裡用得下去的
-原因:在上面那個範例專案上跑,兩個型別、三處呼叫,產生**兩個**欄位——一個型別一個,
-不是一次呼叫一個。
-
-
-| 規則 | 修正 |
-|---|---|
-| UPA0003 | 把 shader / animator 名稱快取成呼叫端型別上的 `static readonly int`,並改用整數多載 |
-| UPA0019 | `yield return <裝箱值>` → `yield return null` |
-| UPA0021 | 改比較平方長度,免去開根號 |
-| UPA0026 | `x.GetType()` → `typeof(T)`,僅在丟掉接收者不改變執行內容時提供 |
-| UPA0009 | 把 `list.Count` 提升為迴圈前宣告的區域變數 |
-| UPA0029 | 把複製陣列的迴圈換成 `AddRange`,僅在不可能別名時提供 |
-| UPA2031 | 在被丟棄的無限 tween 後附加 `.SetLink(gameObject)` |
-| UPA2012 | 在未 await 的 UniTask 呼叫後附加 `.Forget()` |
-| UPA2000 | `"a: " + n` → `ZString.Concat("a: ", n)`,僅在有非字串運算元時提供 |
-
-修正位於隨 analyzer 一同散布的第二顆組件。Unity 會把兩顆都交給編譯器;
-修正本身是 IDE 專用的,編譯器用不到。
-
-UPA0029 的修正只在來源為陣列時提供:兩個 `List<T>` 參考可能在執行期是同一個 list,
-那時改寫會改變自我複製的行為。理由見[該規則文件](docs/rules/UPA0029.zh-TW.md)。
-
 ## 調校與抑制
 
 每份規則文件都有「如何設定或抑制」章節。速查:
@@ -267,18 +224,16 @@ UPA0029 的修正只在來源為陣列時提供:兩個 `List<T>` 參考可能在
 - **單一 assembly**:在該 asmdef 資料夾放 `Default.ruleset`(參考 `editor-relaxed.ruleset`)
 - **整個專案**:修改 `Assets/Default.ruleset` 裡該規則的那一行
 - **熱路徑判定**(哪些方法算逐幀)與其他所有 analyzer 選項:寫在通用選項檔
-  (見上方「Analyzer 選項」一節)——Unity 建置與 IDE 一體生效;
-  `.editorconfig` 仍可作為 IDE 端備援。
+  (見上方「Analyzer 選項」一節)——Unity 建置與 `upa-cli` 一體生效;
+  有傳入 `.editorconfig` 的工具鏈(`upa-cli --editorconfig`、`dotnet build`)仍可用它作為備援。
 
 熱方法內的冷分支(延遲初始化、罕見除錯路徑)仍會被回報——analyzer 不做流程分析。
 針對這類位置請就地抑制,而不是關掉整條規則。
 
 ## 與其他工具的關係
 
-多數 Unity 專案本來就跑著 Rider、Microsoft.Unity.Analyzers 或 Project Auditor。
-[`docs/overlap.md`](docs/overlap.md) 逐條記錄了「還有誰會報同一件事、該怎麼辦」——
-包含那個讓共存變便宜的不對稱:Unity 會把 `.ruleset` 傳給編譯器、**不會**傳 `.editorconfig`,
-所以一條規則可以只在 IDE 靜音、同時仍然守著 build。
+許多 Unity 專案本來就跑著 Microsoft.Unity.Analyzers、套件自帶的 analyzer 或 Project Auditor。
+[`docs/overlap.zh-TW.md`](docs/overlap.zh-TW.md) 逐條記錄了「還有誰會報同一件事、該怎麼辦」。
 
 ## Microsoft.Unity.Analyzers 相容性
 
@@ -526,7 +481,6 @@ upa-cli @upa-args.rsp --format sarif > upa.sarif
 | 路徑 | 用途 |
 |---|---|
 | `src/UnityPerformanceAnalyzers/` | analyzer 組件(netstandard2.0,Roslyn 3.8) |
-| `src/UnityPerformanceAnalyzers.CodeFixes/` | IDE 專用 code fix |
 | `src/UnityPerformanceAnalyzers.Cli/` | `upa-cli`——不透過 Unity 執行規則 |
 | `src/UnityPerformanceAnalyzers.Tests/` | xUnit analyzer 測試(net8.0) |
 | `src/UnityStubs/` | 測試用的最小 UnityEngine 手寫替身 |

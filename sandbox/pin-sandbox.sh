@@ -4,8 +4,8 @@
 #
 #   usage: pin-sandbox.sh <project-dir> <editor-version>
 #
-# pin-editor.sh writes the manifest from one template, which is what the smoke probe and the
-# lightbulb probe want: the same dependencies whichever editor opens them. The measurement
+# pin-editor.sh writes the manifest from one template, which is what the smoke probe
+# wants: the same dependencies whichever editor opens it. The measurement
 # project cannot do that, because TextMeshPro is not the same package on both:
 #
 #   2022.3  com.unity.textmeshpro 3.0.7   shipped as a tarball inside the editor

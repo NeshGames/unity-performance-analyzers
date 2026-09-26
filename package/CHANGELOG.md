@@ -5,6 +5,38 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Everything that only ever surfaced inside an IDE is gone. The project is now maintained on the
+assumption that code is written by coding agents, which read diagnostics from the Unity
+compile or from `upa-cli` rather than from an editor's lightbulb or squiggle. Nothing about
+what the rules report, or at what severity, has changed.
+
+### Removed
+
+- **The code fixes**, and the `UnityPerformanceAnalyzers.CodeFixes.dll` assembly that carried
+  them (UPA0003, UPA0009, UPA0019, UPA0021, UPA0026, UPA0029, UPA2000, UPA2012, UPA2031).
+  Unity loaded the assembly on every compile and never used it. Each rule page still says
+  how to rewrite the code by hand, and under what conditions the rewrite is safe.
+- **The Traditional Chinese diagnostic messages** (`zh-Hant/UnityPerformanceAnalyzers.resources.dll`).
+  The Unity Console and `upa-cli` were always English; only an IDE ever showed the
+  translation. The Traditional Chinese documentation stays.
+- **The `.editorconfig` preset variants** in the Ruleset Presets sample. Unity never read
+  them. Use the `.ruleset` of the same name — `upa-cli --ruleset` reads it too. The analyzer
+  still honours `upa_*` options and severities from an `.editorconfig` that a toolchain passes
+  (`upa-cli --editorconfig`, `dotnet build`); only the shipped files are gone.
+- **`rider-coexist.ruleset`.** It silenced rules because Rider's IDE inspections covered them,
+  and those inspections never gate a build. `vs-coexist` and `unitask-coexist` remain.
+- **The Rule Manager's "Also sync values to .editorconfig" toggle.** The options file it
+  writes is the one Unity and `upa-cli` read.
+
+### Upgrading
+
+- If you copied `rider-coexist.ruleset` in as `Assets/Default.ruleset`, replace it with
+  `recommended.ruleset`, which it included.
+- If your project `.editorconfig` came from a preset variant it keeps working wherever it
+  worked before; nothing in Unity ever read it.
+
 ## [0.9.0] - 2026-08-11
 
 A minor version rather than a patch, because rules changed what they report. Upgrading will

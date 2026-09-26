@@ -131,8 +131,8 @@ namespace UnityPerformanceAnalyzers
         /// <c>for (int i = Reset(items); i &lt; items.Count; i++)</c> iterates a different
         /// number of times once Count is lifted out. The incrementor runs between iterations
         /// and can do the same. Neither was scanned until a pre-push review pointed at the
-        /// initializer, and the rule - not the code fix - is where that belongs: if the advice
-        /// cannot be followed safely, the advice is what is wrong.
+        /// initializer, and the rule is where that belongs: if the advice cannot be followed
+        /// safely, the advice is what is wrong.
         /// </remarks>
         private static bool LoopMayReachReceiver(ForStatementSyntax loop, string receiverName)
         {

@@ -11,8 +11,6 @@
 
      UPA2012 is off by default and only the cysharp-stack preset turns it on,
      which is why this file includes that preset rather than recommended.
-     Silencing it also gives up the .Forget() code fix, which UniTask.Analyzer
-     does not offer.
      GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;
      regenerate via the RuleManifest presets mode. -->
 <RuleSet Name="UPA unitask-coexist" ToolsVersion="10.0">

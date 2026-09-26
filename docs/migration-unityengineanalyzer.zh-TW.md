@@ -32,7 +32,7 @@ commit**。該 repo **並未封存**。這就是不用猜也能說的全部:以�
 | `UEA0013` UseNonAllocMethods | 非配置版本的 physics 多載 | **沒有。** 由 `UNT0028` 負責;[UPA0010](rules/UPA0010.zh-TW.md) 對同一批呼叫檢查的是另一件事——查詢範圍有沒有被限縮 |
 | `UEA0014` AudioSourceMuteUsesCPU | `AudioSource.mute` | **沒有** |
 | `UEA0015` InstantiateTakeParent | `Instantiate` 未指定 parent | **沒有。** Rider 有對應的檢查。[UPA0031](rules/UPA0031.zh-TW.md) 報的是逐幀路徑上的 `Instantiate`,關切點不同 |
-| `UEA0016` VectorMagnitudeIsSlow | 只需比較平方卻用了 `magnitude` | [UPA0021](rules/UPA0021.zh-TW.md)——而且有 code fix |
+| `UEA0016` VectorMagnitudeIsSlow | 只需比較平方卻用了 `magnitude` | [UPA0021](rules/UPA0021.zh-TW.md) |
 
 **十六條裡有八條有直接對應。** 三條由值得並存的其他工具負責、三條在任何地方都沒有對應、
 一條是刻意不做,還有一條曾經存在於此、被量測拿掉。

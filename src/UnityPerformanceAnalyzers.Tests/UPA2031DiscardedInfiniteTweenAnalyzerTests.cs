@@ -13,17 +13,6 @@ namespace UnityPerformanceAnalyzers.Tests
                 EnabledRules = { "UPA2031" },
             });
 
-        // Same text on both sides asserts the diagnostic is reported and no fix is offered.
-        private static Task VerifyFixAsync(string source, string fixedSource) =>
-            RuleVerifier.VerifyCodeFixAsync<
-                UPA2031DiscardedInfiniteTweenAnalyzer,
-                CodeFixes.UPA2031SetLinkCodeFixProvider>(source, fixedSource, new RuleHarness
-                {
-                    Sources = { DoTweenTestSources.Stubs },
-                    PackageAssemblies = { UpaProfile.DOTweenAssemblyName },
-                    EnabledRules = { "UPA2031" },
-                });
-
         // UPA2031 test case 1
         [Fact]
         public Task DiscardedInfiniteLoop_Triggers()
@@ -120,40 +109,9 @@ class C : MonoBehaviour
 }");
         }
 
-        // UPA2031 test case 5 - pure addition: the chain's value was already unused
-        [Fact]
-        public Task DiscardedInfiniteLoop_CodeFix_AppendsSetLink()
-        {
-            return VerifyFixAsync(@"
-using DG.Tweening;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    Vector3 spin;
-
-    void Start()
-    {
-        {|UPA2031:transform.DORotate(spin, 1f).SetLoops(-1)|};
-    }
-}", @"
-using DG.Tweening;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    Vector3 spin;
-
-    void Start()
-    {
-        transform.DORotate(spin, 1f).SetLoops(-1).SetLink(gameObject);
-    }
-}");
-        }
-
         // UPA2031 test case 6 - no gameObject outside a Component, so no fix to offer
         [Fact]
-        public Task OutsideComponent_Triggers_WithoutFix()
+        public Task OutsideComponent_Triggers()
         {
             const string Source = @"
 using DG.Tweening;
@@ -169,13 +127,13 @@ class Spinner
         {|UPA2031:target.DORotate(spin, 1f).SetLoops(-1)|};
     }
 }";
-            return VerifyFixAsync(Source, Source);
+            return VerifyAsync(Source);
         }
 
         // UPA2031 test case 7 - gameObject is an instance member, so a static method cannot
         // reach it. The rewrite would not compile, so it is not offered.
         [Fact]
-        public Task StaticMethod_Triggers_WithoutFix()
+        public Task StaticMethod_Triggers()
         {
             const string Source = @"
 using DG.Tweening;
@@ -191,13 +149,13 @@ class C : MonoBehaviour
         {|UPA2031:target.DORotate(spin, 1f).SetLoops(-1)|};
     }
 }";
-            return VerifyFixAsync(Source, Source);
+            return VerifyAsync(Source);
         }
 
         // UPA2031 test case 8 - a local named gameObject shadows the property, so the emitted
         // identifier would bind to something else or not compile
         [Fact]
-        public Task ShadowedGameObject_Triggers_WithoutFix()
+        public Task ShadowedGameObject_Triggers()
         {
             const string Source = @"
 using DG.Tweening;
@@ -214,7 +172,7 @@ class C : MonoBehaviour
         _ = gameObject;
     }
 }";
-            return VerifyFixAsync(Source, Source);
+            return VerifyAsync(Source);
         }
 
         // UPA2031 test case 9 - a SetLink inside a callback binds a different tween, and the

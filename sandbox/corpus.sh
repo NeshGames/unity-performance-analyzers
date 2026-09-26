@@ -12,12 +12,8 @@
 # nobody is configured for: it turned on the rules that ship disabled. --all-warn restores that
 # for surveying what the disabled rules would say; the snapshot records which mode produced it,
 # because two configurations writing to one file is how a snapshot diff becomes unreadable.
-#
-# The preset is copied to the corpus root before the run rather than passed where it lives.
-# .editorconfig sections are matched relative to the directory holding the file, so a config
-# outside the tree being analysed matches nothing at all - and matches it silently, which is
-# the failure that looks exactly like success. Measured: with the config left in package/,
-# every section was inert and the whole drop in findings came from dropping --all-warn.
+# The preset is passed as a ruleset, the same file Unity reads, so the counts are what a
+# Unity build of the same code would report.
 #
 # Unit-test fixtures answer "does the rule fire where I wrote it to". They cannot answer
 # "how much does this package say on code nobody wrote for it", and that second question is
@@ -38,7 +34,7 @@ snapshots=$root/sandbox/corpus-snapshots
 unity_dll_dir=""
 check=no
 all_warn=no
-preset="$root/package/Samples~/Ruleset Presets/recommended.editorconfig"
+preset="$root/package/Samples~/Ruleset Presets/recommended.ruleset"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -49,9 +45,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+python=$(command -v python3 || command -v python) || { echo "python3 not found" >&2; exit 2; }
 mode=preset-recommended
 [ "$all_warn" = yes ] && mode=all-warn
-active_config=$corpus/.editorconfig
 if [ "$all_warn" = no ]; then
   [ -f "$preset" ] || { echo "preset not found: $preset" >&2; exit 2; }
 fi
@@ -82,10 +78,6 @@ entries=(
 
 mkdir -p "$corpus" "$snapshots"
 status=0
-
-rm -f "$active_config"
-[ "$all_warn" = no ] && cp "$preset" "$active_config"
-trap 'rm -f "$active_config"' EXIT
 
 echo "== building upa-cli"
 dotnet build "$root/src/UnityPerformanceAnalyzers.Cli" -c Release >/dev/null || exit 2
@@ -180,9 +172,9 @@ for entry in "${entries[@]}"; do
   else
     # Paths inside a response file are read literally, same as the source list above.
     if command -v cygpath >/dev/null 2>&1; then
-      printf '%s\n' --editorconfig "$(cygpath -w "$active_config")" >> "$rsp"
+      printf '%s\n' --ruleset "$(cygpath -w "$preset")" >> "$rsp"
     else
-      printf '%s\n' --editorconfig "$active_config" >> "$rsp"
+      printf '%s\n' --ruleset "$preset" >> "$rsp"
     fi
   fi
   [ -n "$unity_dll_dir" ] && printf '%s\n' --unity-dll-dir "$unity_dll_dir" >> "$rsp"
@@ -203,7 +195,7 @@ for entry in "${entries[@]}"; do
     continue
   fi
 
-  python - "$out.raw" "$out" "$key" "$licence" "$kind" "$commit" "${#files[@]}" "$mode" <<'PY'
+  "$python" - "$out.raw" "$out" "$key" "$licence" "$kind" "$commit" "${#files[@]}" "$mode" <<'PY'
 import collections, io, json, sys
 
 raw, target, key, licence, kind, commit, file_count, mode = sys.argv[1:9]

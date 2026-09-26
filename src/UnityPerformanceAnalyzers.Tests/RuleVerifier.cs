@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -113,45 +112,6 @@ namespace UnityPerformanceAnalyzers.Tests
             return test;
         }
 
-        public static Task VerifyCodeFixAsync<TAnalyzer, TCodeFix>(
-            string source,
-            string fixedSource,
-            RuleHarness? harness = null)
-            where TAnalyzer : DiagnosticAnalyzer, new()
-            where TCodeFix : CodeFixProvider, new()
-        {
-            harness ??= new RuleHarness();
-            var test = new HarnessCodeFixTest<TAnalyzer, TCodeFix>
-            {
-                TestCode = source,
-                FixedCode = fixedSource,
-                ReferenceAssemblies = ReferenceAssemblies.NetStandard.NetStandard20,
-                Defines = harness.Defines.ToArray(),
-            };
-            if (harness.MarkupOptions is { } markup)
-            {
-                test.MarkupOptions = markup;
-            }
-
-            Configure(test, harness);
-
-            // The fixed state is compiled too, so anything the test code needs to resolve it
-            // needs as well. Without this a harness source - a package stub, say - makes the
-            // two states differ by a document and the run fails on the count, saying nothing
-            // about the rewrite it was meant to check.
-            foreach (var extraSource in harness.Sources)
-            {
-                test.FixedState.Sources.Add(extraSource);
-            }
-
-            foreach (var (extraName, extraContent) in harness.NamedSources)
-            {
-                test.FixedState.Sources.Add((extraName, extraContent));
-            }
-
-            return test.RunAsync();
-        }
-
         private static void Configure(AnalyzerTest<DefaultVerifier> test, RuleHarness harness)
         {
             foreach (var source in harness.Sources)
@@ -228,26 +188,8 @@ namespace UnityPerformanceAnalyzers.Tests
         }
 
         // The define set has to reach the parser, and CreateParseOptions is the only way in.
-        // Two subclasses rather than one: the analyzer and code-fix tests have separate base
-        // classes, and the four lines are cheaper than a shared abstraction over both.
         private sealed class HarnessAnalyzerTest<TAnalyzer> : CSharpAnalyzerTest<TAnalyzer, DefaultVerifier>
             where TAnalyzer : DiagnosticAnalyzer, new()
-        {
-            public string[] Defines { get; set; } = System.Array.Empty<string>();
-
-            protected override ParseOptions CreateParseOptions()
-            {
-                var options = base.CreateParseOptions();
-                return Defines.Length == 0
-                    ? options
-                    : ((CSharpParseOptions)options).WithPreprocessorSymbols(Defines);
-            }
-        }
-
-        private sealed class HarnessCodeFixTest<TAnalyzer, TCodeFix>
-            : CSharpCodeFixTest<TAnalyzer, TCodeFix, DefaultVerifier>
-            where TAnalyzer : DiagnosticAnalyzer, new()
-            where TCodeFix : CodeFixProvider, new()
         {
             public string[] Defines { get; set; } = System.Array.Empty<string>();
 

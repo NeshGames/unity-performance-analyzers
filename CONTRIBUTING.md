@@ -96,13 +96,12 @@ your `InitializeCore`. Three constraints matter and are enforced by tests:
 and fails again if you later change the rule's severity without recording that too.
 
 **3. Tests** — `src/UnityPerformanceAnalyzers.Tests/UPA####SomethingTests.cs`, at least
-four: it fires where it should, it stays quiet where it should not, one boundary case, and
-the code fix if there is one. Assert positions with inline markup (`{|UPA####:...|}`),
+three: it fires where it should, it stays quiet where it should not, and one boundary case. Assert positions with inline markup (`{|UPA####:...|}`),
 never a hand-written span.
 
 **4. Both documentation pages** — `docs/rules/UPA####.md` and `docs/rules/UPA####.zh-TW.md`.
 A test asserts both exist, that they agree with the descriptor about severity and default
-state, that they link to each other, and that they agree about whether a code fix exists.
+state, and that they link to each other.
 
 **5. The README tables** — generated, not hand-edited:
 
@@ -123,13 +122,8 @@ Every rule must be graded by a preset or listed as deliberately absent. A new ru
 the presets one version after it ships, so nobody's build starts failing on a rule they
 have not read about yet.
 
-**7. A code fix, if the change is mechanical** —
-`src/UnityPerformanceAnalyzers.CodeFixes/`. Only offer one when the rewrite is provably
-equivalent. A fix that changes behaviour in a case you did not think of is worse than no
-fix, because it is applied without being read.
-
 Then `dotnet build -c Release && dotnet test`. The meta-tests will tell you which of the
-seven steps you skipped.
+six steps you skipped.
 
 ---
 
@@ -146,7 +140,6 @@ seven steps you skipped.
 - A rule with no measurement behind its performance claim
 - A rule whose default severity is above Warning — nothing in this package decides on its
   own that a build should fail
-- A code fix that is right in the common case and wrong in an uncommon one
 - Vendoring another analyzer package, or copying another project's rule text
 
 ## Security

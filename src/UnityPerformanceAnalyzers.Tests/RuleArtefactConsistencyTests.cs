@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Microsoft.CodeAnalysis.CodeFixes;
 using UnityPerformanceAnalyzers.Catalog;
 using Xunit;
 
@@ -11,10 +10,10 @@ namespace UnityPerformanceAnalyzers.Tests
 {
     /// <summary>
     /// Asserts that every rule's artefacts agree with each other: the descriptor, both
-    /// documentation pages, both README tables, the presets, and whether a code fix exists.
+    /// documentation pages, both README tables, and the presets.
     /// </summary>
     /// <remarks>
-    /// 46 rules times six artefacts is more consistency than anyone holds in their head, and
+    /// 46 rules times five artefacts is more consistency than anyone holds in their head, and
     /// the failure is silent: nothing breaks, the documentation just stops being true. It
     /// already happened — UPA0029's page shipped in 0.8.0 saying both that a fix is offered
     /// for array sources and, fifteen lines later, that there is no automatic fix at all. A
@@ -26,15 +25,6 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </remarks>
     public class RuleArtefactConsistencyTests
     {
-        /// <summary>
-        /// The heading each page uses to describe its fix. A convention rather than prose
-        /// matching: prose is where the drift lives, so the assertion needs something a page
-        /// either has or does not.
-        /// </summary>
-        private const string EnglishFixHeading = "### The code fix";
-
-        private const string ChineseFixHeading = "### 關於 code fix";
-
         private static readonly string Root = FindRepositoryRoot();
 
         private static IReadOnlyList<UpaRule> Rules => UpaRuleCatalog.Rules();
@@ -107,46 +97,6 @@ namespace UnityPerformanceAnalyzers.Tests
         }
 
         /// <summary>
-        /// The assertion that would have caught UPA0029: whether a fix exists is decided by
-        /// the assembly, and every place that talks about it has to say the same thing.
-        /// </summary>
-        [Fact]
-        public void CodeFixExistenceAgreesEverywhere()
-        {
-            var fixedIds = FixableDiagnosticIds();
-            var readme = File.ReadAllText(Path.Combine(Root, "README.md"));
-            var problems = new List<string>();
-
-            foreach (var rule in Rules)
-            {
-                var hasFix = fixedIds.Contains(rule.Id);
-                var english = File.ReadAllText(Path.Combine(Root, "docs", "rules", rule.Id + ".md"));
-                var chinese = File.ReadAllText(Path.Combine(Root, "docs", "rules", rule.Id + ".zh-TW.md"));
-
-                var englishSays = english.Contains(EnglishFixHeading, StringComparison.Ordinal);
-                var chineseSays = chinese.Contains(ChineseFixHeading, StringComparison.Ordinal);
-                var readmeSays = Regex.IsMatch(readme, @"^\| " + rule.Id + @" \|", RegexOptions.Multiline);
-
-                if (englishSays != hasFix)
-                {
-                    problems.Add($"{rule.Id}: fix registered = {hasFix}, English page says {englishSays}");
-                }
-
-                if (chineseSays != hasFix)
-                {
-                    problems.Add($"{rule.Id}: fix registered = {hasFix}, Chinese page says {chineseSays}");
-                }
-
-                if (readmeSays != hasFix)
-                {
-                    problems.Add($"{rule.Id}: fix registered = {hasFix}, README fix table says {readmeSays}");
-                }
-            }
-
-            Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
-        }
-
-        /// <summary>
         /// A deprecated rule is off by default, and both pages say so in their title. The
         /// descriptor is the source of truth for the first half only — "off by default" and
         /// "deprecated" are not the same claim, so the pages carry the word.
@@ -210,27 +160,6 @@ namespace UnityPerformanceAnalyzers.Tests
         }
 
         private static string FirstLine(string path) => File.ReadLines(path).FirstOrDefault() ?? string.Empty;
-
-        private static HashSet<string> FixableDiagnosticIds()
-        {
-            var ids = new HashSet<string>(StringComparer.Ordinal);
-
-            foreach (var type in typeof(CodeFixes.UPA0019BoxedYieldCodeFixProvider).Assembly.GetTypes())
-            {
-                if (type.IsAbstract || !typeof(CodeFixProvider).IsAssignableFrom(type))
-                {
-                    continue;
-                }
-
-                var provider = (CodeFixProvider)Activator.CreateInstance(type)!;
-                foreach (var id in provider.FixableDiagnosticIds)
-                {
-                    ids.Add(id);
-                }
-            }
-
-            return ids;
-        }
 
         /// <summary>
         /// Walks up from the test assembly to the directory holding the solution. The tests

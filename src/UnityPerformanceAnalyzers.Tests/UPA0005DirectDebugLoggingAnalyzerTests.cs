@@ -202,7 +202,6 @@ static class GameLog
 }",
                 new RuleHarness
                 {
-                    EnabledRules = { "UPA0005" },
                     OptionsFile = "upa_log_wrapper_types = GameLog",
                 });
         }

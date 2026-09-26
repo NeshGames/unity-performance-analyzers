@@ -129,9 +129,9 @@ namespace UnityPerformanceAnalyzers
             UpaOptions options,
             AnalyzerConfigOptionsProvider configProvider)
         {
-            // Through UpaOptions, so the options file works here too. .editorconfig alone is
-            // IDE-only: Unity does not pass it to the compiler, so a value set there did
-            // nothing in an actual build.
+            // Through UpaOptions, so the options file works here too. Unity does not pass
+            // .editorconfig to the compiler, so a value set only there did nothing in an
+            // actual build.
             // The per-tree lookup stays here -- an .editorconfig section applies to the file
             // the call is in -- but the options file behind it was parsed once.
             var wrapperTypeNames = options.GetList(

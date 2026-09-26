@@ -9,11 +9,12 @@ namespace UnityPerformanceAnalyzers
     /// <summary>
     /// Layered lookup for every analyzer option: the universal options file wins over
     /// .editorconfig, which wins over the built-in default, decided per key. Unity passes
-    /// additional files to the compiler while .editorconfig stays IDE-only, so the options
-    /// file is what makes configuration effective in Unity builds; .editorconfig remains the
-    /// fallback for projects that only configure the IDE. Parsing never throws or reports:
-    /// malformed lines and unknown keys are skipped, an invalid value counts as unset for
-    /// its key and falls through to the next layer, and a duplicated key keeps its last value.
+    /// additional files to the compiler but never .editorconfig, so the options file is what
+    /// makes configuration effective in Unity builds; .editorconfig remains the fallback for
+    /// toolchains that pass one (upa-cli --editorconfig, dotnet build). Parsing never throws
+    /// or reports: malformed lines and unknown keys are skipped, an invalid value counts as
+    /// unset for its key and falls through to the next layer, and a duplicated key keeps its
+    /// last value.
     /// </summary>
     internal sealed class UpaOptions
     {
