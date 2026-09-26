@@ -88,6 +88,21 @@ namespace UnityPerformanceAnalyzers.Tests
             => CreateTest<TAnalyzer>(source, harness).RunAsync();
 
         /// <summary>
+        /// Both analyzers over the same source, with the markup asserting the union of what
+        /// they report. For the boundaries between two rules that could otherwise both claim
+        /// one call: each rule's own tests only prove it is silent in isolation, which says
+        /// nothing about whether a line collects two warnings once both are loaded.
+        /// </summary>
+        public static Task VerifyTogetherAsync<TFirst, TSecond>(string source, RuleHarness? harness = null)
+            where TFirst : DiagnosticAnalyzer, new()
+            where TSecond : DiagnosticAnalyzer, new()
+        {
+            var test = (HarnessAnalyzerTest<TFirst>)CreateTest<TFirst>(source, harness);
+            test.AdditionalAnalyzers.Add(new TSecond());
+            return test.RunAsync();
+        }
+
+        /// <summary>
         /// The configured test, unrun. For the handful of cases that assert on the message text
         /// as well as the span, and so have to add their own expected diagnostics.
         /// </summary>
@@ -178,6 +193,21 @@ namespace UnityPerformanceAnalyzers.Tests
             where TAnalyzer : DiagnosticAnalyzer, new()
         {
             public string[] Defines { get; set; } = System.Array.Empty<string>();
+
+            public List<DiagnosticAnalyzer> AdditionalAnalyzers { get; } = new List<DiagnosticAnalyzer>();
+
+            protected override IEnumerable<DiagnosticAnalyzer> GetDiagnosticAnalyzers()
+            {
+                foreach (var analyzer in base.GetDiagnosticAnalyzers())
+                {
+                    yield return analyzer;
+                }
+
+                foreach (var analyzer in AdditionalAnalyzers)
+                {
+                    yield return analyzer;
+                }
+            }
 
             protected override ParseOptions CreateParseOptions()
             {

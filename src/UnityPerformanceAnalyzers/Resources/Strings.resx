@@ -256,7 +256,7 @@
     <value>'{0}' allocates a new array on every call. Use the List&lt;T&gt; overload with a list cached in a field instead.</value>
   </data>
   <data name="UPA0017Description" xml:space="preserve">
-    <value>The array-returning GetComponents, GetComponentsInChildren, and GetComponentsInParent overloads allocate a fresh array on every call, like all Unity APIs that return arrays. The List&lt;T&gt; overloads fill a caller-provided list instead, avoiding the allocation when the list is cached in a field. There is no automatic fix — introducing the reusable list field is a type-level change. Only per-frame Unity messages and methods marked with a hot-path attribute are checked; the singular GetComponent lookups are UPA0001's territory.</value>
+    <value>The array-returning GetComponents, GetComponentsInChildren, and GetComponentsInParent overloads allocate a fresh array on every call, like all Unity APIs that return arrays. The List&lt;T&gt; overloads fill a caller-provided list instead, avoiding the allocation when the list is cached in a field. There is no automatic fix — introducing the reusable list field is a type-level change. Only per-frame Unity messages and methods marked with a hot-path attribute are checked; the singular lookups and the List&lt;T&gt; overloads are UPA0001's territory.</value>
   </data>
   <data name="UPA0019Title" xml:space="preserve">
     <value>Boxed value yielded from coroutine</value>

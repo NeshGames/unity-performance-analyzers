@@ -10,7 +10,7 @@ namespace UnityPerformanceAnalyzers
     /// UPA0017: Reports the array-returning <c>GetComponents</c>/<c>GetComponentsInChildren</c>/
     /// <c>GetComponentsInParent</c> overloads on per-frame hot paths. Each call allocates a fresh
     /// array; the <c>List&lt;T&gt;</c> overloads fill a caller-provided list instead. The singular
-    /// <c>GetComponent</c> lookups are UPA0001's territory.
+    /// <c>GetComponent</c> lookups and the <c>List&lt;T&gt;</c> overloads are UPA0001's territory.
     /// </summary>
     [HotPathRule]
     [UpaClaim(UpaClaimKind.PerFrameCost)]
@@ -55,6 +55,16 @@ namespace UnityPerformanceAnalyzers
                 OperationKind.Invocation);
         }
 
+        /// <summary>
+        /// The calls this rule owns. UPA0001 asks the same question to stand aside, so the
+        /// boundary between the two is one predicate rather than two lists that can drift.
+        /// </summary>
+        internal static bool IsArrayReturningPluralLookup(IMethodSymbol method)
+        {
+            // The List<T> overloads return void — only the array-returning shapes allocate.
+            return s_pluralLookupNames.Contains(method.Name) && method.ReturnType is IArrayTypeSymbol;
+        }
+
         private static void AnalyzeInvocation(
             OperationAnalysisContext context,
             INamedTypeSymbol? componentType,
@@ -64,9 +74,7 @@ namespace UnityPerformanceAnalyzers
             var invocation = (IInvocationOperation)context.Operation;
             var method = invocation.TargetMethod;
 
-            // The List<T> overloads return void — only the array-returning shapes allocate.
-            if (!s_pluralLookupNames.Contains(method.Name) ||
-                !(method.ReturnType is IArrayTypeSymbol))
+            if (!IsArrayReturningPluralLookup(method))
             {
                 return;
             }

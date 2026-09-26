@@ -10,7 +10,8 @@ namespace UnityPerformanceAnalyzers
     /// UPA0001: Reports <c>GetComponent</c>-family lookups (including <c>TryGetComponent</c> and
     /// the non-generic overloads) on <c>UnityEngine.Component</c> or <c>UnityEngine.GameObject</c>
     /// when they run on a per-frame hot path. The result should be resolved once in
-    /// <c>Awake</c>/<c>Start</c> and cached in a field.
+    /// <c>Awake</c>/<c>Start</c> and cached in a field. The array-returning
+    /// <c>GetComponents*</c> overloads are UPA0017's; the <c>List&lt;T&gt;</c> overloads stay here.
     /// </summary>
     [HotPathRule]
     [UpaClaim(UpaClaimKind.PerFrameCost)]
@@ -69,6 +70,16 @@ namespace UnityPerformanceAnalyzers
             var method = invocation.TargetMethod;
 
             if (!s_lookupMethodNames.Contains(method.Name))
+            {
+                return;
+            }
+
+            // An array-returning GetComponents* call pays for the lookup too, but what it
+            // costs every frame is the fresh array, and UPA0017 says so with the fix that
+            // removes it. Reporting it here as well gave one line two warnings with two
+            // different remedies. The List<T> overloads allocate nothing, so the native
+            // lookup is all that is left to say about them, and that stays this rule's.
+            if (UPA0017GetComponentsArrayAnalyzer.IsArrayReturningPluralLookup(method))
             {
                 return;
             }
