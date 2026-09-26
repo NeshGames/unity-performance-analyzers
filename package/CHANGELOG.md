@@ -9,8 +9,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Everything that only ever surfaced inside an IDE is gone. The project is now maintained on the
 assumption that code is written by coding agents, which read diagnostics from the Unity
-compile or from `upa-cli` rather than from an editor's lightbulb or squiggle. Nothing about
-what the rules report, or at what severity, has changed.
+compile or from `upa-cli` rather than from an editor's lightbulb or squiggle.
+
+Three rules also changed what they report — UPA0001 and UPA0009 report less, UPA2012 reports
+more — and performance rules now behave as documented in `[MenuItem]` methods and in `Reset()`.
+Read **Changed** and **Fixed** before upgrading.
+
+### Added
+
+- **An agent plugin for Claude Code and Codex**, from this repository:
+  `claude plugin marketplace add NeshGames/unity-performance-analyzers`. Its skill tells a
+  coding agent when to run `upa-cli`, how to read its output, to fix rather than silence, and to
+  put a suppression's reason on the same line.
+- **`upa-cli --only <path|glob>` and `--only-from <file>`** report findings for the files named
+  and nothing else, while still compiling every input so symbols resolve as in a full run. Built
+  for `git diff --name-only`: deleted and non-C# entries are skipped.
+- **`upa-cli --unsafe`**, and `--init-args` carries Unity's `-unsafe` through. Assemblies with
+  `allowUnsafeCode` (Burst, pointers, ZString) no longer fail with CS0227 under
+  `--whole-assembly`, and can have a baseline written.
+
+### Changed
+
+- **UPA0001 no longer reports the array-returning `GetComponents*` overloads**, which UPA0017
+  reports on the same span. A `GetComponents<T>()` in `Update` now gets one warning, not two.
+  The `List<T>` overloads stay with UPA0001.
+- **UPA0009 no longer suggests hoisting `Count` where that changes behaviour**: the list is a
+  field and the loop calls one of the class's own methods (`Kill(_enemies[i])` removing from
+  `_enemies`), the loop reassigns the list, or it calls a local function or delegate that may
+  have captured it. Expect fewer UPA0009 reports.
+- **UPA2012 also reports** `async void` local functions, async lambdas and anonymous methods
+  passed where the delegate returns void — `button.onClick.AddListener(async () => …)` — with a
+  message naming the delegate type and UniTask-aware advice, and discarded task-returning calls
+  made through `?.`. Teams on the `cysharp-stack` preset should expect new warnings on async UI
+  listeners.
+- **Performance rules report inside `Reset()` again.** Unity calls its own `Reset` only in the
+  editor, but `Reset()` is also the usual name of a pooling method that runs every frame, and
+  the two cannot be told apart. `OnValidate` and `OnDrawGizmos*` are still exempt.
+- **`upa-cli --format github`** no longer shows literal `%3A`/`%2C` in messages, and names files
+  relative to `GITHUB_WORKSPACE`, so annotations land when the tool runs from a subdirectory.
+- The `strict` and `cysharp-stack` rulesets now state in their header that Error entries fail
+  Unity's compile — which, for an agent driving the Editor through the Unity CLI, means Safe Mode
+  and no `unity command` — and how to gate in CI instead.
+
+### Fixed
+
+- **Performance rules now stay quiet in `[MenuItem]` and `[DidReloadScripts]` methods**, as
+  documented. The check looked for `MenuItemAttribute` and `DidReloadScriptsAttribute`; Unity
+  names both without the suffix, so it never matched. Attributes are now matched as resolved
+  types, so a project's own attribute of the same name does not silence anything.
+- **`.editorconfig` sections for `upa_hot_path_*`, `upa_addrange_hot_path_only` and
+  `upa_enum_switch_allow_default` apply to the files they match.** They were read from whichever
+  file the compiler listed first, so a section applied everywhere or nowhere. The options file
+  still wins over `.editorconfig`.
+
+### Performance
+
+- The editor-only check runs only when a rule is about to report, instead of before every
+  callback of twenty-odd analyzers. The options file is parsed once per compilation and shared.
+  UPA0003, UPA0005 and UPA0006 look up options and format messages only after their own filters.
+- `upa-cli` compiles once per run instead of twice — about a third faster, same output.
 
 ### Removed
 

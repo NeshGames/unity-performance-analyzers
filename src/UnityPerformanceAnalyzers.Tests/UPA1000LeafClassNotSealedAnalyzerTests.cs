@@ -8,9 +8,9 @@ namespace UnityPerformanceAnalyzers.Tests
     // UPA1000 is deprecated: eight repeats against a four-derived-class probe put sealed at
     // 2.70 ns against 3.00 ns unsealed, a 0.30 ns difference inside a 1.28 ns spread with the
     // ordering reversing once. The premise is not refuted, it is unresolvable by measurement,
-    // and CLAUDE.md 2.2b makes measurement the threshold for shipping a performance rule. The
-    // number stays registered because 2.4 does not recycle ids, so what these tests pin is
-    // that it says nothing unless a project asks it to.
+    // and measurement is the threshold for shipping a performance rule. The number stays
+    // registered because a rule id is never reused, so what these tests pin is that it says
+    // nothing unless a project asks it to.
     public class UPA1000LeafClassNotSealedAnalyzerTests
     {
         private static Task VerifyAsync(string source) =>

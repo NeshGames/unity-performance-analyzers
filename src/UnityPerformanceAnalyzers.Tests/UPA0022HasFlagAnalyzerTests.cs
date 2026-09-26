@@ -7,7 +7,7 @@ namespace UnityPerformanceAnalyzers.Tests
 {
     // UPA0022 is deprecated: Enum.HasFlag neither boxes nor costs more than the bitwise
     // form on any supported runtime, and the code fix it used to offer produced the slower
-    // spelling. The number stays registered because CLAUDE.md 2.4 does not recycle ids, so
+    // spelling. The number stays registered because a rule id is never reused, so
     // what these tests pin is that it says nothing unless a project asks it to.
     public class UPA0022HasFlagAnalyzerTests
     {
