@@ -117,7 +117,16 @@ namespace UnityPerformanceAnalyzers
 
             var editorOnly = _editorOnly;
             _start.RegisterOperationAction(
-                ctx => action(OperationReportFilter.Wrap(ctx, editorOnly)),
+                ctx =>
+                {
+                    if (ctx.Operation.SemanticModel is { } semanticModel
+                        && editorOnly.Value.Contains(ctx.Operation.Syntax, semanticModel, ctx.CancellationToken))
+                    {
+                        return;
+                    }
+
+                    action(ctx);
+                },
                 operationKinds);
         }
 
@@ -131,114 +140,34 @@ namespace UnityPerformanceAnalyzers
 
             var editorOnly = _editorOnly;
             _start.RegisterSyntaxNodeAction(
-                ctx => action(SyntaxNodeReportFilter.Wrap(ctx, editorOnly)),
+                ctx =>
+                {
+                    if (editorOnly.Value.Contains(ctx.Node, ctx.SemanticModel, ctx.CancellationToken))
+                    {
+                        return;
+                    }
+
+                    action(ctx);
+                },
                 syntaxKinds);
         }
-
-        public void RegisterSymbolAction(Action<SymbolAnalysisContext> action, params SymbolKind[] symbolKinds)
-            => _start.RegisterSymbolAction(action, symbolKinds);
-
-        public void RegisterCompilationEndAction(Action<CompilationAnalysisContext> action)
-            => _start.RegisterCompilationEndAction(action);
 
         // Per-frame cost in an editor-only method is filtered here rather than in each rule.
         // Forty analyzers each remembering to ask is forty chances to forget, and forgetting
         // produces a rule that reports in code Unity strips - which looks exactly like a rule
         // working correctly.
         //
-        // The question is asked when a rule reports, not before it runs. Asking up front meant
-        // a parent walk, a declared-symbol lookup and an attribute scan for every operation of
-        // every kind twenty-odd analyzers subscribe to, almost all of which the rule's own
-        // first check would have discarded for the price of a name comparison. These rules do
-        // nothing in a callback but decide and report, so dropping the report gives the same
-        // output as never running. The question is still about the node the callback was for,
-        // not where the diagnostic points, so the answer is the one the up-front check gave.
-        //
-        // The wrapped context comes from Roslyn's public constructor, which later versions
-        // mark obsolete but keep. What it cannot do is GetControlFlowGraph, which no rule
-        // behind this filter calls. The supported-diagnostic check is left to the original
-        // context the report is forwarded to.
-        private static readonly Func<Diagnostic, bool> s_deferSupportCheck = _ => true;
+        // It is asked before the rule runs, and that is cheap because of how Contains is built:
+        // a parent walk to the enclosing method and two syntactic tests, with the declared-symbol
+        // lookup reached only for a method that carries attributes or has a message's name. A
+        // report-time filter was tried and dropped - it saved that walk only by allocating a
+        // wrapped context on every callback of twenty-odd analyzers, nearly all of which never
+        // report, and it needed a Roslyn constructor later versions mark obsolete.
 
-        private sealed class OperationReportFilter
-        {
-            private readonly OperationAnalysisContext _context;
-            private readonly Lazy<EditorOnlyMethods> _editorOnly;
-            private bool? _isEditorOnly;
+        public void RegisterSymbolAction(Action<SymbolAnalysisContext> action, params SymbolKind[] symbolKinds)
+            => _start.RegisterSymbolAction(action, symbolKinds);
 
-            private OperationReportFilter(OperationAnalysisContext context, Lazy<EditorOnlyMethods> editorOnly)
-            {
-                _context = context;
-                _editorOnly = editorOnly;
-            }
-
-            public static OperationAnalysisContext Wrap(OperationAnalysisContext context, Lazy<EditorOnlyMethods> editorOnly)
-            {
-                var filter = new OperationReportFilter(context, editorOnly);
-                return new OperationAnalysisContext(
-                    context.Operation,
-                    context.ContainingSymbol,
-                    context.Compilation,
-                    context.Options,
-                    filter.Report,
-                    s_deferSupportCheck,
-                    context.CancellationToken);
-            }
-
-            private void Report(Diagnostic diagnostic)
-            {
-                if (_isEditorOnly is null)
-                {
-                    var semanticModel = _context.Operation.SemanticModel;
-                    _isEditorOnly = semanticModel is object
-                        && _editorOnly.Value.Contains(_context.Operation.Syntax, semanticModel, _context.CancellationToken);
-                }
-
-                if (_isEditorOnly == false)
-                {
-                    _context.ReportDiagnostic(diagnostic);
-                }
-            }
-        }
-
-        private sealed class SyntaxNodeReportFilter
-        {
-            private readonly SyntaxNodeAnalysisContext _context;
-            private readonly Lazy<EditorOnlyMethods> _editorOnly;
-            private bool? _isEditorOnly;
-
-            private SyntaxNodeReportFilter(SyntaxNodeAnalysisContext context, Lazy<EditorOnlyMethods> editorOnly)
-            {
-                _context = context;
-                _editorOnly = editorOnly;
-            }
-
-            public static SyntaxNodeAnalysisContext Wrap(SyntaxNodeAnalysisContext context, Lazy<EditorOnlyMethods> editorOnly)
-            {
-                var filter = new SyntaxNodeReportFilter(context, editorOnly);
-                return new SyntaxNodeAnalysisContext(
-                    context.Node,
-                    context.ContainingSymbol,
-                    context.SemanticModel,
-                    context.Options,
-                    filter.Report,
-                    s_deferSupportCheck,
-                    context.CancellationToken);
-            }
-
-            private void Report(Diagnostic diagnostic)
-            {
-                if (_isEditorOnly is null)
-                {
-                    _isEditorOnly = _editorOnly.Value.Contains(
-                        _context.Node, _context.SemanticModel, _context.CancellationToken);
-                }
-
-                if (_isEditorOnly == false)
-                {
-                    _context.ReportDiagnostic(diagnostic);
-                }
-            }
-        }
+        public void RegisterCompilationEndAction(Action<CompilationAnalysisContext> action)
+            => _start.RegisterCompilationEndAction(action);
     }
 }

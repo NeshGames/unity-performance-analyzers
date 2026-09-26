@@ -66,8 +66,9 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Performance
 
-- The editor-only check runs only when a rule is about to report, instead of before every
-  callback of twenty-odd analyzers. The options file is parsed once per compilation and shared.
+- The editor-only check no longer looks up the method's symbol for every callback of twenty-odd
+  analyzers; it does so only for methods that carry attributes or have a Unity message's name.
+  The options file is parsed once per compilation and shared.
   UPA0003, UPA0005 and UPA0006 look up options and format messages only after their own filters.
 - `upa-cli` compiles once per run instead of twice — about a third faster, same output.
 

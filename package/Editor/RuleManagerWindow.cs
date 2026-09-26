@@ -294,7 +294,7 @@ namespace NeshGames.UnityPerformanceAnalyzers.Editor
         private void DrawOptionsTab()
         {
             EditorGUILayout.HelpBox(
-                $"Values are written to {OptionsFile.ProjectPath}, which Unity builds and upa-cli both read. Unset rows fall back to the built-in defaults.",
+                $"Values are written to {OptionsFile.ProjectPath}, which Unity builds and upa-cli both read. An unset row falls back to an .editorconfig where a toolchain passes one (upa-cli --editorconfig, dotnet build; Unity never does), then to the built-in default.",
                 MessageType.None);
 
             _optionsScroll = EditorGUILayout.BeginScrollView(_optionsScroll);
