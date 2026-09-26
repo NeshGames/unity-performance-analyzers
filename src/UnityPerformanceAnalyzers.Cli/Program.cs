@@ -100,6 +100,16 @@ namespace UnityPerformanceAnalyzers.Cli
                 var analysis = AnalysisRunner.Run(options);
                 var result = baseline is object ? baseline.Filter(analysis) : analysis;
 
+                // After the baseline, so a baselined finding in a named file stays suppressed;
+                // compile errors are left whole, because they say whether any of it can be trusted.
+                if (options.OnlyFiles is { } only)
+                {
+                    result = result with
+                    {
+                        Diagnostics = result.Diagnostics.RemoveAll(d => !only.Contains(Path.GetFullPath(d.File))),
+                    };
+                }
+
                 OutputWriter.WriteAnalysis(stdout, result, options.Format, options.ReportStaleBaseline);
                 OutputWriter.WriteRunProblems(stderr, result, options);
 

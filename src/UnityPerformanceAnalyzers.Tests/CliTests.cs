@@ -939,6 +939,8 @@ public class Mixed
         [InlineData("--all-warn")]
         [InlineData("--whole-assembly")]
         [InlineData("--unsafe")]
+        [InlineData("--only")]
+        [InlineData("--only-from")]
         [InlineData("--baseline")]
         [InlineData("--write-baseline")]
         [InlineData("--prune-baseline")]
@@ -968,6 +970,82 @@ public class Mixed
             Assert.Contains("--whole-assembly", stdout);
             Assert.Contains("Exit codes", stdout);
             Assert.Contains("final authority", stdout);
+        }
+
+        // --only narrows the report, not the compilation: a caller that changed one file hears
+        // about that file, with every other input still there to resolve its symbols.
+        private string WriteViolation(string name, string className) =>
+            Write(name, HotPathViolation.Replace("class Probe", "class " + className));
+
+        private static string[] ReportedFiles(string stdout) =>
+            ParseJson(stdout).GetProperty("diagnostics").EnumerateArray()
+                .Select(d => Path.GetFileName(d.GetProperty("file").GetString()!))
+                .Distinct()
+                .ToArray();
+
+        [Fact]
+        public void Only_ReportsTheNamedFileAndNothingElse()
+        {
+            var changed = WriteViolation("Changed.cs", "Changed");
+            var untouched = WriteViolation("Untouched.cs", "Untouched");
+
+            var (exitCode, stdout, _) = Run(changed, untouched, "--only", changed, "--format", "json");
+
+            Assert.Equal(1, exitCode);
+            Assert.Equal(new[] { "Changed.cs" }, ReportedFiles(stdout));
+        }
+
+        [Fact]
+        public void Only_DecidesTheExitCodeFromTheNamedFilesAlone()
+        {
+            var clean = Write("Quiet.cs", Clean);
+            var untouched = WriteViolation("Untouched.cs", "Untouched");
+
+            var (exitCode, stdout, _) = Run(clean, untouched, "--only", clean, "--format", "json");
+
+            Assert.Equal(0, exitCode);
+            Assert.Empty(ReportedFiles(stdout));
+        }
+
+        [Fact]
+        public void Only_ReadsAListAndSkipsWhatAChangeListLegitimatelyHolds()
+        {
+            var changed = WriteViolation("Changed.cs", "Changed");
+            var untouched = WriteViolation("Untouched.cs", "Untouched");
+            var list = Write("changed.txt", string.Join("\n",
+                "# from git diff --name-only",
+                changed,
+                Path.Combine(_dir, "Deleted.cs"),
+                Path.Combine(_dir, "Probe.prefab")));
+
+            var (exitCode, stdout, stderr) = Run(changed, untouched, "--only-from", list, "--format", "json");
+
+            Assert.True(exitCode == 1, stderr);
+            Assert.Equal(new[] { "Changed.cs" }, ReportedFiles(stdout));
+        }
+
+        [Fact]
+        public void Only_RefusesAFileThatWasNotAnalyzed()
+        {
+            var analyzed = WriteViolation("Analyzed.cs", "Analyzed");
+            var outside = WriteViolation("Outside.cs", "Outside");
+
+            var (exitCode, _, stderr) = Run(analyzed, "--only", outside);
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("not one of the analyzed files", stderr);
+        }
+
+        [Fact]
+        public void Only_RefusesToWriteABaseline()
+        {
+            var file = WriteViolation("Changed.cs", "Changed");
+
+            var (exitCode, _, stderr) = Run(
+                file, "--whole-assembly", "--only", file, "--write-baseline", Path.Combine(_dir, "b.json"));
+
+            Assert.Equal(2, exitCode);
+            Assert.Contains("--write-baseline", stderr);
         }
     }
 }

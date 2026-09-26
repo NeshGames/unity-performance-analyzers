@@ -36,6 +36,22 @@ internal sealed class CliOptions
     /// the run an error and a baseline unwritable.
     /// </summary>
     public bool AllowUnsafe { get; private set; }
+
+    /// <summary>
+    /// What --only and --only-from asked for, as given: paths, patterns, and list files
+    /// (a list is stored with an '@' prefix, which no path the caller typed can carry because
+    /// the response-file expander consumes a leading '@' first). Resolved into
+    /// <see cref="OnlyFiles"/> once the analyzed set is known.
+    /// </summary>
+    public List<string> Only { get; } = new();
+
+    /// <summary>
+    /// Full paths of the analyzed files whose findings are reported; null when --only was not
+    /// given and everything is reported. The compilation still holds every input file, so
+    /// symbols resolve exactly as in a full run - only the report is narrowed.
+    /// </summary>
+    public HashSet<string>? OnlyFiles { get; private set; }
+
     public string? BaselinePath { get; private set; }
     public string? WriteBaselinePath { get; private set; }
 
@@ -149,6 +165,14 @@ internal sealed class CliOptions
                     break;
                 case "--unsafe":
                     options.AllowUnsafe = true;
+                    break;
+                case "--only":
+                    if (TakeValue() is not { } only) return (null, error);
+                    options.Only.Add(only);
+                    break;
+                case "--only-from":
+                    if (TakeValue() is not { } onlyFrom) return (null, error);
+                    options.Only.Add("@" + onlyFrom);
                     break;
                 case "--reference":
                     if (TakeValue() is not { } reference) return (null, error);
@@ -308,6 +332,27 @@ internal sealed class CliOptions
             return (null, error);
         }
 
+        // Each of these judges the baseline against everything the run saw. A narrowed
+        // report would freeze, prune or call stale the quota of every file it left out.
+        if (options.Only.Count > 0)
+        {
+            foreach (var (given, flag) in new[]
+                     {
+                         (options.WriteBaselinePath is object, "--write-baseline"),
+                         (options.PruneBaseline, "--prune-baseline"),
+                         (options.ReportStaleBaseline, "--report-stale-baseline"),
+                         (options.FailOnStale, "--fail-on-stale"),
+                     })
+            {
+                if (given)
+                {
+                    error = $"--only/--only-from cannot be combined with {flag}: that needs the "
+                        + "findings of every analyzed file, and --only reports some of them.";
+                    return (null, error);
+                }
+            }
+        }
+
         // Patterns are expanded here rather than left to the shell, which would make the
         // same command line behave differently depending on where it was typed.
         var resolved = new List<string>();
@@ -366,7 +411,75 @@ internal sealed class CliOptions
             return (null, error);
         }
 
+        if (options.Only.Count > 0 && ResolveOnly(options) is { } onlyError)
+        {
+            return (null, onlyError);
+        }
+
         return (options, null);
+    }
+
+    /// <summary>
+    /// Narrows the report to the files --only names, for a caller that changed a few files and
+    /// wants to hear about those without compiling them out of context.
+    /// </summary>
+    /// <remarks>
+    /// Built for <c>git diff --name-only &gt; changed.txt</c> and <c>--only-from changed.txt</c>, so
+    /// what such a list legitimately contains is not an error: a file that no longer exists
+    /// has nothing to report, and a file that is not C# is not this tool's concern. A C# file
+    /// that exists but is not among the analyzed inputs is an error, though - reporting nothing
+    /// for it would read as "clean" when it was never looked at.
+    /// </remarks>
+    private static string? ResolveOnly(CliOptions options)
+    {
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var analyzed = new HashSet<string>(options.Files.Select(Path.GetFullPath), comparer);
+        var only = new HashSet<string>(comparer);
+
+        var requested = new List<string>();
+        foreach (var entry in options.Only)
+        {
+            if (entry.StartsWith('@'))
+            {
+                var listPath = entry.Substring(1);
+                if (!File.Exists(listPath))
+                {
+                    return $"--only-from list not found: {listPath}";
+                }
+
+                requested.AddRange(File.ReadAllLines(listPath)
+                    .Select(line => line.Trim())
+                    .Where(line => line.Length > 0 && !line.StartsWith('#')));
+            }
+            else
+            {
+                requested.Add(entry);
+            }
+        }
+
+        foreach (var item in requested)
+        {
+            IReadOnlyList<string> candidates = FileGlob.HasWildcard(item) ? FileGlob.Expand(item) : new[] { item };
+            foreach (var candidate in candidates)
+            {
+                if (!candidate.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || !File.Exists(candidate))
+                {
+                    continue;
+                }
+
+                var full = Path.GetFullPath(candidate);
+                if (!analyzed.Contains(full))
+                {
+                    return $"--only names {candidate}, which is not one of the analyzed files; "
+                        + "its findings could not be reported. Add it to the inputs.";
+                }
+
+                only.Add(full);
+            }
+        }
+
+        options.OnlyFiles = only;
+        return null;
     }
 
     private static IEnumerable<(string? Path, string Label)> EnumeratePathOptions(CliOptions options)
