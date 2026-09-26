@@ -54,38 +54,59 @@ namespace UnityPerformanceAnalyzers
         {
             var operation = context.Operation;
 
-            string? allocationDescription;
+            // Decide first, describe last: the description formats a type name, and almost
+            // every candidate here is discarded by the hot-path test below. Formatting before
+            // it built a string for every allocation in the compilation to report a handful.
+            ITypeSymbol? allocatedType;
+            bool boxed;
             switch (operation)
             {
                 case IObjectCreationOperation objectCreation:
-                    allocationDescription = DescribeObjectCreation(objectCreation);
+                    allocatedType = AllocatingObjectType(objectCreation);
+                    if (allocatedType is null)
+                    {
+                        return;
+                    }
+
+                    boxed = false;
                     break;
                 case IArrayCreationOperation arrayCreation:
                     // Implicit array creations are params expansions — UPA0027's business.
-                    allocationDescription = arrayCreation.IsImplicit
-                        ? null
-                        : arrayCreation.Type?.ToDisplayString(s_typeDisplayFormat);
+                    if (arrayCreation.IsImplicit || arrayCreation.Type is null)
+                    {
+                        return;
+                    }
+
+                    allocatedType = arrayCreation.Type;
+                    boxed = false;
                     break;
                 case IConversionOperation conversion:
                     // The boxing inside a params expansion belongs to the same cost as the
                     // array around it, and UPA0027 already reports both together while naming
                     // the call. Reporting it here too would put two diagnostics on one line
                     // for one allocation.
-                    allocationDescription = IsInsideParamsExpansion(conversion) ||
-                            IsElidedHasFlagArgument(conversion)
-                        ? null
-                        : DescribeBoxing(conversion);
+                    if (IsInsideParamsExpansion(conversion) ||
+                        IsElidedHasFlagArgument(conversion) ||
+                        !conversion.GetConversion().IsBoxing)
+                    {
+                        return;
+                    }
+
+                    // Null is allowed here: a boxing whose operand has no type is still a box.
+                    allocatedType = conversion.Operand.Type;
+                    boxed = true;
                     break;
                 case IInterpolationOperation interpolation:
-                    allocationDescription = DescribeInterpolationHoleBoxing(interpolation);
+                    allocatedType = InterpolationHoleBoxedType(interpolation);
+                    if (allocatedType is null)
+                    {
+                        return;
+                    }
+
+                    boxed = true;
                     break;
                 default:
                     return;
-            }
-
-            if (allocationDescription is null)
-            {
-                return;
             }
 
             if (IsOnThrowPath(operation))
@@ -101,10 +122,22 @@ namespace UnityPerformanceAnalyzers
             context.ReportDiagnostic(UpaDiagnostics.Create(
                 Rule,
                 operation.Syntax.GetLocation(),
-                allocationDescription));
+                Describe(allocatedType, boxed)));
         }
 
-        private static string? DescribeObjectCreation(IObjectCreationOperation objectCreation)
+        private static string Describe(ITypeSymbol? allocatedType, bool boxed)
+        {
+            if (!boxed)
+            {
+                return allocatedType!.ToDisplayString(s_typeDisplayFormat);
+            }
+
+            return allocatedType is null
+                ? "boxed value"
+                : $"boxed {allocatedType.ToDisplayString(s_typeDisplayFormat)}";
+        }
+
+        private static ITypeSymbol? AllocatingObjectType(IObjectCreationOperation objectCreation)
         {
             var type = objectCreation.Type;
             if (type is null || !type.IsReferenceType)
@@ -119,7 +152,7 @@ namespace UnityPerformanceAnalyzers
                 return null;
             }
 
-            return type.ToDisplayString(s_typeDisplayFormat);
+            return type;
         }
 
         /// <summary>
@@ -192,24 +225,11 @@ namespace UnityPerformanceAnalyzers
             }
         }
 
-        private static string? DescribeBoxing(IConversionOperation conversion)
-        {
-            if (!conversion.GetConversion().IsBoxing)
-            {
-                return null;
-            }
-
-            var operandType = conversion.Operand.Type;
-            return operandType is null
-                ? "boxed value"
-                : $"boxed {operandType.ToDisplayString(s_typeDisplayFormat)}";
-        }
-
         // A value-type interpolation hole boxes when the interpolation lowers to
         // string.Format(string, object), but the operation tree keeps the hole at its original
         // type with no conversion node — so the boxing is invisible to the Conversion action
         // and must be reported here. The string allocation itself stays UPA2000's territory.
-        private static string? DescribeInterpolationHoleBoxing(IInterpolationOperation interpolation)
+        private static ITypeSymbol? InterpolationHoleBoxedType(IInterpolationOperation interpolation)
         {
             var expression = interpolation.Expression;
 
@@ -226,7 +246,7 @@ namespace UnityPerformanceAnalyzers
                 return null;
             }
 
-            return $"boxed {type.ToDisplayString(s_typeDisplayFormat)}";
+            return type;
         }
 
         // `throw new Exception(...)` and allocations feeding directly into a throw are excluded:
