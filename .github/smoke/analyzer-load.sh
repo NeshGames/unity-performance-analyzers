@@ -31,8 +31,12 @@ for f in "$analyzer" "$stubs" "$ruleset"; do
   fi
 done
 
-rm -rf "$work"
+# Per-run outputs go; the restored compilers stay. Wiping the whole directory made every run
+# download both pinned toolsets again, and they are the slow part of this script. Nothing
+# stale can survive in packages/: restore fetches exactly the versions toolsets.proj pins,
+# and the compilers below are looked up under those version directories.
 mkdir -p "$work"
+find "$work" -mindepth 1 -maxdepth 1 ! -name packages -exec rm -rf {} +
 
 # ---------------------------------------------------------------------------
 # The import settings Unity reads.
@@ -87,8 +91,13 @@ fi
 
 # The package layout moved between the two versions (tasks/net6.0 vs tasks/netcore),
 # so find the compiler rather than assuming where it sits.
-compilers=$(find "$packages/microsoft.net.compilers.toolset" -path '*/bincore/csc.dll' | sort)
-if [ -z "$compilers" ]; then
+# An array, not a word-split string: a checkout under a path with a space in it split every
+# compiler path in two and asserted on logs that were never written.
+compilers=()
+while IFS= read -r csc; do
+  compilers+=("$csc")
+done < <(find "$packages/microsoft.net.compilers.toolset" -path '*/bincore/csc.dll' | sort)
+if [ ${#compilers[@]} -eq 0 ]; then
   echo "no csc.dll was restored under $packages" >&2
   exit 1
 fi
@@ -108,7 +117,7 @@ compile() {   # $1 = csc.dll, $2 = log, remaining = extra csc arguments
 }
 
 status=0
-for csc in $compilers; do
+for csc in "${compilers[@]}"; do
   version=$(echo "$csc" | sed -E 's|.*/microsoft.net.compilers.toolset/([^/]+)/.*|\1|')
   echo
   echo "== Roslyn $version"

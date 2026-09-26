@@ -48,6 +48,11 @@ fi
 
 mkdir -p "$(dirname "$log")" "$project/Assets"
 
+# The verdict below is read from this log, so it has to be this run's. Left in place, a run
+# in which Unity never started judged the previous run's log instead - and reported that
+# run's verdict, pass included, for a product this run never tested.
+rm -f "$log"
+
 # Generated state from an earlier run would let a cached compilation stand in for this
 # one - and a cached compilation emits no diagnostics, so every positive assertion would
 # fail for a reason that has nothing to do with the analyzer.

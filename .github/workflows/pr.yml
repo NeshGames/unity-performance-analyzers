@@ -5,6 +5,13 @@ on:
   push:
     branches: [main]
 
+# A push to a pull request makes the run for its previous commit worthless, so that run is
+# cancelled rather than left to hold a runner for ten minutes. Runs on main are not: each
+# one is the verdict on a commit that has landed, and a cancelled one is a missing verdict.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -44,6 +51,26 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      # actions/cache rather than setup-dotnet's own cache, which keys on packages.lock.json
+      # and this repository has none. Keyed on everything that decides what restore fetches:
+      # the projects, the Roslyn and analyzer-testing versions pinned in Directory.Build.props,
+      # and the SDK pin.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'src/Directory.Build.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # The two Unity compilers the smoke step below loads the analyzers into. Restored into
+      # a directory of their own, which analyzer-load.sh keeps between runs; toolsets.proj
+      # pins their exact versions, so it is the whole key.
+      - name: Cache the pinned compiler toolsets
+        uses: actions/cache@v4
+        with:
+          path: artifacts/smoke/packages
+          key: smoke-toolsets-${{ runner.os }}-${{ hashFiles('.github/smoke/toolsets.proj') }}
 
       - name: Build
         run: dotnet build UnityPerformanceAnalyzers.sln -c Release
