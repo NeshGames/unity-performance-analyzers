@@ -19,6 +19,7 @@ namespace UnityPerformanceAnalyzers.Tests
     /// one. Each failure mode below is silent by nature: a baseline that matches nothing looks
     /// exactly like a baseline with nothing to match.
     /// </summary>
+    [Collection(WorkingDirectoryCollection.Name)]
     public sealed class BaselineTests : IDisposable
     {
         private readonly string _dir;

@@ -16,6 +16,7 @@ namespace UnityPerformanceAnalyzers.Tests
     /// real assembly analyzes with zero compile errors — is recorded in the specification; what
     /// these assert is the shape of the file and the partitioning that made it possible.
     /// </remarks>
+    [Collection(WorkingDirectoryCollection.Name)]
     public sealed class InitArgsTests : IDisposable
     {
         private const string Probe = @"

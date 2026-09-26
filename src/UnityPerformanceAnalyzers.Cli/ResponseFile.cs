@@ -12,6 +12,12 @@ namespace UnityPerformanceAnalyzers.Cli;
 /// One argument per line, and no quote handling: quoting rules are the most common way a
 /// csc response file goes wrong (does a path with a space need quotes, how are they
 /// escaped), and there is no reason to inherit that. A line is an argument.
+///
+/// Relative paths inside the file are left alone, so they resolve against the working
+/// directory exactly as they would typed out. That is csc's rule too (its parser resolves
+/// every path against the base directory and never against the response file's), and
+/// Unity's response files depend on it: they sit under Library/Bee/artifacts and name their
+/// sources as Assets/... relative to the project root. --init-args writes the same shape.
 /// </summary>
 internal static class ResponseFile
 {

@@ -17,6 +17,7 @@ namespace UnityPerformanceAnalyzers.Tests
     /// process past 32,767. The run that would have told you why was refused with a count
     /// and nothing else.
     /// </summary>
+    [Collection(WorkingDirectoryCollection.Name)]
     public sealed class ResponseFileTests : IDisposable
     {
         private const string HotPathViolation = @"
@@ -152,6 +153,34 @@ public class Broken : MonoBehaviour
             Assert.Equal(1, exitCode);
             var diagnostics = JsonDocument.Parse(stdout).RootElement.GetProperty("diagnostics");
             Assert.Equal(1, diagnostics.GetArrayLength());
+        }
+
+        // 53b — a relative path inside a response file means what it would mean typed out:
+        // relative to the working directory, as csc resolves it, and not to the file's own
+        // directory. Unity's response files depend on exactly that - they sit under
+        // Library/Bee/artifacts and name sources as Assets/... - and so does --init-args,
+        // whose output names paths relative to the project root wherever the file is written.
+        [Fact]
+        public void RelativePathsInsideResolveAgainstTheWorkingDirectory()
+        {
+            Write("Probe.cs", HotPathViolation);
+            Directory.CreateDirectory(Path.Combine(_dir, "nested"));
+            Write(Path.Combine("nested", "args.rsp"), "Probe.cs");
+
+            var previous = Directory.GetCurrentDirectory();
+            try
+            {
+                Directory.SetCurrentDirectory(_dir);
+                var (exitCode, stdout, stderr) = Run("@" + Path.Combine("nested", "args.rsp"), "--format", "json");
+
+                Assert.True(exitCode == 1, stderr);
+                var diagnostics = JsonDocument.Parse(stdout).RootElement.GetProperty("diagnostics");
+                Assert.Equal("Probe.cs", diagnostics[0].GetProperty("file").GetString());
+            }
+            finally
+            {
+                Directory.SetCurrentDirectory(previous);
+            }
         }
 
         // 54 — no quoting: the line is the argument, spaces and all.

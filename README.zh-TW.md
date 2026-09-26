@@ -323,7 +323,7 @@ upa-cli --list-rules
 | `--ruleset <路徑>` | 套用 `.ruleset` 的嚴重度 | `--ruleset Assets/Default.ruleset` |
 | `--editorconfig <路徑>` | 套用 `.editorconfig` 的嚴重度**與** `upa_*` analyzer 選項 | `--editorconfig .editorconfig` |
 | `--additionalfile <路徑>` | 傳入 additional file(例如通用選項檔)。可重複 | `--additionalfile Assets/Rules.UnityPerformanceAnalyzers.additionalfile` |
-| `@<路徑>` | 由檔案供給引數,每行一個,在 `@` 出現的位置展開。一整個組件的引用與 define 放不進 Windows 的命令列 | `upa-cli @args.rsp` |
+| `@<路徑>` | 由檔案供給引數,每行一個,在 `@` 出現的位置展開。一整個組件的引用與 define 放不進 Windows 的命令列。檔內的相對路徑與 csc 相同,以工作目錄為基準,而非該檔案所在目錄 | `upa-cli @args.rsp` |
 | `--unity-dll-dir <目錄>` | 改用真實 Unity 組件目錄,而非內建 stub | `--unity-dll-dir <UnityEditor>/Data/Managed/UnityEngine` |
 | `--all-warn` | 強制所有規則以 warning 開啟,蓋過 ruleset 與 editorconfig | `--all-warn` |
 | `--whole-assembly` | 宣告這組檔案構成完整組件:啟用整組件規則,且編譯錯誤變致命 | `--whole-assembly` |

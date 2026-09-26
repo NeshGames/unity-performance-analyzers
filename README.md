@@ -342,7 +342,7 @@ called clean.
 | `--ruleset <path>` | Apply severities from a `.ruleset` | `--ruleset Assets/Default.ruleset` |
 | `--editorconfig <path>` | Apply severities **and** `upa_*` analyzer options from an `.editorconfig` | `--editorconfig .editorconfig` |
 | `--additionalfile <path>` | Pass an additional file, such as the universal options file. Repeatable | `--additionalfile Assets/Rules.UnityPerformanceAnalyzers.additionalfile` |
-| `@<path>` | Read arguments from a file, one per line, expanded where the `@` appears. A whole assembly's references and defines do not fit on a Windows command line | `upa-cli @args.rsp` |
+| `@<path>` | Read arguments from a file, one per line, expanded where the `@` appears. A whole assembly's references and defines do not fit on a Windows command line. Relative paths inside resolve against the working directory, as with csc, not the file's own directory | `upa-cli @args.rsp` |
 | `--unity-dll-dir <dir>` | Use a real Unity managed directory instead of the bundled stubs | `--unity-dll-dir <UnityEditor>/Data/Managed/UnityEngine` |
 | `--all-warn` | Force every rule on at warning, overriding ruleset and editorconfig | `--all-warn` |
 | `--whole-assembly` | Declare the files a complete assembly: enables whole-assembly rules and makes compile errors fatal | `--whole-assembly` |

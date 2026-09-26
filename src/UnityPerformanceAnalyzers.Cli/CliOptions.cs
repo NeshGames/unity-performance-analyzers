@@ -56,20 +56,10 @@ internal sealed class CliOptions
     /// to the working directory would key the same file differently depending on where the
     /// command was run, and a baseline is meant to travel between machines.
     /// </summary>
-    public string BaselineDirectory
-    {
-        get
-        {
-            var path = BaselinePath ?? WriteBaselinePath;
-            if (path is null)
-            {
-                return Directory.GetCurrentDirectory();
-            }
-
-            var directory = Path.GetDirectoryName(Path.GetFullPath(path));
-            return string.IsNullOrEmpty(directory) ? Directory.GetCurrentDirectory() : directory;
-        }
-    }
+    public string BaselineDirectory =>
+        (BaselinePath ?? WriteBaselinePath) is { } path
+            ? global::UnityPerformanceAnalyzers.Cli.BaselinePath.DirectoryOf(path)
+            : Directory.GetCurrentDirectory();
     public string FailOn { get; private set; } = "warning";
     public OutputFormat Format { get; private set; } = OutputFormat.Text;
     public bool ListRules { get; private set; }

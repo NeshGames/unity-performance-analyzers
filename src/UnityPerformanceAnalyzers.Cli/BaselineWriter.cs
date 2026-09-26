@@ -80,7 +80,7 @@ internal static class BaselineWriter
         IReadOnlyCollection<string> analyzedFiles)
     {
         var covered = new HashSet<string>(analyzedFiles, StringComparer.Ordinal);
-        var directory = DirectoryOf(path);
+        var directory = BaselinePath.DirectoryOf(path);
 
         var uncovered = existing.Entries
             .Select(e => e.Key.File)
@@ -104,10 +104,6 @@ internal static class BaselineWriter
     }
 
     /// <summary>
-    /// Replaces the file atomically. An interrupted write destroys a contract that is already
-    /// committed, so the existing file is either untouched or wholly replaced.
-    /// </summary>
-    /// <summary>
     /// Refuses when the path names a symbolic link. Call this before anything else touches the
     /// path: reading it first means a link whose target is not a baseline is refused for the
     /// target's contents rather than for being a link, and the caller is told the wrong thing
@@ -125,9 +121,13 @@ internal static class BaselineWriter
         }
     }
 
+    /// <summary>
+    /// Replaces the file atomically. An interrupted write destroys a contract that is already
+    /// committed, so the existing file is either untouched or wholly replaced.
+    /// </summary>
     public static void Write(string path, BaselineDocument document)
     {
-        var directory = DirectoryOf(path);
+        var directory = BaselinePath.DirectoryOf(path);
         Directory.CreateDirectory(directory);
 
         // Repeated rather than assumed of the caller: this is the method that replaces the
@@ -193,11 +193,5 @@ internal static class BaselineWriter
         {
             return false;
         }
-    }
-
-    private static string DirectoryOf(string path)
-    {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(path));
-        return string.IsNullOrEmpty(directory) ? Directory.GetCurrentDirectory() : directory;
     }
 }
