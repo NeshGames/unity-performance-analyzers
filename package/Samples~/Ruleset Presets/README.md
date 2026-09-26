@@ -21,6 +21,13 @@ fallen behind.
 | `strict` | Performance rules become errors, and the rules that are off by default because they ask something of the project — a logging wrapper, a sealed leaf class — start reporting. |
 | `cysharp-stack` | + ecosystem rules as errors (UniTask/ZString/R3 adoption). For codebases committed to the Cysharp stack. |
 
+`strict` and `cysharp-stack` grade rules as Error, and an Error entry fails Unity's compile.
+An Editor launched on a project that does not compile opens in Safe Mode, where the Unity
+CLI's `unity command` cannot connect — so a coding agent working through the Unity CLI loses
+the Editor over a performance finding. For that workflow keep `recommended` in
+`Assets/Default.ruleset` and apply the stricter file in CI only:
+`upa-cli @upa-args.rsp --ruleset strict.ruleset --fail-on error`.
+
 ## Install
 
 1. Import this sample from the Package Manager window.

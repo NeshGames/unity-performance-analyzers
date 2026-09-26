@@ -37,6 +37,18 @@ analyzer 會自動套用到**專案內的每一個 assembly**——不需要任�
 
 接著選一份嚴重度 preset(見下)。不裝 preset 時,只有預設啟用的規則會以 Warning 回報。
 
+**給 coding agent。** 本 repository 同時也是 Claude Code 與 Codex 的 plugin。它的 skill
+告訴 agent 何時執行 `upa-cli`、如何解讀結果、要修正而不是消音,以及如何避免規則讓 Unity CLI
+無法連上 Editor。可與 Unity 官方 plugin 並用:
+
+```bash
+claude plugin marketplace add NeshGames/unity-performance-analyzers
+claude plugin install unity-performance-analyzers@unity-performance-analyzers
+```
+
+Codex:`codex plugin marketplace add NeshGames/unity-performance-analyzers`,再
+`codex plugin add unity-performance-analyzers@unity-performance-analyzers`。
+
 ## 嚴重度 preset
 
 在 Package Manager 視窗匯入 **Ruleset Presets** sample,把選定的 preset 複製為
@@ -62,6 +74,13 @@ analyzer 會自動套用到**專案內的每一個 assembly**——不需要任�
 
 Unity 只讀 ruleset——它不會把 `.editorconfig` 傳給編譯器(已於 2022.3 與 Unity 6
 實測確認)。asmdef 資料夾內的 `Default.ruleset` 會覆寫全專案那份,只影響該 assembly。
+
+> **Error 等級的條目會讓 Unity 編譯失敗。** 這正是 `strict` 與 `cysharp-stack` 在建置中的用途,
+> 但當 coding agent 透過 Unity CLI 操作 Editor 時要特別注意:專案無法編譯時啟動的 Editor
+> 會進入 Safe Mode,`com.unity.pipeline` 套件不會載入,`unity command` 也就連不上。
+> agent 工作流程請在 `Assets/Default.ruleset` 維持 `recommended`,改在 CI 把關——
+> `upa-cli --ruleset <路徑>/strict.ruleset --fail-on error` 只在那裡套用較嚴格的 preset,
+> 不影響 Unity 的編譯。見[接進 CI](#接進-ci)。
 
 匯入 **Smoke Test** sample 可驗證 analyzer 已載入:它刻意違反多條規則,
 Console 應立即亮起警告。
@@ -328,6 +347,8 @@ upa-cli --list-rules
 | `--all-warn` | 強制所有規則以 warning 開啟,蓋過 ruleset 與 editorconfig | `--all-warn` |
 | `--whole-assembly` | 宣告這組檔案構成完整組件:啟用整組件規則,且編譯錯誤變致命 | `--whole-assembly` |
 | `--unsafe` | 允許 unsafe 程式碼,等同 asmdef 勾選 `allowUnsafeCode`(Burst、指標存取、ZString)。少了它每個指標都是編譯錯誤,而 `--whole-assembly` 會讓編譯錯誤變致命。Unity 編譯該組件時有開,`--init-args` 就會自動加上 | `--unsafe` |
+| `--only <路徑\|樣式>` | 只回報這些檔案的發現;可重複。所有輸入檔仍會一起編譯,符號解析與完整執行相同——縮小的是回報,不是分析。不可與寫入、修剪或檢查 baseline 過期同時使用 | `@upa-args.rsp --only Assets/Scripts/Player.cs` |
+| `--only-from <檔案>` | 清單版的 `--only`,每行一個路徑——例如 `git diff --name-only --relative HEAD > changed.txt`。已刪除與非 `.cs` 的條目會略過;不在輸入檔中的 `.cs` 則視為錯誤,而不是默默回報「乾淨」 | `--only-from changed.txt` |
 | `--fail-on <等級>` | 退出碼 1 的門檻:`none`、`info`、`warning`(預設)、`error` | `--fail-on error` |
 | `--baseline <path>` | 壓下 baseline 檔中已記錄的違規,只回報新增的 | `--baseline upa-baseline.json` |
 | `--write-baseline <path>` | 把目前的違規寫成 baseline。需搭配 `--whole-assembly`;成功時以 0 結束 | `--write-baseline upa-baseline.json --whole-assembly` |
@@ -372,6 +393,20 @@ Qodana 都吃這個格式。在 GitHub 上,發現會變成 diff 上的註記、�
 
 代價是註記只屬於該次執行(不是可追蹤的 alert),且 GitHub 對單一步驟能渲染的註記數量
 有上限。換來的是一行 YAML。
+
+**搭配 Unity CLI。** `unity ci init` 產生的 workflow 會跑 `unity doctor --ci`、測試與建置,
+但沒有任何步驟讀取 analyzer 的發現:Unity CLI 自己的 `--format github` 註記沒有對到檔案與行號,
+所以 Unity 編譯出的 UPA 警告只留在 log 裡。在 `unity doctor --ci` 之後加一個步驟,
+使用以 `--init-args` 產生一次並提交的回應檔:
+
+```yaml
+- name: Unity performance analyzers
+  run: upa-cli @upa-args.rsp --ruleset Assets/Default.ruleset --format github --fail-on warning
+```
+
+回應檔中的 `--unity-dll-dir` 那一行必須指向 runner 上的 Unity 安裝位置。要比專案自己的 ruleset
+擋得更嚴,就只在這裡傳入較嚴格的 preset——`--ruleset ci/strict.ruleset --fail-on error`——
+它會讓 job 失敗,但不會讓 Unity 的編譯失敗。
 
 `--format github` 在 runner 設有 `GITHUB_WORKSPACE`、且檔案位於 checkout 內時,會輸出相對於它的路徑,
 所以從任何目錄執行、給絕對路徑都行。SARIF 則原樣輸出呼叫端給的路徑,所以用 SARIF 時請

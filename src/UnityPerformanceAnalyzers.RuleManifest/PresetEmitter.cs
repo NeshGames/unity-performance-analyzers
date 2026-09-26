@@ -109,6 +109,19 @@ public static class PresetEmitter
         sb.Append("     Copy this file to Assets/Default.ruleset (project-wide).\n");
         sb.Append("     A Default.ruleset inside an asmdef folder overrides it for that assembly.\n");
         sb.Append("     To add the WebGL rules: <Include Path=\"webgl-addon.ruleset\" Action=\"Default\" />\n");
+        if (PresetTable.UpaRows.Any(row => preset.Severity(row) == "error"))
+        {
+            // Stated in the file because the file is what gets copied. An Error entry fails
+            // Unity's compile, and an Editor launched on a project that does not compile opens
+            // in Safe Mode, where the Pipeline package the Unity CLI talks to does not load.
+            // No double hyphen may appear in an XML comment, so the CLI flags are spelled out.
+            sb.Append("\n");
+            sb.Append("     Error entries fail Unity's compile. An Editor launched on a project that\n");
+            sb.Append("     does not compile opens in Safe Mode, where the Unity CLI cannot reach it.\n");
+            sb.Append("     To gate at this level without that, keep recommended in Assets and pass\n");
+            sb.Append("     this file to upa-cli in CI as its ruleset, failing on error.\n");
+        }
+
         sb.Append(GeneratedNotice("     "));
         sb.Append($"<RuleSet Name=\"UPA {preset.Name}\" ToolsVersion=\"10.0\">\n");
         sb.Append("  <Rules AnalyzerId=\"UnityPerformanceAnalyzers\" RuleNamespace=\"UnityPerformanceAnalyzers\">\n");

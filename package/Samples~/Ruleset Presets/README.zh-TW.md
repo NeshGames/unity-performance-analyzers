@@ -16,6 +16,12 @@ Ruleset 才是 Unity 真正讀取的通道:Unity 會把 `Assets/Default.ruleset`
 | `strict` | 效能規則升為 error;那些因為對專案有所要求而預設關閉的規則——例如需要 logging 包裝類別、需要葉端類別 sealed——開始回報。 |
 | `cysharp-stack` | 另加生態規則設為 error(UniTask/ZString/R3 採用)。適用於決心採用 Cysharp 技術棧的程式碼庫。 |
 
+`strict` 與 `cysharp-stack` 會把規則設為 Error,而 Error 條目會讓 Unity 編譯失敗。
+專案無法編譯時啟動的 Editor 會進入 Safe Mode,Unity CLI 的 `unity command` 連不上——
+透過 Unity CLI 工作的 coding agent 會因為一個效能發現而失去對 Editor 的控制。
+這種工作流程請在 `Assets/Default.ruleset` 維持 `recommended`,只在 CI 套用較嚴格的檔案:
+`upa-cli @upa-args.rsp --ruleset strict.ruleset --fail-on error`。
+
 ## 安裝
 
 1. 從 Package Manager 視窗匯入本 sample。

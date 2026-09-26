@@ -75,6 +75,15 @@ Exit codes: `0` nothing at or above `--fail-on`, `1` findings at or above it, `2
 an analyzer that failed, or a whole-assembly run that did not compile — never read `2` as
 "no findings".
 
+To hear only about the files you changed — every input is still compiled, so symbols resolve
+exactly as in a full run:
+
+```bash
+# relative to the project root, and including files not yet tracked
+{ git diff --name-only --relative HEAD; git ls-files --others --exclude-standard; } > changed.txt
+upa-cli @upa-args.rsp --ruleset Assets/Default.ruleset --format json --only-from changed.txt
+```
+
 `upa-cli --list-rules` lists every rule with its default severity and conditions.
 
 ## 4. Act on each finding
