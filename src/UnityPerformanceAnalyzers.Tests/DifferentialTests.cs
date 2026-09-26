@@ -133,7 +133,7 @@ namespace UnityPerformanceAnalyzers.Tests
                 .GetMethod(nameof(RuleVerifier.VerifyAsync))!
                 .MakeGenericMethod(analyzerType);
 
-            var harness = new RuleHarness { EnabledRules = { id } };
+            var harness = new RuleHarness();
             try
             {
                 await (Task)verify.Invoke(null, new object?[] { source, harness })!;

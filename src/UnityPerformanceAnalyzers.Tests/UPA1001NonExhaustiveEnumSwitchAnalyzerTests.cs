@@ -242,14 +242,6 @@ class C
             return test.RunAsync();
         }
 
-        // Correctness block: enabled by default (unlike the ecosystem rules)
-        [Fact]
-        public void Descriptor_IsEnabledByDefault()
-        {
-            var descriptor = Assert.Single(new UPA1001NonExhaustiveEnumSwitchAnalyzer().SupportedDiagnostics);
-            Assert.True(descriptor.IsEnabledByDefault);
-        }
-
         // ---------------------------------------------------------------------------------
         // Flags detection by syntax rather than by value.
         //

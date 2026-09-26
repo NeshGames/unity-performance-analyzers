@@ -9,7 +9,6 @@ namespace UnityPerformanceAnalyzers.Tests
             RuleVerifier.VerifyAsync<UPA0023OnGuiDeclarationAnalyzer>(source, new RuleHarness
             {
                 AssemblyName = assemblyName,
-                EnabledRules = { "UPA0023" },
             });
 
         // UPA0023 test case 1

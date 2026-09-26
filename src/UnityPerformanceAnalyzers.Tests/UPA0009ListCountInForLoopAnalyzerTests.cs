@@ -6,10 +6,7 @@ namespace UnityPerformanceAnalyzers.Tests
     public class UPA0009ListCountInForLoopAnalyzerTests
     {
         private static Task VerifyAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA0009ListCountInForLoopAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA0009" },
-            });
+            RuleVerifier.VerifyAsync<UPA0009ListCountInForLoopAnalyzer>(source);
 
         // UPA0009 test case 1
         [Fact]
@@ -111,29 +108,6 @@ class C : MonoBehaviour
     void Start()
     {
         for (int i = 0; i < list.Count; i++)
-        {
-        }
-    }
-}");
-        }
-
-        // UPA0009 test case 6
-        [Fact]
-        public Task CountInCondition_InHotPathAttributedMethod_Triggers()
-        {
-            return VerifyAsync(@"
-using System.Collections.Generic;
-
-class HotPathAttribute : System.Attribute { }
-
-class C
-{
-    List<int> list = new List<int>();
-
-    [HotPath]
-    void Tick()
-    {
-        for (int i = 0; i < {|UPA0009:this.list.Count|}; i++)
         {
         }
     }

@@ -13,12 +13,8 @@ namespace UnityPerformanceAnalyzers.Tests
     // that it says nothing unless a project asks it to.
     public class UPA1000LeafClassNotSealedAnalyzerTests
     {
-        // Enabled the way a project that still wants it would.
         private static Task VerifyAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA1000LeafClassNotSealedAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA1000" },
-            });
+            RuleVerifier.VerifyAsync<UPA1000LeafClassNotSealedAnalyzer>(source);
 
         // UPA1000 test case 1 is not written here, for the reason UPA0022's is not:
         // Microsoft.CodeAnalysis.Testing force-enables every diagnostic of the analyzers a
@@ -102,17 +98,6 @@ class C
     {
     }
 }");
-        }
-
-        // UPA1000 test case 8 — the descriptor is what decides this outside the verifier
-        [Fact]
-        public void Descriptor_IsNotEnabledByDefault()
-        {
-            var descriptor = new UPA1000LeafClassNotSealedAnalyzer()
-                .SupportedDiagnostics
-                .Single(d => d.Id == UPA1000LeafClassNotSealedAnalyzer.DiagnosticId);
-
-            Assert.False(descriptor.IsEnabledByDefault);
         }
     }
 }

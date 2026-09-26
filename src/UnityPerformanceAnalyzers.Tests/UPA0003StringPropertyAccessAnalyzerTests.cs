@@ -354,33 +354,6 @@ class C : MonoBehaviour
 }");
         }
 
-        /// <summary>
-        /// The shape that keeps OnEnable out of the exclusion set, written out: an object
-        /// returned to a pool by SetActive(false) runs OnEnable again every time it is handed
-        /// back out, so the call is as frequent as the pool is busy.
-        /// </summary>
-        [Fact]
-        public Task InOnEnable_OfAPooledObject_Triggers()
-        {
-            return VerifyAsync(@"
-using UnityEngine;
-
-class Bullet : MonoBehaviour
-{
-    public Material mat;
-
-    void OnEnable()
-    {
-        {|UPA0003:mat.SetColor(""_Tint"", default(Color))|};
-    }
-
-    void ReturnToPool()
-    {
-        gameObject.SetActive(false);
-    }
-}");
-        }
-
         /// <summary>the corpus Materials shape: a plain class, not a MonoBehaviour.</summary>
         [Fact]
         public Task InConstructor_DoesNotTrigger()

@@ -7,7 +7,7 @@ namespace UnityPerformanceAnalyzers.Tests
     {
         private static Task VerifyAsync(string source, bool referenceUniTask = true)
         {
-            var harness = new RuleHarness { UnityStubs = false, EnabledRules = { "UPA2010" } };
+            var harness = new RuleHarness { UnityStubs = false };
             if (referenceUniTask)
             {
                 harness.PackageAssemblies.Add(UpaProfile.UniTaskAssemblyName);
@@ -191,15 +191,6 @@ class C
         _ = f;
     }
 }");
-        }
-
-        // isEnabledByDefault: false — asserted on the descriptor because the
-        // testing framework force-enables disabled-by-default rules when running analyzers.
-        [Fact]
-        public void Descriptor_IsDisabledByDefault()
-        {
-            var descriptor = Assert.Single(new UPA2010AsyncTaskReturnAnalyzer().SupportedDiagnostics);
-            Assert.False(descriptor.IsEnabledByDefault);
         }
     }
 }

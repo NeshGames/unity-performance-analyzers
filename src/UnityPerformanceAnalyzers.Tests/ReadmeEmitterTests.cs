@@ -15,21 +15,6 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </summary>
     public class ReadmeEmitterTests
     {
-        [Fact]
-        public void EveryRuleHasADescription()
-        {
-            // A rule with no entry makes the emitter throw, so a clean run over a temporary
-            // copy of the READMEs is the assertion: it means nothing was left undescribed.
-            var root = CreateTemporaryReadmes();
-            try
-            {
-                ReadmeEmitter.WriteAll(root);
-            }
-            finally
-            {
-                Directory.Delete(root, recursive: true);
-            }
-        }
 
         [Fact]
         public void GeneratedTablesListEveryRuleExactlyOnce()

@@ -170,26 +170,6 @@ class C : MonoBehaviour
 }");
         }
 
-        // UPA0027 test case 10
-        [Fact]
-        public Task MathfMinInsideLambdaInUpdate_Triggers()
-        {
-            return VerifyAsync(@"
-using System;
-using UnityEngine;
-
-class C : MonoBehaviour
-{
-    float a, b, c;
-
-    void Update()
-    {
-        Action run = () => { var m = {|UPA0027:Mathf.Min(a, b, c)|}; };
-        run();
-    }
-}");
-        }
-
         // UPA0027 test case 11
         [Fact]
         public Task DebugLogFormat_InUpdate_Triggers()

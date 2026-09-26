@@ -10,7 +10,6 @@ namespace UnityPerformanceAnalyzers.Tests
             {
                 Sources = { DoTweenTestSources.Stubs },
                 PackageAssemblies = { UpaProfile.DOTweenAssemblyName },
-                EnabledRules = { "UPA2031" },
             });
 
         // UPA2031 test case 1

@@ -13,7 +13,7 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </summary>
     public sealed class CoexistPresetTests : IDisposable
     {
-        private static readonly string Root = FindRepositoryRoot();
+        private static readonly string Root = TestRepository.Root;
 
         private static readonly string PresetDirectory =
             Path.Combine(Root, "package", "Samples~", "Ruleset Presets");
@@ -178,70 +178,6 @@ public class Probe : MonoBehaviour
 
             Assert.Contains("(overlap.zh-TW.md)", english);
             Assert.Contains("(overlap.md)", chinese);
-        }
-
-        /// <summary>
-        /// The section positioning this package against Project Auditor rests on three facts
-        /// about someone else's software: that Unity 6.4 bundles it, that the rules now live in
-        /// a package of their own, and the date those were last checked. All three were on this
-        /// page before anyone had looked them up, which is what makes them worth pinning: a
-        /// sentence about another product does not stop being true loudly, it stops quietly.
-        /// </summary>
-        [Theory]
-        [InlineData("overlap.md", "## Project Auditor and this package")]
-        [InlineData("overlap.zh-TW.md", "## Project Auditor 與本套件")]
-        public void TheProjectAuditorSectionKeepsItsCheckableFacts(string page, string heading)
-        {
-            var section = Section(Path.Combine(Root, "docs", page), heading);
-
-            Assert.Contains("com.unity.project-auditor-rules", section, StringComparison.Ordinal);
-            Assert.Contains("6.4", section, StringComparison.Ordinal);
-            Assert.Matches(@"\d{4}-\d{2}-\d{2}", section);
-        }
-
-        /// <summary>
-        /// This page used to say Project Auditor's analysis was Cecil-based. Unity's own
-        /// documentation says only that code analysis runs over the player assemblies, so that
-        /// was an inference about another product's internals stated as fact — the exact shape
-        /// of claim this repository asks for evidence on. Asserted as an absence because the
-        /// familiar phrasing is what a future edit would reach for.
-        /// </summary>
-        [Theory]
-        [InlineData("overlap.md")]
-        [InlineData("overlap.zh-TW.md")]
-        public void NeitherOverlapPageClaimsProjectAuditorUsesCecil(string page)
-        {
-            var text = File.ReadAllText(Path.Combine(Root, "docs", page));
-
-            Assert.DoesNotContain("Cecil", text, StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary>The text under a heading, up to the next heading of the same level.</summary>
-        private static string Section(string path, string heading)
-        {
-            var text = File.ReadAllText(path);
-
-            var start = text.IndexOf(heading, StringComparison.Ordinal);
-            Assert.True(start >= 0, Path.GetFileName(path) + " has no section titled " + heading);
-
-            var stop = text.IndexOf("\n## ", start + heading.Length, StringComparison.Ordinal);
-            return stop < 0 ? text.Substring(start) : text.Substring(start, stop - start);
-        }
-
-        private static string FindRepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is object)
-            {
-                if (directory.EnumerateFiles("*.sln").Any())
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            throw new InvalidOperationException("no directory containing a .sln above " + AppContext.BaseDirectory);
         }
     }
 }

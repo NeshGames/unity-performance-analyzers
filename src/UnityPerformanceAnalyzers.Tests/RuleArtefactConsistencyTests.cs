@@ -25,20 +25,9 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </remarks>
     public class RuleArtefactConsistencyTests
     {
-        private static readonly string Root = FindRepositoryRoot();
+        private static readonly string Root = TestRepository.Root;
 
         private static IReadOnlyList<UpaRule> Rules => UpaRuleCatalog.Rules();
-
-        [Fact]
-        public void EveryRuleHasBothLanguagePages()
-        {
-            var missing = Rules
-                .SelectMany(rule => new[] { rule.Id + ".md", rule.Id + ".zh-TW.md" })
-                .Where(name => !File.Exists(Path.Combine(Root, "docs", "rules", name)))
-                .ToArray();
-
-            Assert.True(missing.Length == 0, "rule pages missing: " + string.Join(", ", missing));
-        }
 
         [Fact]
         public void EveryRulePageBelongsToALiveRule()
@@ -69,20 +58,23 @@ namespace UnityPerformanceAnalyzers.Tests
             Assert.Equal(Rules.Count, Rules.Select(rule => rule.Id).Distinct(StringComparer.Ordinal).Count());
         }
 
+        /// <summary>
+        /// The link every diagnostic carries has to name its own rule's page. That the page
+        /// exists is RuleDocumentationTests' assertion; this one is about the link.
+        /// </summary>
         [Fact]
-        public void HelpUriPointsAtAPageInTheRepository()
+        public void HelpUriPointsAtTheRulesOwnPage()
         {
             var broken = Rules
-                .Where(rule => string.IsNullOrWhiteSpace(rule.HelpUri) ||
-                    !File.Exists(Path.Combine(Root, "docs", "rules", rule.Id + ".md")))
+                .Where(rule => !rule.HelpUri.EndsWith("/docs/rules/" + rule.Id + ".md", StringComparison.Ordinal))
                 .Select(rule => rule.Id + " -> " + rule.HelpUri)
                 .ToArray();
 
-            Assert.True(broken.Length == 0, "help links with no page behind them: " + string.Join(", ", broken));
+            Assert.True(broken.Length == 0, "help links that miss their rule's page: " + string.Join(", ", broken));
         }
 
         [Fact]
-        public void BothReadmeTablesListEveryRuleOnce()
+        public void BothReadmeTablesListEveryRule()
         {
             foreach (var readme in new[] { "README.md", "README.zh-TW.md" })
             {
@@ -160,27 +152,5 @@ namespace UnityPerformanceAnalyzers.Tests
         }
 
         private static string FirstLine(string path) => File.ReadLines(path).FirstOrDefault() ?? string.Empty;
-
-        /// <summary>
-        /// Walks up from the test assembly to the directory holding the solution. The tests
-        /// read the committed artefacts rather than copies, because a copy would only prove
-        /// the copy is consistent.
-        /// </summary>
-        private static string FindRepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is object)
-            {
-                if (directory.EnumerateFiles("*.sln").Any())
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            throw new InvalidOperationException(
-                "no directory containing a .sln above " + AppContext.BaseDirectory);
-        }
     }
 }

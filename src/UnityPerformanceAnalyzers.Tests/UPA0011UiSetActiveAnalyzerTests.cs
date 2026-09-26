@@ -6,10 +6,7 @@ namespace UnityPerformanceAnalyzers.Tests
     public class UPA0011UiSetActiveAnalyzerTests
     {
         private static Task VerifyAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA0011UiSetActiveAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA0011" },
-            });
+            RuleVerifier.VerifyAsync<UPA0011UiSetActiveAnalyzer>(source);
 
         // UPA0011 test case 1
         [Fact]

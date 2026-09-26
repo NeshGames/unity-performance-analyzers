@@ -7,11 +7,9 @@ namespace UnityPerformanceAnalyzers.Tests
     {
         private static Task VerifyAsync(string source, bool defineWebGlTarget = true)
         {
-            // UPA3000~3003 are disabled by default; enable them as a preset would.
             var harness = new RuleHarness
             {
                 UnityStubs = false,
-                EnabledRules = { "UPA3000", "UPA3001", "UPA3002", "UPA3003" },
             };
             if (defineWebGlTarget)
             {
@@ -161,18 +159,6 @@ class C
         _ = token.IsCancellationRequested;
     }
 }");
-        }
-
-        // isEnabledByDefault: false — asserted on the descriptors because the
-        // testing framework force-enables disabled-by-default rules when running analyzers.
-        [Fact]
-        public void Descriptors_AreFourDistinctIds_AllDisabledByDefault()
-        {
-            var descriptors = new UPA3000WebGlUnsupportedApiAnalyzer().SupportedDiagnostics;
-            Assert.Equal(
-                new[] { "UPA3000", "UPA3001", "UPA3002", "UPA3003" },
-                System.Linq.ImmutableArrayExtensions.Select(descriptors, d => d.Id));
-            Assert.All(descriptors, d => Assert.False(d.IsEnabledByDefault));
         }
     }
 }

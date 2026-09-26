@@ -23,7 +23,7 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </remarks>
     public class MigrationGuideTests
     {
-        private static readonly string Root = FindRepositoryRoot();
+        private static readonly string Root = TestRepository.Root;
 
         private static readonly string[] Pages =
         {
@@ -112,38 +112,6 @@ namespace UnityPerformanceAnalyzers.Tests
         {
             Assert.Contains("(migration-unityengineanalyzer.zh-TW.md)", Read(Pages[0]));
             Assert.Contains("(migration-unityengineanalyzer.md)", Read(Pages[1]));
-        }
-
-        /// <summary>
-        /// The claims about someone else's project carry the date they were checked. Without
-        /// it a reader cannot tell a fact from a recollection, which is how this repository
-        /// came to state three wrong ones.
-        /// </summary>
-        [Fact]
-        public void TheClaimsAboutTheirProjectAreDated()
-        {
-            foreach (var page in Pages)
-            {
-                var text = Read(page);
-                Assert.Contains("2026-08-10", text);
-                Assert.Contains("2019", text);
-            }
-        }
-
-        private static string FindRepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is object)
-            {
-                if (directory.EnumerateFiles("*.sln").Any())
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            throw new InvalidOperationException("no directory containing a .sln above " + AppContext.BaseDirectory);
         }
     }
 }

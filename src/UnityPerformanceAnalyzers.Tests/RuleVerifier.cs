@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -38,11 +37,6 @@ namespace UnityPerformanceAnalyzers.Tests
         /// alone, so an empty assembly is enough to flip an <see cref="UpaProfile"/> flag.</summary>
         public List<string> PackageAssemblies { get; } = new List<string>();
 
-        /// <summary>Rule ids to raise to warning, the way a preset does. Rules in the UPA2000+
-        /// and UPA3000+ groups are off by default and report nothing until something enables
-        /// them.</summary>
-        public List<string> EnabledRules { get; } = new List<string>();
-
         /// <summary>Preprocessor symbols, e.g. <see cref="UpaProfile.WebGlDefine"/>.</summary>
         public List<string> Defines { get; } = new List<string>();
 
@@ -76,6 +70,12 @@ namespace UnityPerformanceAnalyzers.Tests
     /// One module means the differential pipeline has somewhere to attach, and a new rule's
     /// tests start at one line instead of ten.
     /// </summary>
+    /// <remarks>
+    /// Rules that ship disabled need no enabling here: the testing framework raises every
+    /// descriptor of the analyzer under test before it runs. Whether a rule ships disabled is
+    /// the descriptor's claim, pinned by release tracking and VersioningPolicyTests, not
+    /// something a rule test can observe.
+    /// </remarks>
     internal static class RuleVerifier
     {
         /// <summary>Where the analyzers look for the universal options file.</summary>
@@ -168,23 +168,9 @@ namespace UnityPerformanceAnalyzers.Tests
                 return harness.RawEditorConfig;
             }
 
-            if (harness.EnabledRules.Count == 0 && harness.EditorConfig is null)
-            {
-                return null;
-            }
-
-            var text = new StringBuilder("root = true\n\n[*.cs]\n");
-            foreach (var ruleId in harness.EnabledRules)
-            {
-                text.Append("dotnet_diagnostic.").Append(ruleId).Append(".severity = warning\n");
-            }
-
-            if (harness.EditorConfig is not null)
-            {
-                text.Append(harness.EditorConfig).Append('\n');
-            }
-
-            return text.ToString();
+            return harness.EditorConfig is null
+                ? null
+                : "root = true\n\n[*.cs]\n" + harness.EditorConfig + "\n";
         }
 
         // The define set has to reach the parser, and CreateParseOptions is the only way in.

@@ -6,10 +6,7 @@ namespace UnityPerformanceAnalyzers.Tests
     public class UPA0013LinqUsageAnalyzerTests
     {
         private static Task VerifyAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA0013LinqUsageAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA0013" },
-            });
+            RuleVerifier.VerifyAsync<UPA0013LinqUsageAnalyzer>(source);
 
         // UPA0013 test case 1 — both calls in the chain report, on the method names
         [Fact]
@@ -126,15 +123,6 @@ class C : MonoBehaviour
         _ = result;
     }
 }");
-        }
-
-        // isEnabledByDefault: false — asserted on the descriptor because the
-        // testing framework force-enables disabled-by-default rules when running analyzers.
-        [Fact]
-        public void Descriptor_IsDisabledByDefault()
-        {
-            var descriptor = Assert.Single(new UPA0013LinqUsageAnalyzer().SupportedDiagnostics);
-            Assert.False(descriptor.IsEnabledByDefault);
         }
     }
 }

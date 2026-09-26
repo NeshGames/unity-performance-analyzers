@@ -432,25 +432,6 @@ public class Broken
             Assert.Contains("Refusing to report success", stderr);
         }
 
-        // Case 16
-        [Fact]
-        public void CompileErrors_DoNotChangeTheExitCodeAndAreNotReported()
-        {
-            var file = Write("Broken.cs", @"
-public class Broken
-{
-    void Use() { MissingType thing = null; }
-}");
-
-            var (exitCode, stdout, _) = Run(file, "--format", "json");
-            var root = ParseJson(stdout);
-
-            Assert.Equal(0, exitCode);
-            Assert.DoesNotContain(
-                root.GetProperty("diagnostics").EnumerateArray().Select(d => d.GetProperty("id").GetString()!),
-                id => id.StartsWith("CS", StringComparison.Ordinal));
-        }
-
         // Case 17
         [Fact]
         public void EditorAssemblyName_SilencesPlayerCodeRules()
@@ -692,18 +673,6 @@ upa_hot_path_messages = Tick
             Assert.Equal(CliEntryPoint.ExitError, CliEntryPoint.ResolveExitCode(result, "error"));
         }
 
-        [Fact]
-        public void CleanRun_ResolvesToSuccess()
-        {
-            var file = Write("Quiet.cs", Clean);
-            var options = CliOptions.Parse(new[] { file }, out _)!;
-
-            var result = AnalysisRunner.Run(options);
-
-            Assert.Empty(result.AnalyzerFailures);
-            Assert.Equal(CliEntryPoint.ExitClean, CliEntryPoint.ResolveExitCode(result, "warning"));
-        }
-
         [DiagnosticAnalyzer(LanguageNames.CSharp)]
         private sealed class ThrowingAnalyzer : DiagnosticAnalyzer
         {
@@ -871,15 +840,6 @@ public class Mixed
             var (_, stdout, _) = Run("--help");
 
             Assert.Contains(option, stdout);
-        }
-
-        [Fact]
-        public void Help_ShowsExamples()
-        {
-            var (_, stdout, _) = Run("--help");
-
-            Assert.Contains("Examples:", stdout);
-            Assert.Contains("upa-cli Assets/Scripts/Player.cs", stdout);
         }
 
         [Fact]

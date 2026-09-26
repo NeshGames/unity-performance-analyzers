@@ -21,8 +21,7 @@ namespace UnityPerformanceAnalyzers.Tests
             string source,
             bool referenceZString = false)
         {
-            // UPA2000 is disabled by default; enable it the same way a preset would.
-            var harness = new RuleHarness { EnabledRules = { "UPA2000" } };
+            var harness = new RuleHarness();
             if (referenceZString)
             {
                 harness.PackageAssemblies.Add(UpaProfile.ZStringAssemblyName);
@@ -45,7 +44,7 @@ namespace Cysharp.Text
 
         private static Task VerifyTriggersAsync(string source, bool referenceZString = true)
         {
-            var harness = new RuleHarness { EnabledRules = { "UPA2000" } };
+            var harness = new RuleHarness();
             if (referenceZString)
             {
                 harness.PackageAssemblies.Add(UpaProfile.ZStringAssemblyName);
@@ -196,16 +195,6 @@ class C : MonoBehaviour
         s = {|UPA2000:""a: "" + a + b|};
     }
 }").RunAsync();
-        }
-
-        // isEnabledByDefault: false — asserted on the descriptor because the
-        // testing framework force-enables disabled-by-default rules when running analyzers.
-        [Fact]
-        public void Descriptor_IsDisabledByDefault()
-        {
-            var descriptor = Assert.Single(
-                new UPA2000StringConcatenationAnalyzer().SupportedDiagnostics);
-            Assert.False(descriptor.IsEnabledByDefault);
         }
 
         // UPA2000 test case 9 - two strings measured the same either way, so no bulb

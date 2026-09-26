@@ -24,7 +24,7 @@ namespace UnityPerformanceAnalyzers.Tests
     /// </remarks>
     public class ContributionDocsTests
     {
-        private static readonly string Root = FindRepositoryRoot();
+        private static readonly string Root = TestRepository.Root;
 
         /// <summary>
         /// Paths inside backticks that name something in this repository. Placeholders such
@@ -158,22 +158,6 @@ namespace UnityPerformanceAnalyzers.Tests
             var next = template.IndexOf("- type:", start, StringComparison.Ordinal);
             var field = next < 0 ? template.Substring(start) : template.Substring(start, next - start);
             return field.Contains("required: true", StringComparison.Ordinal);
-        }
-
-        private static string FindRepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is object)
-            {
-                if (directory.EnumerateFiles("*.sln").Any())
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            throw new InvalidOperationException("no directory containing a .sln above " + AppContext.BaseDirectory);
         }
     }
 }

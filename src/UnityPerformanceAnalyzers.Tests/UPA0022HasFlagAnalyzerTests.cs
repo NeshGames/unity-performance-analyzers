@@ -11,12 +11,8 @@ namespace UnityPerformanceAnalyzers.Tests
     // what these tests pin is that it says nothing unless a project asks it to.
     public class UPA0022HasFlagAnalyzerTests
     {
-        // Enabled the way a project that still wants it would.
         private static Task VerifyEnabledAsync(string source) =>
-            RuleVerifier.VerifyAsync<UPA0022HasFlagAnalyzer>(source, new RuleHarness
-            {
-                EnabledRules = { "UPA0022" },
-            });
+            RuleVerifier.VerifyAsync<UPA0022HasFlagAnalyzer>(source);
 
         // UPA0022 test case 1 is not written here, and the reason is worth stating rather
         // than leaving as an absence. Microsoft.CodeAnalysis.Testing force-enables every
@@ -94,17 +90,6 @@ class C : MonoBehaviour
         }
     }
 }");
-        }
-
-        // UPA0022 test case 5
-        [Fact]
-        public void Descriptor_IsNotEnabledByDefault()
-        {
-            var descriptor = new UPA0022HasFlagAnalyzer()
-                .SupportedDiagnostics
-                .Single(d => d.Id == UPA0022HasFlagAnalyzer.DiagnosticId);
-
-            Assert.False(descriptor.IsEnabledByDefault);
         }
     }
 }

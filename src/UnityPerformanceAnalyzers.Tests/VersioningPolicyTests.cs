@@ -60,7 +60,7 @@ namespace UnityPerformanceAnalyzers.Tests
         [Fact]
         public void PublishedCountsMatchTheCatalog()
         {
-            var page = File.ReadAllText(Path.Combine(RepositoryRoot(), "docs", "versioning.md"));
+            var page = File.ReadAllText(Path.Combine(TestRepository.Root, "docs", "versioning.md"));
             var warnings = Rules.Count(rule => Severity(rule) == DiagnosticSeverity.Warning);
             var infos = Rules.Count(rule => Severity(rule) == DiagnosticSeverity.Info);
 
@@ -74,7 +74,7 @@ namespace UnityPerformanceAnalyzers.Tests
         [Fact]
         public void RetiredRulesNamedByThePolicyAreTheDeprecatedOnes()
         {
-            var root = RepositoryRoot();
+            var root = TestRepository.Root;
             var deprecated = Rules
                 .Where(rule => FirstLine(Path.Combine(root, "docs", "rules", rule.Id + ".md"))
                     .Contains("(deprecated)", StringComparison.OrdinalIgnoreCase))
@@ -108,7 +108,7 @@ namespace UnityPerformanceAnalyzers.Tests
         [Fact]
         public void BothLanguagesExistAndLinkToEachOther()
         {
-            var root = Path.Combine(RepositoryRoot(), "docs");
+            var root = Path.Combine(TestRepository.Root, "docs");
             var english = File.ReadAllText(Path.Combine(root, "versioning.md"));
             var chinese = File.ReadAllText(Path.Combine(root, "versioning.zh-TW.md"));
 
@@ -122,21 +122,5 @@ namespace UnityPerformanceAnalyzers.Tests
         private static int Number(UpaRule rule) => int.Parse(rule.Id.Substring(3));
 
         private static string FirstLine(string path) => File.ReadLines(path).FirstOrDefault() ?? string.Empty;
-
-        private static string RepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is object)
-            {
-                if (directory.EnumerateFiles("*.sln").Any())
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            throw new InvalidOperationException("no directory containing a .sln above " + AppContext.BaseDirectory);
-        }
     }
 }

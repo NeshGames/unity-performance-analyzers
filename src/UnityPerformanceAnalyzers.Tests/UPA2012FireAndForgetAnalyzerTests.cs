@@ -24,11 +24,9 @@ namespace Cysharp.Threading.Tasks
             string source,
             bool referenceUniTask = false)
         {
-            // UPA2012 is disabled by default; enable it the same way a preset would.
             var harness = new RuleHarness
             {
                 UnityStubs = false,
-                EnabledRules = { "UPA2012" },
                 // Both UPA2012 descriptors share the ID and severity; markup only needs ID + span.
                 MarkupOptions = MarkupOptions.UseFirstDescriptor,
             };
@@ -218,20 +216,6 @@ class C
                     .WithLocation(1)
                     .WithMessage("The result of 'FooAsync' is discarded, so its exceptions are silently lost. Await it, or make fire-and-forget explicit with Forget."));
             return test.RunAsync();
-        }
-
-        // isEnabledByDefault: false — asserted on the descriptors because the
-        // testing framework force-enables disabled-by-default rules when running analyzers.
-        [Fact]
-        public void Descriptors_AreDisabledByDefault()
-        {
-            var descriptors = new UPA2012FireAndForgetAnalyzer().SupportedDiagnostics;
-            Assert.Equal(2, descriptors.Length);
-            Assert.All(descriptors, d =>
-            {
-                Assert.Equal(UPA2012FireAndForgetAnalyzer.DiagnosticId, d.Id);
-                Assert.False(d.IsEnabledByDefault);
-            });
         }
 
         // UPA2012 test case 10 - UniTask defines Forget on its own types; Task has none

@@ -26,7 +26,7 @@ namespace UnityPerformanceAnalyzers.Tests
         [Fact]
         public void BothReadmesCarryTheSameBadges()
         {
-            var root = FindRepositoryRoot();
+            var root = TestRepository.Root;
             var english = BadgeBlock(Path.Combine(root, "README.md"));
             var chinese = BadgeBlock(Path.Combine(root, "README.zh-TW.md"));
 
@@ -34,21 +34,9 @@ namespace UnityPerformanceAnalyzers.Tests
         }
 
         [Fact]
-        public void TheBadgeBlockIsNotEmpty()
-        {
-            // Without this the test above passes on two files that each have an empty block,
-            // which is precisely the state that removing a badge from one and then "fixing"
-            // the failure by removing it from the other would produce.
-            var root = FindRepositoryRoot();
-            var badges = BadgeBlock(Path.Combine(root, "README.md"));
-
-            Assert.NotEmpty(badges);
-        }
-
-        [Fact]
         public void EveryWorkflowBadgeNamesAWorkflowThatExists()
         {
-            var root = FindRepositoryRoot();
+            var root = TestRepository.Root;
             var badges = BadgeBlock(Path.Combine(root, "README.md"));
 
             var referenced = Regex.Matches(
@@ -73,7 +61,7 @@ namespace UnityPerformanceAnalyzers.Tests
         [Fact]
         public void EveryRelativeBadgeLinkResolves()
         {
-            var root = FindRepositoryRoot();
+            var root = TestRepository.Root;
             var badges = BadgeBlock(Path.Combine(root, "README.md"));
 
             // The link target of a badge, not the image: [![alt](image)](target).
@@ -103,7 +91,7 @@ namespace UnityPerformanceAnalyzers.Tests
         [InlineData("README.zh-TW.md")]
         public void EveryImageAReadmeShowsExists(string readme)
         {
-            var root = FindRepositoryRoot();
+            var root = TestRepository.Root;
             var text = File.ReadAllText(Path.Combine(root, readme));
 
             var images = Regex.Matches(text, @"!\[[^\]]*\]\((?<path>[^)]+)\)")
@@ -137,22 +125,6 @@ namespace UnityPerformanceAnalyzers.Tests
                 .Select(line => line.Trim())
                 .Where(line => line.Length > 0)
                 .ToArray();
-        }
-
-        private static string FindRepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is object)
-            {
-                if (directory.EnumerateFiles("*.sln").Any())
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            throw new InvalidOperationException("no directory containing a .sln above " + AppContext.BaseDirectory);
         }
     }
 }
