@@ -1,9 +1,9 @@
 # CLAUDE.md
 
-Guidance for coding agents working **on this repository** — the analyzers, `upa-cli` and the
-UPM package. Guidance for agents working on a Unity game that *uses* the package is the skill in
-`skills/unity-performance-analyzers/`, not this file. Read CONTRIBUTING.md for the full contributor
-rules; this is the short version plus what is easy to get wrong.
+Read `AGENTS.md` first. It is the canonical repository-wide contract for coding agents.
+
+This file only adds Claude-specific context. Guidance for a Claude agent working in a Unity game
+that *uses* this package lives in `skills/unity-performance-analyzers/SKILL.md`, not here.
 
 ## Commands
 
