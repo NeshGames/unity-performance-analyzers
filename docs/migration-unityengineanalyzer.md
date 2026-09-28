@@ -26,7 +26,7 @@ finished.
 | `UEA0005` DoNotUseFindMethodsInUpdate | Scene search per frame | [UPA0014](rules/UPA0014.md) |
 | `UEA0006` DoNotUseCoroutines | Coroutines | [UPA2011](rules/UPA2011.md), but **only when the assembly references UniTask** — a rule telling you to stop writing coroutines is not useful without the thing to write instead |
 | `UEA0007` DoNotUseForEachInUpdate | `foreach` per frame | **Not here.** Where a particular `foreach` does allocate — a boxed enumerator on an interface-typed collection — [UPA0006](rules/UPA0006.md) reports the allocation itself rather than the loop |
-| `UEA0008` UnsealedDerivedClass | Leaf classes not sealed | **Was here, and was retired.** UPA1000 shipped, was measured on IL2CPP, and the gain could not be told apart from noise. See [UPA1000](rules/UPA1000.md) for the numbers |
+| `UEA0008` UnsealedDerivedClass | Leaf classes not sealed | **Was here, and was retired.** UPA1000 shipped, was measured on IL2CPP, and the gain could not be told apart from noise. See the [UPA1000 retirement evidence](evidence/retired/UPA1000.md) for the numbers |
 | `UEA0009` InvokeFunctionMissing | `Invoke("Name")` naming a method that does not exist | **Not here.** [UPA0016](rules/UPA0016.md) covers the `SendMessage` family, not `Invoke` |
 | `UEA0010` DoNotUseStateNameInAnimator | Animator state names as strings | [UPA0003](rules/UPA0003.md) |
 | `UEA0011` DoNotUseStringPropertyNames | Shader property names as strings | [UPA0003](rules/UPA0003.md) |
