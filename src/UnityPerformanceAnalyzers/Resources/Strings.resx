@@ -111,15 +111,6 @@
   <data name="UPA0012Description" xml:space="preserve">
     <value>Every assignment to a TextMeshPro text property stores the string and marks the text as dirty, triggering mesh regeneration. The common per-frame pattern also builds a fresh string first (value.ToString() or concatenation), allocating on every frame. The SetText overloads format numeric arguments directly into the component's internal buffer, avoiding the intermediate string allocation entirely.</value>
   </data>
-  <data name="UPA1000Title" xml:space="preserve">
-    <value>Leaf class not sealed</value>
-  </data>
-  <data name="UPA1000MessageFormat" xml:space="preserve">
-    <value>This rule is deprecated: sealing '{0}' measured no gain that could be told apart from noise on IL2CPP.</value>
-  </data>
-  <data name="UPA1000Description" xml:space="preserve">
-    <value>Deprecated and off by default. This rule reported concrete classes with no derived types on the grounds that sealing them lets the runtime and IL2CPP replace virtual dispatch with direct calls. Measured against a probe with four derived classes and repeated eight times, sealed ran at 2.70 ns against 3.00 ns unsealed, a difference of 0.30 ns inside a spread of 1.28 ns, with the ordering reversing once. That is not a refutation of the premise; it is a measurement that cannot resolve it, and a rule whose payoff cannot be measured spends attention to buy something nobody can show. Sealing a leaf class is still reasonable design; it is no longer something this package warns about.</value>
-  </data>
   <data name="UPA0005Title" xml:space="preserve">
     <value>Direct UnityEngine.Debug logging call</value>
   </data>
@@ -293,15 +284,6 @@
   </data>
   <data name="UPA0021Description" xml:space="preserve">
     <value>The magnitude property and the Vector Distance methods compute a square root. When the result is only compared against a threshold, comparing sqrMagnitude against the squared threshold is equivalent and much faster. Comparisons with a magnitude or Distance expression on both sides are not reported — rewriting those brings no gain. Square a plain numeric literal threshold directly; any other threshold must be squared by hand, e.g. multiplied by itself.</value>
-  </data>
-  <data name="UPA0022Title" xml:space="preserve">
-    <value>Enum.HasFlag in per-frame method</value>
-  </data>
-  <data name="UPA0022MessageFormat" xml:space="preserve">
-    <value>This rule is deprecated: 'HasFlag' does not box and is not slower than a bitwise check on any supported Unity runtime.</value>
-  </data>
-  <data name="UPA0022Description" xml:space="preserve">
-    <value>Deprecated and off by default. This rule reported Enum.HasFlag on the grounds that it boxes its operands. It does not: Mono has replaced the same-type call with a bitwise AND since 4.0 and IL2CPP since Unity 2021.2, measured at no allocation on every supported configuration, and on IL2CPP the call runs faster than the rewrite this rule used to suggest. The argument box IL emits goes with the call for a plain load - a constant, local, parameter, field or property - and survives only when a conditional is written inline at the call site, which UPA0006 reports.</value>
   </data>
   <data name="UPA0023Title" xml:space="preserve">
     <value>OnGUI declared in player code</value>
