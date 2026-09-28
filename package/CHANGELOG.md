@@ -32,6 +32,10 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Changed
 
+- **Analyzer options now have one Unity-effective configuration channel.**
+  Put `upa_*` values in `Assets/Rules.UnityPerformanceAnalyzers.additionalfile`; Unity and
+  `upa-cli --additionalfile` now consume the same file with the same built-in fallbacks.
+  Diagnostic severity remains a ruleset concern.
 - **Severity presets collapse to agent-oriented profiles.** `unity.ruleset` is the non-fatal
   Editor profile, `ci.ruleset` is the strict upa-cli gate, and `webgl.ruleset` is the
   platform overlay. The old minimal/recommended/strict/cysharp/editor-relaxed/vs-coexist
@@ -60,16 +64,12 @@ Read **Changed** and **Fixed** before upgrading.
 - **UPA2012 also reports** `async void` local functions, async lambdas and anonymous methods
   passed where the delegate returns void — `button.onClick.AddListener(async () => …)` — with a
   message naming the delegate type and UniTask-aware advice, and discarded task-returning calls
-  made through `?.`. Teams on the `cysharp-stack` preset should expect new warnings on async UI
-  listeners.
+  made through `?.`. CI-profile users should expect new findings on async UI listeners.
 - **Performance rules report inside `Reset()` again.** Unity calls its own `Reset` only in the
   editor, but `Reset()` is also the usual name of a pooling method that runs every frame, and
   the two cannot be told apart. `OnValidate` and `OnDrawGizmos*` are still exempt.
 - **`upa-cli --format github`** no longer shows literal `%3A`/`%2C` in messages, and names files
   relative to `GITHUB_WORKSPACE`, so annotations land when the tool runs from a subdirectory.
-- The `strict` and `cysharp-stack` rulesets now state in their header that Error entries fail
-  Unity's compile — which, for an agent driving the Editor through the Unity CLI, means Safe Mode
-  and no `unity command` — and how to gate in CI instead.
 
 ### Fixed
 
@@ -77,10 +77,6 @@ Read **Changed** and **Fixed** before upgrading.
   documented. The check looked for `MenuItemAttribute` and `DidReloadScriptsAttribute`; Unity
   names both without the suffix, so it never matched. Attributes are now matched as resolved
   types, so a project's own attribute of the same name does not silence anything.
-- **`.editorconfig` sections for `upa_hot_path_*`, `upa_addrange_hot_path_only` and
-  `upa_enum_switch_allow_default` apply to the files they match.** They were read from whichever
-  file the compiler listed first, so a section applied everywhere or nowhere. The options file
-  still wins over `.editorconfig`.
 
 ### Performance
 
@@ -103,10 +99,9 @@ Read **Changed** and **Fixed** before upgrading.
 - **The Traditional Chinese diagnostic messages** (`zh-Hant/UnityPerformanceAnalyzers.resources.dll`).
   The Unity Console and `upa-cli` were always English; only an IDE ever showed the
   translation. The Traditional Chinese documentation stays.
-- **The `.editorconfig` preset variants** in the Ruleset Presets sample. Unity never read
-  them. Use the `.ruleset` of the same name — `upa-cli --ruleset` reads it too. The analyzer
-  still honours `upa_*` options and severities from an `.editorconfig` that a toolchain passes
-  (`upa-cli --editorconfig`, `dotnet build`); only the shipped files are gone.
+- **The `.editorconfig` preset variants and `upa-cli --editorconfig`.** Analyzer behavior
+  options now come only from `Rules.UnityPerformanceAnalyzers.additionalfile`; use
+  `--additionalfile` in `upa-cli`. Diagnostic severity remains in `.ruleset` files.
 - **`rider-coexist.ruleset`.** It silenced rules because Rider's IDE inspections covered them,
   and those inspections never gate a build. `vs-coexist` and `unitask-coexist` remain.
 - **The Rule Manager's "Also sync values to .editorconfig" toggle.** The options file it
@@ -114,10 +109,10 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Upgrading
 
-- If you copied `rider-coexist.ruleset` in as `Assets/Default.ruleset`, replace it with
-  `recommended.ruleset`, which it included.
-- If your project `.editorconfig` came from a preset variant it keeps working wherever it
-  worked before; nothing in Unity ever read it.
+- If you copied an old coexist/persona ruleset in as `Assets/Default.ruleset`, replace it with
+  `unity.ruleset`; use `ci.ruleset` only for the external CI gate.
+- Move any `upa_*` analyzer behavior settings from `.editorconfig` into
+  `Assets/Rules.UnityPerformanceAnalyzers.additionalfile`. Use a ruleset for diagnostic severity.
 
 ## [0.9.0] - 2026-08-11
 

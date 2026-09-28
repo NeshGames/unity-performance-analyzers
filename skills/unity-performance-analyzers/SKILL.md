@@ -25,6 +25,9 @@ final authority.
   Analyzer Error diagnostics fail Unity's compile; an Editor started on a project that does not
   compile can enter Safe Mode, where `unity command` cannot connect. Use `ci.ruleset` only with
   `upa-cli` for the stricter gate.
+- **Use one analyzer-option channel.** Put `upa_*` behavior settings in
+  `Assets/Rules.UnityPerformanceAnalyzers.additionalfile`; pass that same file to `upa-cli`
+  with `--additionalfile`. Severity belongs in a ruleset, not in the options file.
 - **Match versions.** A `upa-cli` from a different release knows a different rule set. Use the
   release whose tag matches the package version in `Packages/manifest.json`
   (`…unity-performance-analyzers.git?path=/package#vX.Y.Z`).
