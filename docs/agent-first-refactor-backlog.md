@@ -33,6 +33,7 @@
 | AF-00B | DONE | AI-first README | root README 改為 agent repository index；移除 root zh-TW README、README generator / drift machinery。PR #4 |
 | AF-01 | DONE | Remove Rule Manager / Editor UI | 移除 `package/Editor/`、generated rules.json、Rule Manager probe/screenshot 與 release/CI catalog 維護。PR #5 / merge `b67c53269bac5f964c2fdccd13f060c38768426b` |
 | AF-02 | DONE | Preset model simplification | 收斂為 `unity.ruleset` / `ci.ruleset` / `webgl.ruleset`；移除舊 persona presets，UniTask coexist overlay 暫留至 AF-04。PR #6 / merge `59905ea78c05ff7bf75e08dd1fca2a2c221f4b4f` |
+| AF-03 | DONE | Analyzer option channel simplification | Analyzer options 僅保留 `Rules.UnityPerformanceAnalyzers.additionalfile` + built-in defaults；移除 `upa-cli --editorconfig` 與 per-file option fallback。PR #7 / merge `dd4a3129e2caaadb847af6906e2e9ce199609f23` |
 
 ---
 
@@ -172,7 +173,7 @@ Rule Manager 曾處理的事情要改成 agent/documented workflow：
 
 ## AF-03 — Simplify analyzer options to one Unity-effective channel
 
-**Status:** TODO  
+**Status:** DONE  
 **Priority:** P0  
 **Risk:** Medium  
 **Depends on:** AF-01
