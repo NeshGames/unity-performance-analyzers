@@ -44,7 +44,7 @@ namespace UnityPerformanceAnalyzers.Tests
         {
             var liveIds = new HashSet<string>(
                 ConcreteAnalyzers()
-                    .SelectMany(type => ((DiagnosticAnalyzer)Activator.CreateInstance(type)).SupportedDiagnostics)
+                    .SelectMany(type => ((DiagnosticAnalyzer)Activator.CreateInstance(type)!).SupportedDiagnostics)
                     .Select(descriptor => descriptor.Id),
                 StringComparer.Ordinal);
 
