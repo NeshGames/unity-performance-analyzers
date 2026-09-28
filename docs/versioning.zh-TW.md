@@ -67,8 +67,8 @@ baseline 條目——全部以編號指稱規則,而它們全都住在**你的**
 **沒有任何規則的自身預設高於 Warning。** 46 條規則中,42 條預設 Warning、4 條 Info。
 本套件不會自己決定你的建置該失敗。
 
-error 只來自**你選的** preset——`minimal`、`recommended`、`strict`、`cysharp-stack`。
-那是規則能到達 error 等級的唯一通道,而且它是你專案裡一個看得到、改得動的檔案。
+Unity 日常 profile 刻意不含 Error。需要 Error gate 時使用 `ci.ruleset`,並只交給
+`upa-cli`,避免 analyzer policy 讓 Editor 進入 Safe Mode。
 
 生態規則(`UPA2000`+)與平台規則(`UPA3000`+)出廠即關閉。
 當被編譯的組件引用了對應套件、或你定義了 `UPA_TARGET_WEBGL` 時,它們才會啟用——
@@ -110,8 +110,7 @@ upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --write-baseline upa-baseline.
 - **CLI 引數名與退出碼**——`0` 乾淨、`1` 有達門檻的診斷、`2` 用法或執行錯誤
 - **`--format json` 的文件形狀**,由它自己的 `schemaVersion` 欄位標版
 - **baseline 檔案格式**,同樣在檔案內標版
-- **preset 檔名**——`minimal`、`recommended`、`strict`、`cysharp-stack`、
-  `webgl-addon`、`editor-relaxed`
+- **profile 檔名**——`unity`、`ci`、`webgl`
 
 ### Roslyn 4.3.1 與 Unity 6 下限
 

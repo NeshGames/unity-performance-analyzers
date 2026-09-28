@@ -156,7 +156,7 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 | **UPA2000** | 逐幀方法內的字串組建(知道 ZString) | ○ | **保留。** 沒有套件原生的對應 |
 | **UPA2010** | `async Task` 方法(已引用 UniTask) | ○ | **保留。** 設計上就是有主張的 |
 | **UPA2011** | MonoBehaviour 上的協程 `IEnumerator`(已引用 UniTask) | ○ | **保留。** 設計上就是有主張的 |
-| **UPA2012** | `async void` / 被丟棄的 task 呼叫 | ● **`UniTask.Analyzer`** 隨 UniTask 出貨,偵測未 await 的 `UniTask` 回傳呼叫。另有 ◐ **CS4014**、◐ UNT0012 | **全套規則裡最明確的真重複。** 引用 UniTask 就已經有它的 analyzer,同一個問題會得到兩份診斷。**UniTask 存在時建議 `UPA2012 = none`。** 見下方 `unitask-coexist.ruleset` |
+| **UPA2012** | `async void` / 被丟棄的 task 呼叫 | ● **`UniTask.Analyzer`** 隨 UniTask 出貨,偵測未 await 的 `UniTask` 回傳呼叫。另有 ◐ **CS4014**、◐ UNT0012 | **全套規則裡最明確的真重複。** 引用 UniTask 就已經有它的 analyzer,同一個問題會得到兩份診斷。**discarded UniTask 建議讓 `UniTask.Analyzer` 負責。** AF-04 把這個判斷移入 UPA2012 前，先由 `unitask-coexist.ruleset` 過渡 |
 | **UPA2021** | 以公開 `Action` 事件表達可觀察狀態(已引用 R3) | ○ | **保留。** 架構性的,不是機械性的 |
 | **UPA2030** | 逐幀方法內建立 tween(DOTween) | ○ | **保留** |
 | **UPA2031** | 丟棄無限 tween 而未 `SetLink` | ○ | **保留——旗艦規則。** 這是生命週期 bug,不是風格偏好,而且 DOTween 沒有出貨 analyzer |
@@ -231,7 +231,7 @@ Rider 與 Microsoft.Unity.Analyzers 都與平台無關。
 所以做法是:把 coexistence 檔**與它的基礎 preset**一起複製到 `Assets/`,
 再把 coexistence 檔改名為 `Default.ruleset`。要換基礎,只需改一行 `Include`。
 
-### `vs-coexist.ruleset` —— include `recommended`
+### `vs-coexist.ruleset` —— 已移除
 
 不再把任何規則設為 `None`。原本把 UPA0003 讓渡給 UNT0041;在三個真實 Unity 遊戲上實測後,
 那個交換換到的是 1 則誤報、付出的是全部 3 則真陽性——因為 UNT0041 只看得到 `Animator`,
@@ -241,11 +241,11 @@ Roslyn 的嚴重度無法只針對 Animator 多載,因此沒有「部分讓位�
 
 刻意很小。Microsoft.Unity.Analyzers 主要是正確性規則與抑制器,真正的效能重疊只有一條。
 
-### `unitask-coexist.ruleset` —— include `cysharp-stack`
+### `unitask-coexist.ruleset` —— include `ci`
 
 設為 `None`:**UPA2012**(讓渡給 `UniTask.Analyzer`)。
 
-這一個 include 的是 `cysharp-stack` 而不是 `recommended`,因為那是唯一會把 UPA2012 打開的 preset
+這一個 include 的是 `ci`,因為那是唯一會把 UPA2012 打開的 preset
 ——在其他任何基礎上,這個檔案都只是在靜音一件本來就靜著的事。
 
 ---

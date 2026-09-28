@@ -166,7 +166,7 @@ reference the package *and* enable the rule.
 | **UPA2000** | String building in per-frame (ZString-aware) | ○ | **Keep.** No package-native equivalent |
 | **UPA2010** | `async Task` methods (UniTask referenced) | ○ | **Keep.** Opinionated by design |
 | **UPA2011** | Coroutine `IEnumerator` on MonoBehaviours (UniTask referenced) | ○ | **Keep.** Opinionated by design |
-| **UPA2012** | `async void` / discarded task calls | ● **`UniTask.Analyzer`** ships with UniTask and detects unawaited `UniTask`-returning calls. Also ◐ **CS4014** (unawaited `Task`) and ◐ UNT0012 (unused coroutine return value) | **The clearest genuine duplicate in the whole set.** If you reference UniTask you already have its analyzer, so you get two diagnostics for one problem. **Recommend `UPA2012 = none` when UniTask is present.** Specified as `unitask-coexist.ruleset` below |
+| **UPA2012** | `async void` / discarded task calls | ● **`UniTask.Analyzer`** ships with UniTask and detects unawaited `UniTask`-returning calls. Also ◐ **CS4014** (unawaited `Task`) and ◐ UNT0012 (unused coroutine return value) | **The clearest genuine duplicate in the whole set.** If you reference UniTask you already have its analyzer, so you get two diagnostics for one problem. **Recommend deferring discarded UniTask calls to `UniTask.Analyzer`.** The temporary `unitask-coexist.ruleset` does that until AF-04 moves the decision into UPA2012 itself |
 | **UPA2021** | Public `Action` events modelling observable state (R3 referenced) | ○ | **Keep.** Architectural, not mechanical |
 | **UPA2030** | Tweens created in per-frame (DOTween) | ○ | **Keep** |
 | **UPA2031** | Discarded infinite tweens without `SetLink` | ○ | **Keep — flagship.** This is a lifetime bug, not a style preference, and DOTween ships no analyzer |
@@ -241,7 +241,7 @@ So you copy the coexistence file **and** its base preset into `Assets/`, and ren
 coexistence file to `Default.ruleset`. To defer from a different base, change one `Include`
 line.
 
-### `vs-coexist.ruleset` — includes `recommended`
+### `vs-coexist.ruleset` — removed
 
 Sets nothing to `None`. It used to defer UPA0003 to UNT0041; measurement on three real Unity
 games showed that trade buys one false positive and gives up every true one, because UNT0041
@@ -252,11 +252,11 @@ The file is kept so paths published in earlier releases keep resolving.
 Small on purpose. Microsoft.Unity.Analyzers is mostly correctness and suppressors; the actual
 performance overlap is one rule.
 
-### `unitask-coexist.ruleset` — includes `cysharp-stack`
+### `unitask-coexist.ruleset` — includes `ci`
 
 Sets to `None`: **UPA2012** (defers to `UniTask.Analyzer`).
 
-This one includes `cysharp-stack` rather than `recommended`, because that is the only preset
+This one includes `ci`, because that is the only preset
 that turns UPA2012 on — over any other base the file would silence something already silent.
 
 ---
