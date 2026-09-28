@@ -15,7 +15,7 @@ namespace UnityPerformanceAnalyzers.Cli
         public const int ExitError = ExitCode.Error;
 
         /// <summary>
-        /// Exit code for a run with no baseline written. Kept here because it is what the
+        /// Exit code for a run with no baseline updated. Kept here because it is what the
         /// tests reach for; the reasoning lives in <see cref="ExitCode"/> with the two cases
         /// this signature cannot express.
         /// </summary>
