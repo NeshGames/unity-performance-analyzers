@@ -96,12 +96,9 @@ context(profile、hot-path 分類、型別查詢)並交給你的 `InitializeCore
 **4. 雙語文件頁** —— `docs/rules/UPA####.md` 與 `docs/rules/UPA####.zh-TW.md`。
 有測試斷言:兩份都存在、與 descriptor 對嚴重度與預設狀態的說法一致,而且互相連結。
 
-**5. README 表格** —— 由程式產生,不要手改。那一句摘要curated 在
-`src/UnityPerformanceAnalyzers.RuleManifest/`;沒有對應條目的規則會讓建置失敗,而不是渲染出一格空白。
-
-**6. presets** —— 同樣由程式產生,來源是 `src/UnityPerformanceAnalyzers.RuleManifest/PresetTable.cs`。
-第 5、6 步,以及 Rule Manager 讀的 `package/Editor/rules.json`,都由同一道指令重新產生——
-也正是 CI 用來檢查有沒有過期的那一道:
+**5. presets 與 catalog** —— presets 由
+`src/UnityPerformanceAnalyzers.RuleManifest/PresetTable.cs` 產生,Rule Manager 則讀取
+產生出的 `package/Editor/rules.json`。兩者都用 CI 相同的指令重新產生:
 
 ```bash
 dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release -- --all .
@@ -110,7 +107,8 @@ dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release -- --
 每條規則都必須被某個 preset 評級,或被列為刻意不評。
 **新規則會在出貨後的下一個版本才進 preset**,這樣沒有人的建置會因為一條他還沒讀過的規則而失敗。
 
-然後 `dotnet build -c Release && dotnet test`。你漏掉六步中的哪一步,meta 測試會告訴你。
+根目錄 README 是給 agent 使用的 repository 索引,不是規則清單,也不是 generated artifact。
+最後執行 `dotnet build -c Release && dotnet test`;meta 測試負責守住上述契約。
 
 ---
 

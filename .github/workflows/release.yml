@@ -392,44 +392,6 @@ jobs:
           dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build
           -- package/Editor/rules.json
 
-      # Install instructions must always point at the tag being cut; a moving tag or
-      # #main would break UPM's revision locking, so the URL is versioned and synced here.
-      - name: Point README install URLs at this release
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          NUGET: ${{ steps.version.outputs.nuget }}
-        run: |
-          set -euo pipefail
-          sed -i -E "s|(\?path=/package#v)[0-9]+\.[0-9]+\.[0-9]+|\1$VERSION|g" README.md README.zh-TW.md
-          # The CLI install command is pinned for the same reason as the UPM URL: an
-          # unpinned command resolves the newest tool, which can know rules the package
-          # this page pins does not, so the command line and the Editor would disagree.
-          sed -i -E "s|(NeshGames\.UnityPerformanceAnalyzers\.Cli --version )[0-9]+\.[0-9]+\.[0-9]+|\1$VERSION|g" README.md README.zh-TW.md
-
-          # The pages and the push have to agree in both directions. Telling people to
-          # install from NuGet on a release that publishes nothing is the failure this
-          # already produced once - the pages went out with the command months before any
-          # package existed under that id. The reverse is just as bad and quieter: pushing
-          # a package that no page mentions.
-          for file in README.md README.zh-TW.md; do
-            grep -q "path=/package#v$VERSION" "$file"
-
-            if [ "$NUGET" = yes ]; then
-              # The command as well as the id and version: the other direction forbids the
-              # literal "dotnet tool install", so requiring less than that here would let
-              # the page mention a package without ever saying how to get it.
-              grep -q "dotnet tool install .*NeshGames.UnityPerformanceAnalyzers.Cli --version $VERSION" "$file" || {
-                echo "::error::$file does not tell anyone how to install the CLI, and this release publishes it."; exit 1; }
-              if grep -nE "NeshGames\.UnityPerformanceAnalyzers\.Cli( --global)?$" "$file"; then
-                echo "::error::$file has an unpinned tool install command"; exit 1
-              fi
-            else
-              if grep -n "dotnet tool install" "$file"; then
-                echo "::error::$file tells people to install the CLI from NuGet, and this release publishes nothing there. Nothing has been pushed."; exit 1
-              fi
-            fi
-          done
-
       # Packed before the tag so a packaging failure costs a re-run rather than stranding
       # a permanent tag. Publishing still happens after, since a NuGet version should not
       # exist without the tag it names.
@@ -448,7 +410,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package/package.json package/Editor/rules.json README.md README.zh-TW.md
+          git add package/package.json package/Editor/rules.json
           # The promotion above is only real if it travels in the tag: the shipped file is
           # what a consumer reads to find out which version a rule arrived in.
           git add src/UnityPerformanceAnalyzers/AnalyzerReleases.Shipped.md
@@ -765,7 +727,7 @@ jobs:
             "  upa-cli-$VERSION-win-x64.zip")
 
           # NuGet is named only where the push actually happened. An install command for a
-          # package that was not pushed is the same defect the README once had.
+          # package that was not pushed is the same class of publication defect.
           if [ "$NUGET" = yes ]; then
             notes=$(printf '%s\n' "$notes" "" \
               "Or install it as a dotnet tool:" \
