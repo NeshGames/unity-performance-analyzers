@@ -34,6 +34,7 @@
 | AF-01 | DONE | Remove Rule Manager / Editor UI | 移除 `package/Editor/`、generated rules.json、Rule Manager probe/screenshot 與 release/CI catalog 維護。PR #5 / merge `b67c53269bac5f964c2fdccd13f060c38768426b` |
 | AF-02 | DONE | Preset model simplification | 收斂為 `unity.ruleset` / `ci.ruleset` / `webgl.ruleset`；移除舊 persona presets，UniTask coexist overlay 暫留至 AF-04。PR #6 / merge `59905ea78c05ff7bf75e08dd1fca2a2c221f4b4f` |
 | AF-03 | DONE | Analyzer option channel simplification | Analyzer options 僅保留 `Rules.UnityPerformanceAnalyzers.additionalfile` + built-in defaults；移除 `upa-cli --editorconfig` 與 per-file option fallback。PR #7 / merge `dd4a3129e2caaadb847af6906e2e9ce199609f23` |
+| AF-04 | CANCELLED | UPA2012 self-coexistence proposal | 查證 UniTask.Analyzer v2.5.11 / current master 僅檢查 CancellationToken，並不接管 discarded UniTask。PR #8 改為移除錯誤的 `unitask-coexist` suppression，UPA2012 繼續負責 discarded Task / UniTask；merge `8b374919c051fd057eb01bebcef95bb6e338b2d0` |
 
 ---
 
@@ -223,39 +224,34 @@ Rules.UnityPerformanceAnalyzers.additionalfile
 
 ## AF-04 — Make UPA2012 coexist with UniTask in code
 
-**Status:** TODO  
+**Status:** CANCELLED  
 **Priority:** P0  
 **Risk:** Medium  
-**Depends on:** AF-02
+**Depends on:** AF-02  
+**PR:** #8  
+**Merge:** `8b374919c051fd057eb01bebcef95bb6e338b2d0`
 
-### 問題
+### 取消原因
 
-目前透過 `unitask-coexist.ruleset` 避免 UPA2012 與 `UniTask.Analyzer` 的重複 diagnostic。
+原本假設 `UniTask.Analyzer` 會診斷 discarded / unawaited `UniTask`，因此規劃讓 UPA2012 在 UniTask profile 下退讓。
+實作前查證 UniTask v2.5.11（2026-05-19）與當時 current master 後確認：官方 analyzer 只有
+`UNITASK001`（CancellationToken 使用），**沒有** discarded-result diagnostic。
 
-### 目標
+若照原計畫讓 UPA2012 退讓，反而會製造 correctness false negative。
 
-coexistence policy 進 analyzer code，不再要求 agent 選對 overlay。
+### 實際處理
 
-建議行為：
+- UPA2012 繼續負責 discarded `Task` / `Task<T>` / `UniTask` / `UniTask<T>`。
+- 保留 async void / async void lambda correctness coverage。
+- 新增有 UniTask package 時 discarded `UniTask<T>` 仍必須報告的 regression test。
+- 移除 `unitask-coexist.ruleset`，避免它把真實 UPA2012 finding 靜音。
+- 移除 `CoexistEmitter`、`PresetTable.Coexist(s)` 與 coexistence-specific tests。
+- 保留 overlap documentation contract tests。
 
-```text
-async void / async void lambda       → UPA2012
-discarded Task / Task<T>             → UPA2012
-discarded UniTask / UniTask<T>       → UniTask.Analyzer（UPA2012 不報）
-```
+### 結論
 
-### 要做
-
-- 在 profile 有 UniTask 時，UPA2012 不接管 UniTask-returning discarded call。
-- 保留 async void 類 correctness 檢查。
-- 移除 unitask coexist preset/docs/tests。
-- 加有/無 UniTask reference 的 differential tests。
-
-### Definition of Done
-
-- 有 UniTask 時同一個 discarded UniTask 不出現雙診斷。
-- Task 與 async void coverage 不下降。
-- coexistence 不再需要 ruleset。
+AF-04 的「把 discarded UniTask ownership 交給 UniTask.Analyzer」方案被證據推翻，因此任務狀態為
+`CANCELLED`；但為此假設建立的 transitional coexistence surface 已在 PR #8 完成清理。
 
 ---
 
