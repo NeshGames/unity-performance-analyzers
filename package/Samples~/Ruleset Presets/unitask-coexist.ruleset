@@ -12,8 +12,7 @@
      Temporary compatibility overlay. AF-04 moves this ownership decision into
      UPA2012 and deletes this file.
      GENERATED FILE - do not edit. The rule list lives in PresetTable.cs;
-     regenerate via the RuleManifest presets mode.
- -->
+     regenerate via the RuleManifest presets mode. -->
 <RuleSet Name="UPA unitask-coexist" ToolsVersion="10.0">
   <Include Path="ci.ruleset" Action="Default" />
   <Rules AnalyzerId="UnityPerformanceAnalyzers" RuleNamespace="UnityPerformanceAnalyzers">
