@@ -23,8 +23,8 @@ dotnet build UnityPerformanceAnalyzers.sln -c Release
 dotnet test UnityPerformanceAnalyzers.sln -c Release --no-build
 
 dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- --all .
-git status --short -- package/Editor/rules.json \
-  "package/Samples~/Ruleset Presets" sandbox/UnityProject/Assets/Default.ruleset
+git status --short -- "package/Samples~/Ruleset Presets" \
+  sandbox/UnityProject/Assets/Default.ruleset
 
 bash .github/smoke/analyzer-load.sh
 ```

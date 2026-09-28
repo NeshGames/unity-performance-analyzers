@@ -88,6 +88,10 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Removed
 
+- **The Unity Rule Manager and the entire `package/Editor/` configuration UI layer.** Agents now
+  edit rulesets and `Rules.UnityPerformanceAnalyzers.additionalfile` directly; WebGL activation
+  is the explicit `UPA_TARGET_WEBGL` define plus the WebGL ruleset. The generated
+  `package/Editor/rules.json` catalog and the sandbox Rule Manager probe are gone with it.
 - **The code fixes**, and the `UnityPerformanceAnalyzers.CodeFixes.dll` assembly that carried
   them (UPA0003, UPA0009, UPA0019, UPA0021, UPA0026, UPA0029, UPA2000, UPA2012, UPA2031).
   Unity loaded the assembly on every compile and never used it. Each rule page still says
