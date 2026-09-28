@@ -130,52 +130,6 @@ public sealed class Quiet : MonoBehaviour
             Assert.Empty(ParseJson(stdout).GetProperty("diagnostics").EnumerateArray());
         }
 
-        // Case 4
-        [Fact]
-        public void ByDefault_CompilationWideRulesAreExcluded()
-        {
-            var file = Write("Leaf.cs", "public class Leaf { }");
-
-            var (_, stdout, _) = Run(file, "--all-warn", "--format", "json");
-            var root = ParseJson(stdout);
-
-            Assert.Contains(
-                "UPA1000",
-                root.GetProperty("excludedRules").EnumerateArray().Select(e => e.GetString()));
-            Assert.DoesNotContain(
-                "UPA1000",
-                root.GetProperty("diagnostics").EnumerateArray().Select(d => d.GetProperty("id").GetString()));
-        }
-
-        // Case 5
-        [Fact]
-        public void WholeAssembly_EnablesCompilationWideRules()
-        {
-            var file = Write("Leaf.cs", "public class Leaf { }");
-
-            var (_, stdout, _) = Run(file, "--whole-assembly", "--all-warn", "--format", "json");
-            var root = ParseJson(stdout);
-
-            Assert.Empty(root.GetProperty("excludedRules").EnumerateArray());
-            Assert.Contains(
-                "UPA1000",
-                root.GetProperty("diagnostics").EnumerateArray().Select(d => d.GetProperty("id").GetString()));
-        }
-
-        // Case 5b — the exclusion is not a file-count heuristic
-        [Fact]
-        public void MultipleFilesWithoutTheFlag_StillExcludeCompilationWideRules()
-        {
-            var first = Write("Leaf.cs", "public class Leaf { }");
-            var second = Write("Other.cs", "public class Other { }");
-
-            var (_, stdout, _) = Run(first, second, "--all-warn", "--format", "json");
-
-            Assert.Contains(
-                "UPA1000",
-                ParseJson(stdout).GetProperty("excludedRules").EnumerateArray().Select(e => e.GetString()));
-        }
-
         // Cases 6 and 7 — the same source, with and without the fake reference
         [Theory]
         [InlineData(true)]
@@ -449,8 +403,7 @@ public class Worker
             var rules = root.GetProperty("rules").EnumerateArray().ToArray();
             Assert.NotEmpty(rules);
 
-            var upa1000 = rules.Single(r => r.GetProperty("id").GetString() == "UPA1000");
-            Assert.True(upa1000.GetProperty("compilationWide").GetBoolean());
+            Assert.DoesNotContain(rules, r => r.GetProperty("compilationWide").GetBoolean());
 
             var upa2030 = rules.Single(r => r.GetProperty("id").GetString() == "UPA2030");
             Assert.Equal("DOTween", upa2030.GetProperty("condition").GetString());
