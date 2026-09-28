@@ -193,7 +193,7 @@ class Bullet : MonoBehaviour
         /// <summary>
         /// The editor callback attributes, spelled the way Unity spells them. MenuItem and
         /// DidReloadScripts carry no Attribute suffix, and a check written against the suffixed
-        /// spelling never matched either. UPA0021 because it is not hot-path scoped and has no
+        /// spelling never matched either. UPA0010 because it is not hot-path scoped and has no
         /// exemption of its own for these, so nothing but this filter can silence it here.
         /// </summary>
         [Theory]
@@ -204,22 +204,17 @@ class Bullet : MonoBehaviour
         [InlineData("[DidReloadScripts(1)]")]
         public Task PerFrameCostRule_InEditorCallback_DoesNotTrigger(string attribute)
         {
-            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+            return RuleVerifier.VerifyAsync<UPA0010UnboundedRaycastAnalyzer>(@"
 using UnityEditor;
 using UnityEditor.Callbacks;
 using UnityEngine;
 
 static class Tools
 {
-    static Vector3 a;
-    static Vector3 b;
-
     " + attribute + @"
     static void Measure()
     {
-        if (Vector3.Distance(a, b) > 2f)
-        {
-        }
+        Physics.Raycast(Vector3.zero, Vector3.forward);
     }
 }");
         }
@@ -231,19 +226,14 @@ static class Tools
         [Fact]
         public Task PerFrameCostRule_InStaticMethodWithoutEditorAttribute_StillTriggers()
         {
-            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+            return RuleVerifier.VerifyAsync<UPA0010UnboundedRaycastAnalyzer>(@"
 using UnityEngine;
 
 static class Tools
 {
-    static Vector3 a;
-    static Vector3 b;
-
     static void Measure()
     {
-        if ({|UPA0021:Vector3.Distance(a, b) > 2f|})
-        {
-        }
+        {|UPA0010:Physics.Raycast(Vector3.zero, Vector3.forward)|};
     }
 }");
         }
@@ -259,7 +249,7 @@ static class Tools
         [InlineData("DidReloadScripts")]
         public Task PerFrameCostRule_UnderAProjectsOwnLookalikeAttribute_StillTriggers(string className)
         {
-            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+            return RuleVerifier.VerifyAsync<UPA0010UnboundedRaycastAnalyzer>(@"
 using UnityEngine;
 
 namespace Game.Tooling
@@ -293,23 +283,18 @@ namespace Game.Tooling
         [Fact]
         public Task PerFrameCostRule_InPartialMethodAttributedOnItsOtherPart_DoesNotTrigger()
         {
-            return RuleVerifier.VerifyAsync<UPA0021MagnitudeComparisonAnalyzer>(@"
+            return RuleVerifier.VerifyAsync<UPA0010UnboundedRaycastAnalyzer>(@"
 using UnityEditor;
 using UnityEngine;
 
 static partial class Tools
 {
-    static Vector3 a;
-    static Vector3 b;
-
     [MenuItem(""Tools/Measure"")]
     static partial void Measure();
 
     static partial void Measure()
     {
-        if (Vector3.Distance(a, b) > 2f)
-        {
-        }
+        Physics.Raycast(Vector3.zero, Vector3.forward);
     }
 }");
         }
