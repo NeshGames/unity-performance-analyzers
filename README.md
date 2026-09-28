@@ -9,11 +9,12 @@ preset contents, or performance claims.**
 For an agent modifying this repository:
 
 1. Read [AGENTS.md](AGENTS.md). It is the canonical maintenance contract.
-2. If you are Claude Code, also read [CLAUDE.md](CLAUDE.md).
-3. Read the relevant rule page under [docs/rules/](docs/rules/) before changing a diagnostic.
-4. Read [package/CHANGELOG.md](package/CHANGELOG.md) under `[Unreleased]` before changing
+2. Continue planned maintenance from [docs/agent-first-refactor-backlog.md](docs/agent-first-refactor-backlog.md).
+3. If you are Claude Code, also read [CLAUDE.md](CLAUDE.md).
+4. Read the relevant rule page under [docs/rules/](docs/rules/) before changing a diagnostic.
+5. Read [package/CHANGELOG.md](package/CHANGELOG.md) under `[Unreleased]` before changing
    user-visible behaviour.
-5. For a Unity game that consumes this package instead of modifying it, follow
+6. For a Unity game that consumes this package instead of modifying it, follow
    [skills/unity-performance-analyzers/SKILL.md](skills/unity-performance-analyzers/SKILL.md).
 
 ## Mission
@@ -140,6 +141,7 @@ Unless the maintainer explicitly changes direction, do not reintroduce:
 
 ## Useful focused references
 
+- Remaining refactor work: [docs/agent-first-refactor-backlog.md](docs/agent-first-refactor-backlog.md)
 - Rule overlap and external tools: [docs/overlap.md](docs/overlap.md)
 - Version/rule governance: [docs/versioning.md](docs/versioning.md)
 - Unity compiler-load checks: [.github/smoke/README.md](.github/smoke/README.md)
