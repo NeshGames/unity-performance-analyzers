@@ -68,35 +68,28 @@ namespace UnityPerformanceAnalyzers.Tests
         }
 
         /// <summary>
-        /// "Two rules are retired today." Both language pages name them, and a third
-        /// retirement that forgot to update the page would leave the count wrong.
+        /// Retired IDs are permanent historical identifiers, not live diagnostics. The policy
+        /// names every retired ID and no live analyzer may reuse one.
         /// </summary>
         [Fact]
-        public void RetiredRulesNamedByThePolicyAreTheDeprecatedOnes()
+        public void RetiredRuleIds_AreNamedByPolicyAndAbsentFromLiveCatalog()
         {
             var root = TestRepository.Root;
-            var deprecated = Rules
-                .Where(rule => FirstLine(Path.Combine(root, "docs", "rules", rule.Id + ".md"))
-                    .Contains("(deprecated)", StringComparison.OrdinalIgnoreCase))
-                .Select(rule => rule.Id)
-                .OrderBy(id => id, StringComparer.Ordinal)
-                .ToArray();
+            var live = Rules.Select(rule => rule.Id).ToHashSet(StringComparer.Ordinal);
+
+            foreach (var id in RetiredRuleIds.All)
+            {
+                Assert.DoesNotContain(id, live);
+                Assert.False(File.Exists(Path.Combine(root, "docs", "rules", id + ".md")));
+            }
 
             foreach (var page in new[] { "versioning.md", "versioning.zh-TW.md" })
             {
                 var text = File.ReadAllText(Path.Combine(root, "docs", page));
-                foreach (var id in deprecated)
+                foreach (var id in RetiredRuleIds.All)
                 {
                     Assert.True(text.Contains(id, StringComparison.Ordinal), $"{page} does not name {id}");
                 }
-
-                var named = Rules
-                    .Select(rule => rule.Id)
-                    .Where(id => text.Contains("rules/" + id + ".", StringComparison.Ordinal))
-                    .OrderBy(id => id, StringComparer.Ordinal)
-                    .ToArray();
-
-                Assert.Equal(deprecated, named);
             }
         }
 
@@ -121,6 +114,5 @@ namespace UnityPerformanceAnalyzers.Tests
 
         private static int Number(UpaRule rule) => int.Parse(rule.Id.Substring(3));
 
-        private static string FirstLine(string path) => File.ReadLines(path).FirstOrDefault() ?? string.Empty;
     }
 }
