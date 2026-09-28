@@ -83,15 +83,14 @@ namespace UnityPerformanceAnalyzers
         }
 
         /// <summary>
-        /// Asked last, once the loop is already a finding, and of the file the loop is in: an
-        /// .editorconfig section applies to the files it globs, and reading the option once
-        /// from the compilation's first syntax tree gave every file that one's setting.
+        /// Asked last, once the loop is already a finding. The option is compilation-wide
+        /// because Unity and upa-cli share the universal additional file.
         /// </summary>
         private static bool IsExcludedAsColdPath(
             IOperation loop,
             UpaCompilationContext ctx,
             System.Threading.CancellationToken cancellationToken)
-            => ctx.GetBool(HotPathOnlyOptionKey, loop.Syntax.SyntaxTree, fallback: false)
+            => ctx.GetBool(HotPathOnlyOptionKey, fallback: false)
                 && ctx.HotPath.IsOutsideHotPath(loop, cancellationToken);
 
         private static void AnalyzeForEach(

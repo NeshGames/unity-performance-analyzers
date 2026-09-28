@@ -85,10 +85,9 @@ namespace UnityPerformanceAnalyzers
                     return;
             }
 
-            // Layered through UpaOptions (options file > .editorconfig > default), and read for
-            // the file the switch is in: an .editorconfig section applies to the files it globs.
+            // Resolved through UpaOptions (universal options file > built-in default).
             if (hasDefault &&
-                ctx.GetBool(AllowDefaultOptionKey, context.Operation.Syntax.SyntaxTree, fallback: true))
+                ctx.GetBool(AllowDefaultOptionKey, fallback: true))
             {
                 return;
             }

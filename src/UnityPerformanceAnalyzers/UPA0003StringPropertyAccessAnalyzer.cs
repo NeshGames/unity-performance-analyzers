@@ -108,9 +108,9 @@ namespace UnityPerformanceAnalyzers
             }
 
             // Read here, after every cheap test, rather than for every invocation in the
-            // compilation - and at the call site, not once for the compilation: an
-            // .editorconfig section applies to the files it globs.
-            if (ctx.GetBool(HotPathOnlyOptionKey, invocation.Syntax.SyntaxTree, fallback: false))
+            // compilation. The option is compilation-wide because the universal additional
+            // file is the one channel Unity and upa-cli both consume.
+            if (ctx.GetBool(HotPathOnlyOptionKey, fallback: false))
             {
                 var semanticModel = invocation.SemanticModel;
                 if (semanticModel is null ||

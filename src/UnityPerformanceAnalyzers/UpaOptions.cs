@@ -9,14 +9,11 @@ using Microsoft.CodeAnalysis.Text;
 namespace UnityPerformanceAnalyzers
 {
     /// <summary>
-    /// Layered lookup for every analyzer option: the universal options file wins over
-    /// .editorconfig, which wins over the built-in default, decided per key. Unity passes
-    /// additional files to the compiler but never .editorconfig, so the options file is what
-    /// makes configuration effective in Unity builds; .editorconfig remains the fallback for
-    /// toolchains that pass one (upa-cli --editorconfig, dotnet build). Parsing never throws
-    /// or reports: malformed lines and unknown keys are skipped, an invalid value counts as
-    /// unset for its key and falls through to the next layer, and a duplicated key keeps its
-    /// last value.
+    /// Lookup for every analyzer option. The universal options file is the only configuration
+    /// channel; missing or invalid values use the built-in default. This matches Unity
+    /// compilation and upa-cli exactly instead of giving external Roslyn hosts a second,
+    /// file-scoped behavior that Unity never sees. Parsing never throws or reports: malformed
+    /// lines and unknown keys are skipped, and a duplicated key keeps its last value.
     /// </summary>
     internal sealed class UpaOptions
     {
@@ -100,43 +97,22 @@ namespace UnityPerformanceAnalyzers
             return builder.Count == 0 ? s_empty : new UpaOptions(builder.ToImmutable());
         }
 
-        public bool GetBool(string key, SyntaxTree? tree, AnalyzerConfigOptionsProvider provider, bool fallback)
+        public bool GetBool(string key, bool fallback)
         {
-            if (_values.TryGetValue(key, out var raw) && bool.TryParse(raw, out var parsed))
-            {
-                return parsed;
-            }
-
-            if (tree is object &&
-                provider.GetOptions(tree).TryGetValue(key, out var configRaw) &&
-                bool.TryParse(configRaw.Trim(), out var configParsed))
-            {
-                return configParsed;
-            }
-
-            return fallback;
+            return _values.TryGetValue(key, out var raw) && bool.TryParse(raw, out var parsed)
+                ? parsed
+                : fallback;
         }
 
         /// <summary>
         /// Comma-separated list value. A value that parses to zero items (only commas or
-        /// whitespace) is invalid and falls through, so an empty list can never mask a
-        /// configured lower layer.
+        /// whitespace) is invalid and uses the built-in fallback.
         /// </summary>
-        public ImmutableArray<string> GetList(string key, SyntaxTree? tree, AnalyzerConfigOptionsProvider provider, ImmutableArray<string> fallback)
+        public ImmutableArray<string> GetList(string key, ImmutableArray<string> fallback)
         {
-            if (_values.TryGetValue(key, out var raw) && TryParseList(raw, out var parsed))
-            {
-                return parsed;
-            }
-
-            if (tree is object &&
-                provider.GetOptions(tree).TryGetValue(key, out var configRaw) &&
-                TryParseList(configRaw, out var configParsed))
-            {
-                return configParsed;
-            }
-
-            return fallback;
+            return _values.TryGetValue(key, out var raw) && TryParseList(raw, out var parsed)
+                ? parsed
+                : fallback;
         }
 
         private static bool TryParseList(string raw, out ImmutableArray<string> list)
