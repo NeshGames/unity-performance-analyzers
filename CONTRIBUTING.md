@@ -103,9 +103,9 @@ never a hand-written span.
 A test asserts both exist, that they agree with the descriptor about severity and default
 state, and that they link to each other.
 
-**5. The presets and catalog** — presets are generated from
-`src/UnityPerformanceAnalyzers.RuleManifest/PresetTable.cs`, and the Rule Manager reads the
-generated `package/Editor/rules.json`. Regenerate both with the same command CI uses:
+**5. The presets** — generated from
+`src/UnityPerformanceAnalyzers.RuleManifest/PresetTable.cs`. Regenerate them with the same
+command CI uses:
 
 ```bash
 dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release -- --all .

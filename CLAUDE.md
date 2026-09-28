@@ -11,7 +11,7 @@ that *uses* this package lives in `skills/unity-performance-analyzers/SKILL.md`,
 dotnet build UnityPerformanceAnalyzers.sln -c Release      # 0 warnings: warnings are errors
 dotnet test  UnityPerformanceAnalyzers.sln -c Release --no-build
 
-# Regenerate presets, README rule tables and package/Editor/rules.json; CI fails on any drift
+# Regenerate ruleset presets and the sandbox verification ruleset; CI fails on drift
 dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- --all .
 
 # Load the built analyzer into the Unity 6 compiler range we support (Roslyn 4.3.1 / 4.10)
@@ -40,12 +40,10 @@ its scripts are for a maintainer with editors installed.
   array; **no instance fields and no cache keyed by `Compilation`** (Roslyn reuses analyzer
   instances across compilations; a stale cache looks exactly like a correct answer). Caches keyed
   by an immutable `SourceText` are fine. File IO only through `AdditionalFiles`.
-- **Every rule has:** a row in `AnalyzerReleases.Unshipped.md`, messages in
-  `Resources/Strings.resx`, both doc pages, a README blurb in the RuleManifest, and a preset grade
+- **Every rule has:** release tracking, diagnostic strings, rule documentation, and a preset grade
   (or a listed deliberate absence). A new rule enters the presets one version after it ships.
-- **Generated files are never hand-edited:** `package/Samples~/Ruleset Presets/*.ruleset`,
-  `sandbox/UnityProject/Assets/Default.ruleset`, the `<!-- generated:... -->` README blocks, and
-  `package/Editor/rules.json` (it carries the version, so a version bump means regenerating).
+- **Generated files are never hand-edited:** `package/Samples~/Ruleset Presets/*.ruleset` and
+  `sandbox/UnityProject/Assets/Default.ruleset`.
 - XML comments in generated rulesets must not contain `--` — csc rejects the whole file (CS8035).
 
 ## Decisions that are not up to an agent

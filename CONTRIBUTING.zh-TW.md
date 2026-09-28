@@ -96,9 +96,9 @@ context(profile、hot-path 分類、型別查詢)並交給你的 `InitializeCore
 **4. 雙語文件頁** —— `docs/rules/UPA####.md` 與 `docs/rules/UPA####.zh-TW.md`。
 有測試斷言:兩份都存在、與 descriptor 對嚴重度與預設狀態的說法一致,而且互相連結。
 
-**5. presets 與 catalog** —— presets 由
-`src/UnityPerformanceAnalyzers.RuleManifest/PresetTable.cs` 產生,Rule Manager 則讀取
-產生出的 `package/Editor/rules.json`。兩者都用 CI 相同的指令重新產生:
+**5. presets** —— 由
+`src/UnityPerformanceAnalyzers.RuleManifest/PresetTable.cs` 產生,並使用與 CI 相同的
+指令重新產生:
 
 ```bash
 dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release -- --all .
