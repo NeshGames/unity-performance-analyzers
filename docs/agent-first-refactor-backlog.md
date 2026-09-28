@@ -35,6 +35,7 @@
 | AF-02 | DONE | Preset model simplification | 收斂為 `unity.ruleset` / `ci.ruleset` / `webgl.ruleset`；移除舊 persona presets，UniTask coexist overlay 暫留至 AF-04。PR #6 / merge `59905ea78c05ff7bf75e08dd1fca2a2c221f4b4f` |
 | AF-03 | DONE | Analyzer option channel simplification | Analyzer options 僅保留 `Rules.UnityPerformanceAnalyzers.additionalfile` + built-in defaults；移除 `upa-cli --editorconfig` 與 per-file option fallback。PR #7 / merge `dd4a3129e2caaadb847af6906e2e9ce199609f23` |
 | AF-04 | CANCELLED | UPA2012 self-coexistence proposal | 查證 UniTask.Analyzer v2.5.11 / current master 僅檢查 CancellationToken，並不接管 discarded UniTask。PR #8 改為移除錯誤的 `unitask-coexist` suppression，UPA2012 繼續負責 discarded Task / UniTask；merge `8b374919c051fd057eb01bebcef95bb6e338b2d0` |
+| AF-05A | DONE | Remove fully retired rules | 完整移除 UPA0022 / UPA1000 live analyzer、tests、resources、preset rows 與 live docs；新增 RetiredRuleIds 防止 ID reuse，保留 retired evidence，並更新 migration/versioning contract。PR #9 / merge `a34d41386646c8c5778cbeaea0b595d1cb21c479` |
 
 ---
 
@@ -265,7 +266,20 @@ AF-04 的「把 discarded UniTask ownership 交給 UniTask.Analyzer」方案被�
 
 ### AF-05A — Directly remove already-retired rules
 
-建議直接刪：
+**Status:** DONE  
+**PR:** #9  
+**Merge:** `a34d41386646c8c5778cbeaea0b595d1cb21c479`  
+
+實際完成：
+
+- 移除 UPA0022 / UPA1000 analyzer implementations、tests、resources、preset rows 與 live rule docs。
+- 新增 `RetiredRuleIds`，永久保留 UPA0022 / UPA1000 / UPA2001，不允許未來 reuse。
+- 將量測依據移到 `docs/evidence/retired/`。
+- migration/versioning 文件改成「retired ID 永久保留，但 live analyzer 可以移除」的實際契約。
+- CLI / metadata / migration / versioning contract tests 全部更新。
+- PR CI：build、tests、analyzer load smoke、CLI pack、generated drift 全綠。
+
+原建議直接刪：
 
 - **UPA0022** — HasFlag premise 已被 Unity 6 IL2CPP measurement 推翻。
 - **UPA1000** — sealed leaf gain 小於 measurement noise。
