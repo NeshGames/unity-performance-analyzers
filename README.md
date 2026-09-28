@@ -42,6 +42,7 @@ Current platform contract:
 | Rule docs and safe rewrite conditions | `docs/rules/<ID>.md` |
 | Rule release history | `src/UnityPerformanceAnalyzers/AnalyzerReleases.*.md` |
 | Preset severities | `src/UnityPerformanceAnalyzers.RuleManifest/PresetTable.cs` |
+| Rule policy (Core / Optional / House / Platform / Retired) | `src/UnityPerformanceAnalyzers.RuleManifest/RulePolicyTable.cs` |
 | Analyzer options | `src/UnityPerformanceAnalyzers/UpaOptionCatalog.cs` |
 | Consumer-agent workflow | `skills/unity-performance-analyzers/SKILL.md` |
 | Unity/IL2CPP evidence | `sandbox/UnityProject/Measurements/` |

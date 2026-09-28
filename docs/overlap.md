@@ -121,9 +121,7 @@ rule list is not a description of what ships today.
 | **UPA0006** | Reference-type allocation / boxing in per-frame | ○ | ○ | ● PAC boxing/object allocation diagnostics | ○ | **Keep.** Project Auditor covers this well but only in a batch Editor run. This is the per-PR version |
 | **UPA0007** | Capturing lambdas in per-frame | ○ | ○ | ◐ | ○ | **Keep.** ReSharper's Heap Allocations Viewer is a separate opt-in plugin, not part of Unity support |
 | **UPA0008** | `stackalloc` inside a loop | ○ | ○ | ○ | ○ | **Keep.** No equivalent anywhere |
-| **UPA0009** | `List<T>.Count` not hoisted *(off)* | ○ | ○ | ○ | ○ | Keep as-is (off by default) |
 | **UPA0010** | Raycasts without explicit `maxDistance` / `layerMask` | ◐ *Avoid using allocating versions of Physics Raycast functions* — different concern (allocation) | ◐ UNT0028 *Use non-allocating physics APIs* — different concern | ? PAC | ○ | **Keep.** Nothing else checks the argument shape; note in the rule doc that UNT0028 covers the adjacent allocation issue |
-| **UPA0011** | `SetActive` to toggle UI visibility *(off)* | ○ | ○ | ○ | ○ | Keep as-is |
 | **UPA0012** | TMP `text` assignment instead of `SetText` *(off)* | ○ | ○ | ○ | ○ | Keep as-is |
 | **UPA0013** | `System.Linq` in per-frame *(off)* | ○ | ○ | ◐ | ○ | Keep as-is. UnityEngineAnalyzer has no LINQ rule - `UEA0009` is InvokeFunctionMissing, and this page said otherwise until its rule list was actually read (2026-08-10) |
 | **UPA0014** | Scene-search APIs in per-frame | ● *Avoid usage of Find methods in performance critical context* — same API set, plus quick-fixes | ○ | ? PAC | ○ | **Keep.** Rider is stronger as information, but its inspection never gates a build; this rule is the CI gate |
@@ -133,8 +131,6 @@ rule list is not a description of what ships today.
 | **UPA0018** | Allocating array-returning Unity APIs | ○ | ◐ UNT0042 (`Mesh` array property in loop) — one API, loop-scoped | ● PAC API database | ○ | **Keep.** UNT0042 is a single case of this; add a cross-reference in the rule doc |
 | **UPA0019** | Value types yielded from coroutines | ○ | ○ | ○ | ○ | **Keep — flagship.** Nothing else catches this, and the failure (Unity treats the boxed value as `null`) is a correctness bug, not just an allocation |
 | **UPA0020** | Lambdas in `WaitUntil` / `WaitWhile` *(off)* | ○ | ◐ UNT0038 *Cache `WaitForSeconds`* — sibling concern, different API | ○ | ○ | Keep as-is. Cross-reference UNT0038 in the rule doc |
-| **UPA0021** | `magnitude` / `Distance` where `sqrMagnitude` suffices | ○ | ◐ UNT0024 *Prefer scalar over vector calculations* | ○ | ○ | **Keep.** UNT0024 is a different rewrite |
-| **UPA0022** | `Enum.HasFlag` *(deprecated)* | — | — | — | — | Deprecated; excluded from all coexistence rulesets |
 | **UPA0023** | `OnGUI` in player code *(Info, off)* | ◐ *base.OnGUI() will print "no GUI implemented"* — different issue | ○ | ○ | ○ | Keep as-is |
 | **UPA0024** | `Resources.Load` in per-frame *(off)* | ○ | ○ | ? PAC | ○ | Keep as-is |
 | **UPA0025** | Finalizers in runtime code | ○ | ○ | ○ | ◐ General C# analyzers (CA1821 covers *empty* finalizers only) | **Keep.** CA1821 is a narrower case |
@@ -147,16 +143,15 @@ rule list is not a description of what ships today.
 
 ---
 
-## Correctness rules (UPA1000–UPA1001)
+## Correctness rules (UPA1001)
 
 | UPA | Reports | Rider | UNT | Other | Recommendation |
 |---|---|---|---|---|---|
-| **UPA1000** | Leaf classes not sealed *(deprecated)* | — | — | UnityEngineAnalyzer had `UnsealedDerivedClass` | Deprecated after measurement; excluded from coexistence rulesets |
 | **UPA1001** | Enum switches missing declared members | ○ | ○ | ● **IDE0010** / **IDE0072** (*Add missing cases*) ship with Roslyn | **Real overlap, and it is not with a Unity tool.** If IDE0010/IDE0072 are graded in your project, set `UPA1001 = none`. Differences: ours honours `upa_enum_switch_allow_default`, and unlike IDE0010 it reports through Unity's compiler, not only in the IDE |
 
 ---
 
-## Ecosystem rules (UPA2000–UPA2032)
+## Ecosystem rules (UPA2000–UPA2031)
 
 All off by default and package-conditional, so overlap only materialises once you both
 reference the package *and* enable the rule.
@@ -170,7 +165,6 @@ reference the package *and* enable the rule.
 | **UPA2021** | Public `Action` events modelling observable state (R3 referenced) | ○ | **Keep.** Architectural, not mechanical |
 | **UPA2030** | Tweens created in per-frame (DOTween) | ○ | **Keep** |
 | **UPA2031** | Discarded infinite tweens without `SetLink` | ○ | **Keep — flagship.** This is a lifetime bug, not a style preference, and DOTween ships no analyzer |
-| **UPA2032** | String tween IDs *(Info)* | ○ | **Keep** |
 
 ---
 

@@ -62,7 +62,6 @@ namespace UnityPerformanceAnalyzers.Tests
                 ("UPA2021ActionEventAnalyzer", "R3"),
                 ("UPA2030TweenCreationAnalyzer", "DOTween"),
                 ("UPA2031DiscardedInfiniteTweenAnalyzer", "DOTween"),
-                ("UPA2032StringTweenIdAnalyzer", "DOTween"),
                 ("UPA3000WebGlUnsupportedApiAnalyzer", "WebGL"),
                 ("UPA3004BlockingWaitAnalyzer", "WebGL"),
             };

@@ -84,15 +84,6 @@
   <data name="UPA0010Description" xml:space="preserve">
     <value>Physics.Raycast overloads that omit maxDistance query to infinity, and overloads that omit layerMask test every layer, including triggers and layers that were never meant to be hit. Both defaults make the query cost scale with the whole scene and are a common source of hard-to-debug false hits. Pass an explicit distance and mask; when hitting all layers really is intended, say so explicitly with ~0.</value>
   </data>
-  <data name="UPA0011Title" xml:space="preserve">
-    <value>SetActive used to toggle UI visibility</value>
-  </data>
-  <data name="UPA0011MessageFormat" xml:space="preserve">
-    <value>Toggling '{0}' through SetActive deactivates the whole GameObject and forces canvas rebuild work when it is reactivated. Toggle the component's enabled property or drive a CanvasGroup's alpha instead.</value>
-  </data>
-  <data name="UPA0011Description" xml:space="preserve">
-    <value>Calling SetActive(false) on a UI element's GameObject deactivates the entire object; reactivating it runs OnEnable and forces the canvas to rebuild the element's geometry. For plain visibility toggling of a single UI graphic, disabling the component (enabled = false) or driving a CanvasGroup's alpha achieves the same visual result at a much lower reactivation cost. Only receivers statically typed as UI components are reported; toggling whole panels via SetActive is often intentional and is not.</value>
-  </data>
   <data name="UPA0012Title" xml:space="preserve">
     <value>TextMeshPro text assignment instead of SetText</value>
   </data>
@@ -320,15 +311,6 @@
   </data>
   <data name="UPA2031Description" xml:space="preserve">
     <value>DOTween's auto-kill fires when a tween completes, and a tween with SetLoops(-1) never completes. When such a tween is neither stored nor linked, no code path can kill it: it keeps running after its target is destroyed, which wastes work and surfaces as errors or leaks. Store the tween in a field and kill it in OnDestroy, or bind its lifetime with SetLink(gameObject). Chains whose result is assigned, passed on, or carrying a SetLink are not reported. This rule runs only in assemblies that reference DOTween.</value>
-  </data>
-  <data name="UPA2032Title" xml:space="preserve">
-    <value>String tween ID</value>
-  </data>
-  <data name="UPA2032MessageFormat" xml:space="preserve">
-    <value>String tween IDs are the slowest of the fast filter options. Prefer an int ID, or filter by the target reference.</value>
-  </data>
-  <data name="UPA2032Description" xml:space="preserve">
-    <value>DOTween's filtered operations (DOTween.Kill, Play, Pause, ...) are fastest when filtering by an ID, and DOTween's documentation notes that int IDs are faster than string IDs. This rule reports string arguments to SetId and to the static filtered operations. Info severity: the cost only matters when filtered operations run often. This rule runs only in assemblies that reference DOTween.</value>
   </data>
   <data name="UPA3000Title" xml:space="preserve">
     <value>Threading API unsupported on WebGL</value>
