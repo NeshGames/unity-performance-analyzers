@@ -15,7 +15,6 @@
     <Rule Id="UPA0007" Action="Warning" />
     <Rule Id="UPA0008" Action="Warning" />
     <Rule Id="UPA0010" Action="Warning" />
-    <Rule Id="UPA0011" Action="None" />
     <Rule Id="UPA0012" Action="None" />
     <Rule Id="UPA0013" Action="None" />
     <Rule Id="UPA0014" Action="Warning" />
@@ -41,7 +40,6 @@
     <Rule Id="UPA2021" Action="None" />
     <Rule Id="UPA2030" Action="Warning" />
     <Rule Id="UPA2031" Action="Warning" />
-    <Rule Id="UPA2032" Action="None" />
   </Rules>
   <Rules AnalyzerId="Microsoft.Unity.Analyzers" RuleNamespace="Microsoft.Unity.Analyzers">
     <Rule Id="UNT0006" Action="Warning" />
