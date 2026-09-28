@@ -93,6 +93,11 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Removed
 
+- **UPA0022 and UPA1000 are fully retired.** Their dormant analyzer implementations, tests,
+  resources, preset rows and live rule pages are removed instead of shipping permanently disabled
+  code. The IDs remain reserved and their retirement measurements live under
+  `docs/evidence/retired/`.
+
 - **The Unity Rule Manager and the entire `package/Editor/` configuration UI layer.** Agents now
   edit rulesets and `Rules.UnityPerformanceAnalyzers.additionalfile` directly; WebGL activation
   is the explicit `UPA_TARGET_WEBGL` define plus the WebGL ruleset. The generated

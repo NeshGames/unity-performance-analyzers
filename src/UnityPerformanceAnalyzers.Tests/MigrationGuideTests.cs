@@ -34,14 +34,15 @@ namespace UnityPerformanceAnalyzers.Tests
         private static string Read(string page) => File.ReadAllText(Path.Combine(Root, "docs", page));
 
         /// <summary>
-        /// Every rule the guide points at is a rule this package still has. A retired or
-        /// renumbered rule leaves a migration instruction pointing at nothing, and the reader
-        /// is by definition someone who does not know the rule set well enough to notice.
+        /// Every UPA id the guide names is either live or permanently retired. Historical
+        /// migration notes may name retired IDs, but they must never point at an unknown or
+        /// recycled diagnostic.
         /// </summary>
         [Fact]
-        public void EveryRuleTheGuideNamesStillExists()
+        public void EveryRuleTheGuideNamesIsLiveOrRetired()
         {
             var known = UpaRuleCatalog.Rules().Select(rule => rule.Id).ToHashSet(StringComparer.Ordinal);
+            known.UnionWith(RetiredRuleIds.All);
 
             foreach (var page in Pages)
             {
@@ -52,7 +53,7 @@ namespace UnityPerformanceAnalyzers.Tests
 
                 Assert.NotEmpty(referenced);
                 var missing = referenced.Where(id => !known.Contains(id)).ToArray();
-                Assert.True(missing.Length == 0, page + " names rules that do not exist: " + string.Join(", ", missing));
+                Assert.True(missing.Length == 0, page + " names unknown rule IDs: " + string.Join(", ", missing));
             }
         }
 

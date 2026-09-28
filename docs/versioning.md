@@ -46,7 +46,8 @@ the cost of a pre-1.0 package, stated plainly rather than implied by the number.
 ## What a rule ID promises
 
 **A `UPA####` number is spent permanently the moment it appears on a tag.** It is never
-reused for a different rule, and it is never deleted.
+reused for a different rule. A retired analyzer implementation may be removed, but its ID stays
+reserved forever.
 
 That is not tidiness. Your ruleset entries, `.editorconfig` lines, `#pragma warning
 disable` comments and baseline entries all name rules by number, and they all live in your
@@ -55,19 +56,20 @@ at a rule you never read about.
 
 Retiring a rule therefore means:
 
-- its severity default becomes off,
-- it is marked deprecated in its title, in both languages,
-- its documentation page stays, and says what replaced it or why it went,
-- the number is never given to anything else.
+- the live analyzer and catalog entry may be removed once the retirement decision is final,
+- the ID is added to the permanent retired-ID registry and is never given to anything else,
+- evidence explaining a performance-rule retirement is preserved under `docs/evidence/retired/`,
+- old ruleset, pragma or baseline entries become inert; they never retarget to a new diagnostic.
 
-Two rules are retired today: [UPA0022](rules/UPA0022.md) and [UPA1000](rules/UPA1000.md).
-Both still resolve. A suppression you wrote for either keeps meaning what it meant.
+Three IDs are retired today: **UPA0022**, **UPA1000**, and **UPA2001**. UPA0022 and UPA1000
+have retained measurement evidence; UPA2001 was replaced by UPA0013 when the hot-path LINQ rule
+moved out of the ecosystem group. None of the retired IDs are live diagnostics.
 
 ---
 
 ## Severity policy
 
-**No rule's own default is above Warning.** Of 46 rules, 42 default to Warning and 4 to
+**No rule's own default is above Warning.** Of 44 rules, 40 default to Warning and 4 to
 Info. Nothing in this package decides on its own that your build should fail.
 
 The live Unity profile intentionally contains no Error entries. Error promotion belongs to
@@ -87,12 +89,12 @@ on when the assembly being compiled references the package in question, or when 
 | New rule, new ID | Minor | Nothing, unless a preset grades it as an error. New rules enter presets one version after they ship |
 | A rule reports **less** — a narrowed rule, a fixed false positive | Patch or minor | Nothing. Baseline entries for the dropped reports become stale and are reported as such |
 | A rule reports **more** — a widened rule | **Minor, never patch** | This is the change most likely to fail a build. The changelog names the rule and what it now catches |
-| A rule is retired | Minor | Nothing. It stops reporting; your suppressions stay valid |
+| A rule is retired | Minor | It stops reporting. Old suppressions, ruleset entries and baseline rows become inert and may be cleaned up |
 | A rule's own default severity changes | Minor | Nothing, unless you relied on the default rather than a preset |
 | Preset contents change | Minor | Re-copy the preset if you took it from the sample. Your edited copy is untouched |
 | CLI arguments, exit codes, JSON schema | Major from 1.0 | See the compatibility surfaces below |
 | Baseline file format | Major from 1.0 | Regenerate with `--write-baseline` |
-| A rule page moves | Never | Help links are part of the diagnostic |
+| A live rule page moves | Never | Help links are part of a live diagnostic |
 
 The row that matters is the third one. A rule that starts reporting more is indistinguishable
 from your code getting worse, and if a preset grades it as an error it fails the build.
@@ -150,9 +152,10 @@ The consequence is a governance rule, not an aspiration:
 > buys nothing, and it spends your attention every time it fires.
 
 So rules are re-measured, and the ones measurement refutes are retired or narrowed —
-including rules that have already shipped. Version 0.8.0 was that, and only that:
-`UPA0022` retired, `UPA1000` retired, `UPA0006`'s enum-argument report withdrawn, `UPA0026`
-narrowed to the one call it could still justify. Four rules got smaller and none got bigger.
+including rules that have already shipped. Version 0.8.0 first disabled UPA0022 and UPA1000;
+AF-05A later removed their dormant analyzer implementations and live rule pages while preserving
+their IDs and measurement evidence. UPA0006's enum-argument report was also withdrawn and UPA0026
+was narrowed to the one call it could still justify.
 
 If you find a rule whose advice does not hold on IL2CPP, that is the most useful bug report
 this project can receive.

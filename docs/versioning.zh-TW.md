@@ -44,7 +44,7 @@ CLI 也一樣:請 checkout 與你專案所用套件相同的 tag。從不同修�
 ## 規則編號承諾了什麼
 
 **一個 `UPA####` 只要出現在任何 tag 上,該編號就永久用掉了。**
-不會被別的規則重用,也不會被刪除。
+不會被別的規則重用。退役後 analyzer 實作可以移除,但該 ID 永久保留。
 
 這不是潔癖。你的 ruleset 條目、`.editorconfig` 設定、`#pragma warning disable` 註解、
 baseline 條目——全部以編號指稱規則,而它們全都住在**你的** repo 裡,不在這裡。
@@ -52,19 +52,20 @@ baseline 條目——全部以編號指稱規則,而它們全都住在**你的**
 
 因此「廢止一條規則」的意思是:
 
-- 預設嚴重度改為關閉,
-- 標題在兩種語言都標記為已廢止,
-- 文件頁保留,並寫明由什麼取代、或為什麼退場,
-- 編號永不再給任何東西用。
+- 退役決策確定後,live analyzer 與 catalog entry 可以移除,
+- ID 加入永久 retired-ID registry,永不再給其他規則使用,
+- 效能規則的退役量測證據保留在 `docs/evidence/retired/`,
+- 舊 ruleset、pragma、baseline 條目變成無作用的歷史設定,不會改指向新規則。
 
-目前有兩條已廢止:[UPA0022](rules/UPA0022.zh-TW.md) 與 [UPA1000](rules/UPA1000.zh-TW.md)。
-兩者都仍然解析得到——你為它們寫過的抑制,意思沒有變。
+目前有三個 retired ID:**UPA0022**、**UPA1000**、**UPA2001**。UPA0022 與 UPA1000
+保留量測證據;UPA2001 則是在 hot-path LINQ rule 從 ecosystem group 移到 UPA0013 時退役。
+這些 retired ID 都不再是 live diagnostic。
 
 ---
 
 ## 嚴重度政策
 
-**沒有任何規則的自身預設高於 Warning。** 46 條規則中,42 條預設 Warning、4 條 Info。
+**沒有任何規則的自身預設高於 Warning。** 44 條規則中,40 條預設 Warning、4 條 Info。
 本套件不會自己決定你的建置該失敗。
 
 Unity 日常 profile 刻意不含 Error。需要 Error gate 時使用 `ci.ruleset`,並只交給
@@ -83,12 +84,12 @@ Unity 日常 profile 刻意不含 Error。需要 Error gate 時使用 `ci.rulese
 | 新規則、新編號 | Minor | 不用做什麼,除非某個 preset 把它評為 error。新規則會在出貨的**下一個**版本才進 preset |
 | 規則**報得更少**——收窄、修掉誤報 | Patch 或 minor | 不用。對應的 baseline 條目會變成過期並被回報 |
 | 規則**報得更多**——放寬 | **Minor,絕不 patch** | 這是最可能讓建置失敗的改動。CHANGELOG 會指名該規則與它新抓到什麼 |
-| 規則廢止 | Minor | 不用。它停止回報,你的抑制仍然有效 |
+| 規則廢止 | Minor | 它停止回報;舊 suppress、ruleset 與 baseline 條目會變成無作用設定,可自行清理 |
 | 規則自身的預設嚴重度改變 | Minor | 不用,除非你依賴的是預設值而非 preset |
 | preset 內容改變 | Minor | 若你是從 sample 複製的,請重新複製。你改過的那份不會被動到 |
 | CLI 引數、退出碼、JSON schema | 1.0 起為 Major | 見下方相容面 |
 | baseline 檔案格式 | 1.0 起為 Major | 以 `--write-baseline` 重生 |
-| 規則頁搬家 | 永不 | help 連結是診斷的一部分 |
+| live 規則頁搬家 | 永不 | help 連結是 live diagnostic 的一部分 |
 
 真正要注意的是第三列。**一條規則開始報得更多,和你的程式碼變差長得一模一樣**,
 而若某個 preset 把它評為 error,建置就會失敗。它一律是 minor、一律在 CHANGELOG 具名,
@@ -140,9 +141,9 @@ Mono 的數字也不算:Mono 只作對照,**判準是 IL2CPP**。
 > 而且每次觸發都在花你的注意力。
 
 所以規則會被重新量測,被實測推翻的就退役或收窄——**包含已經出貨的規則**。
-0.8.0 整個版本就只做了這件事:`UPA0022` 退役、`UPA1000` 退役、
-`UPA0006` 撤回 enum 引數那條回報、`UPA0026` 收窄到唯一還站得住的那個呼叫。
-四條規則變小,沒有一條變大。
+0.8.0 先停用 UPA0022 與 UPA1000;AF-05A 再移除兩者 dormant analyzer 與 live rule page,
+但永久保留 ID 與量測證據。UPA0006 的 enum 引數回報也被撤回,UPA0026 則收窄到唯一
+還站得住的呼叫。
 
 如果你發現某條規則的建議在 IL2CPP 上並不成立,那是這個專案最想收到的 bug report。
 

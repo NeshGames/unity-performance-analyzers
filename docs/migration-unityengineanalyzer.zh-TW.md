@@ -24,7 +24,7 @@ commit**。該 repo **並未封存**。這就是不用猜也能說的全部:以�
 | `UEA0005` DoNotUseFindMethodsInUpdate | 逐幀的場景搜尋 | [UPA0014](rules/UPA0014.zh-TW.md) |
 | `UEA0006` DoNotUseCoroutines | 協程 | [UPA2011](rules/UPA2011.zh-TW.md),但**只在組件引用了 UniTask 時**——一條叫你別再寫協程的規則,在沒有替代品的專案裡沒有用處 |
 | `UEA0007` DoNotUseForEachInUpdate | 逐幀的 `foreach` | **沒有。** 當某個 `foreach` 真的會配置(在介面型別的集合上裝箱列舉器)時,[UPA0006](rules/UPA0006.zh-TW.md) 報的是**那次配置本身**,而不是這個迴圈 |
-| `UEA0008` UnsealedDerivedClass | 葉類別未 sealed | **曾經有,後來廢止。** UPA1000 出貨過、在 IL2CPP 上量測過,收益無法與雜訊區分。數字見 [UPA1000](rules/UPA1000.zh-TW.md) |
+| `UEA0008` UnsealedDerivedClass | 葉類別未 sealed | **曾經有,後來廢止。** UPA1000 出貨過、在 IL2CPP 上量測過,收益無法與雜訊區分。數字見 [UPA1000 退役證據](evidence/retired/UPA1000.md) |
 | `UEA0009` InvokeFunctionMissing | `Invoke("Name")` 指向不存在的方法 | **沒有。** [UPA0016](rules/UPA0016.zh-TW.md) 涵蓋的是 `SendMessage` 家族,不含 `Invoke` |
 | `UEA0010` DoNotUseStateNameInAnimator | 以字串指定 animator 狀態名 | [UPA0003](rules/UPA0003.zh-TW.md) |
 | `UEA0011` DoNotUseStringPropertyNames | 以字串指定 shader 屬性名 | [UPA0003](rules/UPA0003.zh-TW.md) |

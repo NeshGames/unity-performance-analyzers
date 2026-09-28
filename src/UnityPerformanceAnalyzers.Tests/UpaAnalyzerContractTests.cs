@@ -40,6 +40,26 @@ namespace UnityPerformanceAnalyzers.Tests
         // like a correct one. Per-compilation state belongs on UpaCompilationContext, which is
         // created inside the callback and passed by argument.
         [Fact]
+        public void RetiredRuleIds_AreNeverReused()
+        {
+            var liveIds = new HashSet<string>(
+                ConcreteAnalyzers()
+                    .SelectMany(type => ((DiagnosticAnalyzer)Activator.CreateInstance(type)!).SupportedDiagnostics)
+                    .Select(descriptor => descriptor.Id),
+                StringComparer.Ordinal);
+
+            var reused = RetiredRuleIds.All
+                .Where(liveIds.Contains)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.Equal(
+                RetiredRuleIds.All.Length,
+                RetiredRuleIds.All.Distinct(StringComparer.Ordinal).Count());
+            Assert.Empty(reused);
+        }
+
+        [Fact]
         public void NoAnalyzer_KeepsInstanceState()
         {
             var fields = new List<string>();
