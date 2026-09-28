@@ -96,8 +96,10 @@ upa-cli @upa-args.rsp --ruleset Assets/Default.ruleset --format json --only-from
 - If the finding is on code that genuinely runs once (lazy init, a rare state change), suppress it
   locally with the reason on the same line, as above.
 - For an existing project with many findings, freeze them rather than fixing everything at once:
-  `upa-cli @upa-args.rsp --write-baseline upa-baseline.json`, commit the file, and
-  pass `--baseline upa-baseline.json` from then on. Only new violations report.
+  `upa-cli @upa-args.rsp --update-baseline upa-baseline.json`, review and commit the JSON diff,
+  then pass `--baseline upa-baseline.json` from then on. Only violations beyond the recorded
+  occurrence counts report. Re-run `--update-baseline` when you intentionally refresh the debt
+  contract; there is no separate prune/stale workflow.
 
 ## 5. Reading Unity's own output
 

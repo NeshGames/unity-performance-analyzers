@@ -89,13 +89,13 @@ on when the assembly being compiled references the package in question, or when 
 | Change | Version | What you may have to do |
 |---|---|---|
 | New rule, new ID | Minor | Nothing, unless a preset grades it as an error. New rules enter presets one version after they ship |
-| A rule reports **less** — a narrowed rule, a fixed false positive | Patch or minor | Nothing. Baseline entries for the dropped reports become stale and are reported as such |
+| A rule reports **less** — a narrowed rule, a fixed false positive | Patch or minor | Nothing. Refresh with `--update-baseline` when you want the committed baseline to drop obsolete rows |
 | A rule reports **more** — a widened rule | **Minor, never patch** | This is the change most likely to fail a build. The changelog names the rule and what it now catches |
-| A rule is retired | Minor | It stops reporting. Old suppressions, ruleset entries and baseline rows become inert and may be cleaned up |
+| A rule is retired | Minor | It stops reporting. Old suppressions, ruleset entries and baseline rows become inert; refresh the baseline when you want them removed |
 | A rule's own default severity changes | Minor | Nothing, unless you relied on the default rather than a preset |
 | Preset contents change | Minor | Re-copy the preset if you took it from the sample. Your edited copy is untouched |
 | CLI arguments, exit codes, JSON schema | Major from 1.0 | See the compatibility surfaces below |
-| Baseline file format | Major from 1.0 | Regenerate with `--write-baseline` |
+| Baseline file format | Major from 1.0 | Regenerate with `--update-baseline` |
 | A live rule page moves | Never | Help links are part of a live diagnostic |
 
 The row that matters is the third one. A rule that starts reporting more is indistinguishable
@@ -104,7 +104,7 @@ It is always a minor, it is always in the changelog by name, and a baseline is t
 adopt it without stopping to fix everything first:
 
 ```bash
-upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --write-baseline upa-baseline.json
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --update-baseline upa-baseline.json
 ```
 
 ---

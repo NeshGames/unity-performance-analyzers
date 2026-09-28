@@ -52,23 +52,6 @@ internal sealed record AnalysisResult(
     /// <summary>How many diagnostics a baseline suppressed.</summary>
     public long BaselineSuppressedCount { get; init; }
 
-    /// <summary>
-    /// Baseline quota this run did not use, or null when the analysis was too incomplete to
-    /// tell. Zero means checked and none stale; null means this run cannot say.
-    /// </summary>
-    public long? BaselineStaleCount { get; init; }
-
-    /// <summary>
-    /// Which entries the run did not use up. Empty whenever <see cref="BaselineStaleCount"/>
-    /// is null: an incomplete run has no business naming entries to delete.
-    /// </summary>
-    public ImmutableArray<StaleEntry> BaselineStale { get; init; } = ImmutableArray<StaleEntry>.Empty;
-
-    /// <summary>
-    /// Whether the run is complete enough for its numbers to be trusted. Unresolved types keep
-    /// rules from firing, which reads as debt that has been paid off.
-    /// </summary>
-    public bool IsComplete => AnalyzerFailures.IsEmpty && CompileErrorCount == 0;
 }
 
 /// <summary>Runs the analyzers over a built compilation and normalizes what they report.</summary>

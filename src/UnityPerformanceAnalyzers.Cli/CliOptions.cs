@@ -46,19 +46,10 @@ internal sealed class CliOptions
     public HashSet<string>? OnlyFiles { get; private set; }
 
     public string? BaselinePath { get; private set; }
-    public string? WriteBaselinePath { get; private set; }
-
-    /// <summary>Rewrite the baseline with unused quota removed, then exit.</summary>
-    public bool PruneBaseline { get; private set; }
-
-    /// <summary>List the unused entries rather than only counting them.</summary>
-    public bool ReportStaleBaseline { get; private set; }
-
-    /// <summary>Exit 1 when the baseline holds quota this run did not use.</summary>
-    public bool FailOnStale { get; private set; }
+    public string? UpdateBaselinePath { get; private set; }
 
     /// <summary>True when either baseline path was given, so keys have to be computed.</summary>
-    public bool UsesBaseline => BaselinePath is object || WriteBaselinePath is object;
+    public bool UsesBaseline => BaselinePath is object || UpdateBaselinePath is object;
 
     /// <summary>
     /// The directory a baseline key is relative to. The contract defines its own root: anchoring
@@ -66,7 +57,7 @@ internal sealed class CliOptions
     /// command was run, and a baseline is meant to travel between machines.
     /// </summary>
     public string BaselineDirectory =>
-        (BaselinePath ?? WriteBaselinePath) is { } path
+        (BaselinePath ?? UpdateBaselinePath) is { } path
             ? global::UnityPerformanceAnalyzers.Cli.BaselinePath.DirectoryOf(path)
             : Directory.GetCurrentDirectory();
     public string FailOn { get; private set; } = "warning";
@@ -141,15 +132,6 @@ internal sealed class CliOptions
                     if (TakeValue() is not { } projectDirectory) return (null, error);
                     options.ProjectDirectory = projectDirectory;
                     break;
-                case "--prune-baseline":
-                    options.PruneBaseline = true;
-                    break;
-                case "--report-stale-baseline":
-                    options.ReportStaleBaseline = true;
-                    break;
-                case "--fail-on-stale":
-                    options.FailOnStale = true;
-                    break;
                 case "--all-warn":
                     options.AllWarn = true;
                     break;
@@ -191,9 +173,9 @@ internal sealed class CliOptions
                     if (TakeValue() is not { } baseline) return (null, error);
                     options.BaselinePath = baseline;
                     break;
-                case "--write-baseline":
-                    if (TakeValue() is not { } writeBaseline) return (null, error);
-                    options.WriteBaselinePath = writeBaseline;
+                case "--update-baseline":
+                    if (TakeValue() is not { } updateBaseline) return (null, error);
+                    options.UpdateBaselinePath = updateBaseline;
                     break;
                 case "--unity-dll-dir":
                     if (TakeValue() is not { } unityDllDir) return (null, error);
@@ -273,57 +255,21 @@ internal sealed class CliOptions
             return (null, error);
         }
 
-        // Each of the three needs a baseline to act on, and each fails in a different
-        // direction without one: pruning would have nothing to rewrite, the report nothing to
-        // list, and the gate would pass every run for want of anything to check.
-        foreach (var (given, flag) in new[]
-                 {
-                     (options.PruneBaseline, "--prune-baseline"),
-                     (options.ReportStaleBaseline, "--report-stale-baseline"),
-                     (options.FailOnStale, "--fail-on-stale"),
-                 })
+        if (options.BaselinePath is object && options.UpdateBaselinePath is object)
         {
-            if (given && options.BaselinePath is null)
-            {
-                error = $"{flag} needs --baseline <path>: it acts on an existing baseline.";
-                return (null, error);
-            }
-        }
-
-        if (options.PruneBaseline && options.WriteBaselinePath is object)
-        {
-            error = "--prune-baseline and --write-baseline cannot be given together: one "
-                + "removes quota the run did not use, the other replaces the contract with "
-                + "everything this run found.";
-            return (null, error);
-        }
-
-        if (options.BaselinePath is object && options.WriteBaselinePath is object)
-        {
-            error = "--baseline and --write-baseline cannot be given together: one reads the "
+            error = "--baseline and --update-baseline cannot be given together: one reads the "
                 + "contract, the other replaces it.";
             return (null, error);
         }
 
-        // Each of these judges the baseline against everything the run saw. A narrowed
-        // report would freeze, prune or call stale the quota of every file it left out.
-        if (options.Only.Count > 0)
+        // Updating defines the whole contract, so narrowing its report would replace a
+        // repository-wide baseline with only the named files. Reading a baseline may still
+        // be narrowed: every input remains compiled and only reporting is filtered.
+        if (options.Only.Count > 0 && options.UpdateBaselinePath is object)
         {
-            foreach (var (given, flag) in new[]
-                     {
-                         (options.WriteBaselinePath is object, "--write-baseline"),
-                         (options.PruneBaseline, "--prune-baseline"),
-                         (options.ReportStaleBaseline, "--report-stale-baseline"),
-                         (options.FailOnStale, "--fail-on-stale"),
-                     })
-            {
-                if (given)
-                {
-                    error = $"--only/--only-from cannot be combined with {flag}: that needs the "
-                        + "findings of every analyzed file, and --only reports some of them.";
-                    return (null, error);
-                }
-            }
+            error = "--only/--only-from cannot be combined with --update-baseline: updating "
+                + "the contract needs the findings of every analyzed file.";
+            return (null, error);
         }
 
         // Patterns are expanded here rather than left to the shell, which would make the

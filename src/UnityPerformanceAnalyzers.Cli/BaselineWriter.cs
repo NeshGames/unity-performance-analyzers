@@ -8,12 +8,12 @@ internal static class BaselineWriter
     /// under-reported analysis writes "this was never really checked" into the contract, and
     /// the debt it missed surfaces later as new violations.
     /// </summary>
-    public static void EnsureRunIsWritable(CliOptions options, AnalysisResult result)
+    public static void EnsureRunIsUpdatable(CliOptions options, AnalysisResult result)
     {
         if (!options.WholeAssembly)
         {
             throw new CliException(
-                "--write-baseline requires --whole-assembly: without it symbol resolution is "
+                "--update-baseline requires --whole-assembly: without it symbol resolution is "
                 + "incomplete by design, so rules go quiet rather than firing and the recorded "
                 + "debt would be short.");
         }
@@ -21,44 +21,14 @@ internal static class BaselineWriter
         if (!result.AnalyzerFailures.IsEmpty)
         {
             throw new CliException(
-                $"Refusing to write a baseline: {result.AnalyzerFailures.Length} analyzer(s) "
+                $"Refusing to update the baseline: {result.AnalyzerFailures.Length} analyzer(s) "
                 + "failed to run, so this result is short of what a working run would report.");
         }
 
         if (result.CompileErrorCount > 0)
         {
             throw new CliException(
-                $"Refusing to write a baseline: {result.CompileErrorCount} compile error(s) "
-                + "leave types unresolved, so rules that key off them did not fire.");
-        }
-    }
-
-    /// <summary>
-    /// The same three refusals for pruning, worded for it. An under-reported run reads as debt
-    /// that has been paid off, and pruning acts on exactly that reading — it is the operation
-    /// an incomplete analysis damages most, because the damage is deletion.
-    /// </summary>
-    public static void EnsureRunIsPrunable(CliOptions options, AnalysisResult result)
-    {
-        if (!options.WholeAssembly)
-        {
-            throw new CliException(
-                "--prune-baseline requires --whole-assembly: without it symbol resolution is "
-                + "incomplete by design, so rules go quiet rather than firing and their entries "
-                + "would look like debt that has been paid off.");
-        }
-
-        if (!result.AnalyzerFailures.IsEmpty)
-        {
-            throw new CliException(
-                $"Refusing to prune the baseline: {result.AnalyzerFailures.Length} analyzer(s) "
-                + "failed to run, so entries they would have matched look unused.");
-        }
-
-        if (result.CompileErrorCount > 0)
-        {
-            throw new CliException(
-                $"Refusing to prune the baseline: {result.CompileErrorCount} compile error(s) "
+                $"Refusing to update the baseline: {result.CompileErrorCount} compile error(s) "
                 + "leave types unresolved, so rules that key off them did not fire.");
         }
     }
@@ -68,7 +38,7 @@ internal static class BaselineWriter
     /// still on disk.
     /// </summary>
     /// <remarks>
-    /// Without that qualifier a deleted or renamed file locks the baseline out of regeneration
+    /// Without that qualifier a deleted or renamed file locks the baseline out of updating
     /// for good, since its old path can never appear in a successful run again, leaving
     /// hand-editing the JSON as the only way out. Entries whose file is gone are simply
     /// dropped; a rename is a disappearance plus an appearance, which is why no rename
@@ -98,8 +68,8 @@ internal static class BaselineWriter
         var shown = string.Join(", ", uncovered.Take(5));
         var more = uncovered.Length > 5 ? $" (and {uncovered.Length - 5} more)" : string.Empty;
         throw new CliException(
-            $"Refusing to overwrite {path}: it covers files this run did not analyze - "
-            + $"{shown}{more}. Regenerating a baseline means analyzing the whole project; "
+            $"Refusing to update {path}: it covers files this run did not analyze - "
+            + $"{shown}{more}. Updating a baseline means analyzing the whole project; "
             + "a partial run would drop the rest of the contract.");
     }
 
