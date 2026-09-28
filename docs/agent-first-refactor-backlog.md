@@ -31,6 +31,7 @@
 | AF-00 | DONE | Unity 6 baseline | 移除 Unity 2022.3 support；UPM minimum = 6000.0；Roslyn floor = 4.3.1，保留 4.3.1 / 4.10 load smoke。PR #3 |
 | AF-00A | DONE | Shared agent contract | 新增 `AGENTS.md`，`CLAUDE.md` 改為 Claude-specific supplement。PR #3 |
 | AF-00B | DONE | AI-first README | root README 改為 agent repository index；移除 root zh-TW README、README generator / drift machinery。PR #4 |
+| AF-01 | DONE | Remove Rule Manager / Editor UI | 移除 `package/Editor/`、generated rules.json、Rule Manager probe/screenshot 與 release/CI catalog 維護。PR #5 / merge `b67c53269bac5f964c2fdccd13f060c38768426b` |
 
 ---
 
@@ -76,7 +77,7 @@ AF-01～AF-05 是最高價值區段。完成後 repository 維護面積會明顯
 
 ## AF-01 — Remove Rule Manager / Editor UI
 
-**Status:** TODO  
+**Status:** DONE  
 **Priority:** P0  
 **Risk:** Medium  
 **Depends on:** AF-00B
