@@ -37,6 +37,7 @@
 | AF-04 | CANCELLED | UPA2012 self-coexistence proposal | 查證 UniTask.Analyzer v2.5.11 / current master 僅檢查 CancellationToken，並不接管 discarded UniTask。PR #8 改為移除錯誤的 `unitask-coexist` suppression，UPA2012 繼續負責 discarded Task / UniTask；merge `8b374919c051fd057eb01bebcef95bb6e338b2d0` |
 | AF-05A | DONE | Remove fully retired rules | 完整移除 UPA0022 / UPA1000 live analyzer、tests、resources、preset rows 與 live docs；新增 RetiredRuleIds 防止 ID reuse，保留 retired evidence，並更新 migration/versioning contract。PR #9 / merge `a34d41386646c8c5778cbeaea0b595d1cb21c479` |
 | AF-05B | DONE | Retire low-ROI active rules | 移除 UPA0009 / UPA0021，保留 Unity 6 IL2CPP evidence 與 retired IDs；UPA0023 保留到 AF-06 分類。PR #10 / merge `b8fa795c8f1fd1fc65ac8432218981de585e7c16` |
+| AF-06 | DONE | Audit optional / opinionated rules | 退役 UPA0011 / UPA2032；新增 Core / Optional / House / Platform / Retired machine-readable policy；Optional / House 不再於 CI 強制升 Error。PR #11 / merge `0dce2632b63c09a5b377111661ad14e78e4ff8dd` |
 
 ---
 
@@ -345,40 +346,26 @@ UPA1000
 
 ## AF-06 — Audit remaining optional / opinionated rules
 
-**Status:** TODO  
+**Status:** DONE  
 **Priority:** P1  
 **Risk:** Medium  
-**Depends on:** AF-05
+**Depends on:** AF-05  
+**PR:** #11  
+**Merge:** `0dce2632b63c09a5b377111661ad14e78e4ff8dd`
 
-逐條重新判斷「如果 Agent 看到它，是否幾乎一定希望修」。
+實際完成：
 
-優先審查：
+- 退役 **UPA0011**：`SetActive` → `Graphic.enabled` / `CanvasGroup` 的建議不保留 GameObject activation 語意，Agent 無法假設 finding 應直接修正。
+- 退役 **UPA2032**：DOTween string ID 是合法 API 選擇，且沒有 Unity / IL2CPP evidence 證明差異足以成為可執行的 performance guardrail。
+- 新增 `RulePolicyTable.cs`，將所有 live / retired ID 分成 **Core / Optional / House / Platform / Retired**。
+- **House**：UPA0005、UPA2010、UPA2011、UPA2021。
+- **Optional**：UPA0010、UPA0012、UPA0013、UPA0015、UPA0020、UPA0023、UPA0024、UPA0029、UPA0031。
+- CI preset 僅將 Core 規則升為 Error；Optional / House 維持 Warning / Info，不再把架構偏好與需要人工判斷的 heuristic 當 hard gate。
+- UPA0011 / UPA2032 的 analyzer、tests、resources、live docs、preset rows 全部移除；ID 永久保留並留下 retired evidence。
+- 同步清除 AF-05 遺留在 `docs/overlap*.md` 的 retired-rule dead references。
+- 新增 policy contract tests，保證所有 live + retired rule 恰好分類一次，且 Optional / House 不會被 CI preset 升 Error。
+- PR CI：build、651 tests、analyzer-load smoke、CLI pack、generated drift 全綠。
 
-- **UPA0011** UI `SetActive` heuristic — 建議偏向刪。
-- **UPA2032** string tween ID — Info / low ROI，建議偏向刪。
-- **UPA0005** direct Debug.Log — 保留則定位為 house rule。
-- **UPA0010** raycast argument shape — 保留但不應過度升級 severity。
-- **UPA0012** TMP SetText — 保留 optional。
-- **UPA0013** LINQ — 僅 hot-path / CI profile。
-- **UPA0020** WaitUntil lambda — optional。
-- **UPA0024** Resources.Load — optional。
-- **UPA0029** AddRange — 保留時應維持非常窄的安全 pattern。
-- **UPA0031** Instantiate/Destroy — Info 即可。
-- **UPA2010 / UPA2011 / UPA2021** — 明確標成 architecture / house rules，不混同 universal correctness。
-
-### Deliverable
-
-建立一份小型 machine-readable rule policy（可併入 AF-09）：
-
-```text
-Core
-Optional
-House
-Platform
-Retired
-```
-
-不是再新增多套 preset。
 
 ---
 
