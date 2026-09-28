@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- unity-performance-analyzers coexistence overlay: defer to UniTask.Analyzer
+<!-- unity-performance-analyzers coexistence ruleset: defers to UniTask.Analyzer.
 
-     Copy this file and ci.ruleset into the same directory, then rename
+     Copy this file and ci.ruleset into Assets/, then rename
      this one Default.ruleset. To defer from a different base preset, change the
      Include path below to another preset name.
 
