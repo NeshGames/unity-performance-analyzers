@@ -5,12 +5,6 @@ internal enum OutputFormat
 {
     Text,
     Json,
-
-    /// <summary>SARIF 2.1.0, the format every code-scanning service reads.</summary>
-    Sarif,
-
-    /// <summary>GitHub workflow commands, which become inline annotations with no upload.</summary>
-    Github,
 }
 
 /// <summary>
@@ -225,14 +219,8 @@ internal sealed class CliOptions
                         case "json":
                             options.Format = OutputFormat.Json;
                             break;
-                        case "sarif":
-                            options.Format = OutputFormat.Sarif;
-                            break;
-                        case "github":
-                            options.Format = OutputFormat.Github;
-                            break;
                         default:
-                            error = $"--format expects text|json|sarif|github, got '{format}'.";
+                            error = $"--format expects text|json, got '{format}'.";
                             return (null, error);
                     }
 
@@ -273,16 +261,6 @@ internal sealed class CliOptions
             if (options.Files.Count > 0)
             {
                 error = "--list-rules does not take input files.";
-                return (null, error);
-            }
-
-            // SARIF and the workflow commands describe findings, and the catalog mode produces
-            // none. Rendering text instead would be a silent substitution in a mode whose whole
-            // purpose is machine consumption.
-            if (options.Format is OutputFormat.Sarif or OutputFormat.Github)
-            {
-                error = "--list-rules supports --format text|json only: "
-                    + "sarif and github describe findings, not a rule catalog.";
                 return (null, error);
             }
 
