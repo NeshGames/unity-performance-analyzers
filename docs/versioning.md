@@ -61,15 +61,16 @@ Retiring a rule therefore means:
 - evidence explaining a performance-rule retirement is preserved under `docs/evidence/retired/`,
 - old ruleset, pragma or baseline entries become inert; they never retarget to a new diagnostic.
 
-Three IDs are retired today: **UPA0022**, **UPA1000**, and **UPA2001**. UPA0022 and UPA1000
-have retained measurement evidence; UPA2001 was replaced by UPA0013 when the hot-path LINQ rule
-moved out of the ecosystem group. None of the retired IDs are live diagnostics.
+Five IDs are retired today: **UPA0009**, **UPA0021**, **UPA0022**, **UPA1000**, and
+**UPA2001**. UPA0009, UPA0021, UPA0022 and UPA1000 retain measurement evidence; UPA2001 was
+replaced by UPA0013 when the hot-path LINQ rule moved out of the ecosystem group. None of the
+retired IDs are live diagnostics.
 
 ---
 
 ## Severity policy
 
-**No rule's own default is above Warning.** Of 44 rules, 40 default to Warning and 4 to
+**No rule's own default is above Warning.** Of 42 rules, 38 default to Warning and 4 to
 Info. Nothing in this package decides on its own that your build should fail.
 
 The live Unity profile intentionally contains no Error entries. Error promotion belongs to
@@ -154,8 +155,10 @@ The consequence is a governance rule, not an aspiration:
 So rules are re-measured, and the ones measurement refutes are retired or narrowed —
 including rules that have already shipped. Version 0.8.0 first disabled UPA0022 and UPA1000;
 AF-05A later removed their dormant analyzer implementations and live rule pages while preserving
-their IDs and measurement evidence. UPA0006's enum-argument report was also withdrawn and UPA0026
-was narrowed to the one call it could still justify.
+their IDs and measurement evidence. AF-05B then retired UPA0009 and UPA0021 after Unity 6 IL2CPP
+showed that their real gains were too small for the maintenance and rewrite-risk surface they
+carried. UPA0006's enum-argument report was also withdrawn and UPA0026 was narrowed to the one
+call it could still justify.
 
 If you find a rule whose advice does not hold on IL2CPP, that is the most useful bug report
 this project can receive.
