@@ -12,6 +12,7 @@ namespace UnityPerformanceAnalyzers.Tests
 namespace Cysharp.Threading.Tasks
 {
     struct UniTask { }
+    struct UniTask<T> { }
 
     static class UniTaskExtensions
     {
@@ -134,6 +135,27 @@ class C
         {|UPA2012:FooAsync()|};
     }
 }", referenceUniTask: true).RunAsync();
+        }
+
+        // UniTask.Analyzer does not own discarded results. Keep this differential guard so a
+        // future coexistence cleanup cannot silently create a hole for UniTask<T>.
+        [Fact]
+        public Task WithUniTaskPackage_DiscardedUniTaskAndGenericStillTrigger()
+        {
+            return VerifyTriggersAsync(@"
+using Cysharp.Threading.Tasks;
+
+class C
+{
+    UniTask FireAsync() => default;
+    UniTask<int> LoadAsync() => default;
+
+    void M()
+    {
+        {|UPA2012:FireAsync()|};
+        {|UPA2012:LoadAsync()|};
+    }
+}");
         }
 
         // UPA2012 test case 6 — explicit discard states the intent

@@ -3,8 +3,8 @@ using System.Text;
 namespace UnityPerformanceAnalyzers.RuleManifest;
 
 /// <summary>
-/// Writes the two agent-oriented base profiles, the WebGL overlay, the transitional UniTask
-/// coexist overlay, and the sandbox verification ruleset.
+/// Writes the two agent-oriented base profiles, the WebGL overlay, and the sandbox
+/// verification ruleset.
 /// </summary>
 public static class PresetEmitter
 {
@@ -53,7 +53,6 @@ public static class PresetEmitter
 
         Write(Path.Combine(presetDir, "webgl.ruleset"), WebGlRuleset());
         Write(sandboxRuleset, SandboxRuleset());
-        written.AddRange(CoexistEmitter.Write(presetDir));
         removed = RemoveStale(presetDir, written);
         return written;
     }

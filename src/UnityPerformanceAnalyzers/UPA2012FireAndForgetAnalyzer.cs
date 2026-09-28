@@ -14,7 +14,9 @@ namespace UnityPerformanceAnalyzers
     /// caller, and (B) expression-statement invocations (including through <c>?.</c>) that
     /// return Task/Task&lt;T&gt;/UniTask/UniTask&lt;T&gt; with the result discarded, silently
     /// losing exceptions. Registered unconditionally — UniTask presence only
-    /// switches the advice sentence. Event-handler-signature async void, awaited calls,
+    /// switches the advice sentence. UPA2012 deliberately keeps discarded-UniTask ownership:
+    /// the official UniTask.Analyzer currently checks CancellationToken usage, not unobserved
+    /// UniTask results. Event-handler-signature async void, awaited calls,
     /// stored/passed results, .Forget(), and `_ =` discards are excluded (docs/rules/UPA2012.md).
     /// </summary>
     [UpaClaim(UpaClaimKind.Correctness)]
