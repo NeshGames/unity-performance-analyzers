@@ -66,8 +66,6 @@ Read **Changed** and **Fixed** before upgrading.
 - **Performance rules report inside `Reset()` again.** Unity calls its own `Reset` only in the
   editor, but `Reset()` is also the usual name of a pooling method that runs every frame, and
   the two cannot be told apart. `OnValidate` and `OnDrawGizmos*` are still exempt.
-- **`upa-cli --format github`** no longer shows literal `%3A`/`%2C` in messages, and names files
-  relative to `GITHUB_WORKSPACE`, so annotations land when the tool runs from a subdirectory.
 
 ### Fixed
 
@@ -89,6 +87,11 @@ Read **Changed** and **Fixed** before upgrading.
 - `upa-cli` compiles once per run instead of twice — about a third faster, same output.
 
 ### Removed
+
+- **Provider-specific `upa-cli` output formats are removed.** `--format` now accepts only
+  `text` and `json`; the SARIF and GitHub workflow-command formatters, their parser branches,
+  tests and documentation are gone. JSON is the machine-readable path for agents and CI while
+  the existing 0 / 1 / 2 exit-code contract is unchanged.
 
 - **UPA0011 and UPA2032 are retired by the optional-rule audit.** UPA0011's suggested UI
   visibility rewrites do not preserve GameObject activation semantics, so an agent cannot assume a
