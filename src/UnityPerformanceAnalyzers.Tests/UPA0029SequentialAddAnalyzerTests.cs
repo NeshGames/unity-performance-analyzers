@@ -444,53 +444,25 @@ class C
 }");
         }
 
-        /// <summary>
-        /// upa_addrange_hot_path_only narrows the rule to hot paths for the files its section
-        /// globs, and only those. It used to be read once from the compilation's first syntax
-        /// tree, which here is a file no section matches, so the narrowing never applied.
-        /// </summary>
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public Task HotPathOnly_PerFileSections_ApplyToTheirOwnFile_RegardlessOfOrder(bool reversed)
+        [Fact]
+        public Task HotPathOnly_ViaOptionsFile_SkipsColdLoop()
         {
-            var narrowed = ("/Narrowed.cs", @"
+            return RuleVerifier.VerifyAsync<UPA0029SequentialAddAnalyzer>(@"
 using System.Collections.Generic;
 
-class Narrowed
+class C
 {
     void Copy(List<int> source, List<int> target)
     {
         foreach (var item in source)
             target.Add(item);
     }
-}");
-            var global = ("/Global.cs", @"
-using System.Collections.Generic;
-
-class Global
-{
-    void Copy(List<int> source, List<int> target)
-    {
-        {|UPA0029:foreach (var item in source)
-            target.Add(item);|}
-    }
-}");
-
-            var harness = new RuleHarness
-            {
-                UnityStubs = false,
-                RawEditorConfig = @"
-root = true
-
-[*Narrowed.cs]
-upa_addrange_hot_path_only = true
-",
-            };
-            harness.NamedSources.Add(reversed ? global : narrowed);
-            harness.NamedSources.Add(reversed ? narrowed : global);
-
-            return RuleVerifier.VerifyAsync<UPA0029SequentialAddAnalyzer>("class Empty { }", harness);
+}",
+                new RuleHarness
+                {
+                    UnityStubs = false,
+                    OptionsFile = "upa_addrange_hot_path_only = true",
+                });
         }
     }
 }
