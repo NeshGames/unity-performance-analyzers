@@ -21,7 +21,7 @@ packages="$work/packages"
 analyzer_dir=${UPA_ANALYZER_DIR:-}
 analyzer="${analyzer_dir:-$root/src/UnityPerformanceAnalyzers/bin/Release/netstandard2.0}/UnityPerformanceAnalyzers.dll"
 stubs="$root/src/UnityStubs/bin/Release/netstandard2.0/UnityStubs.dll"
-ruleset="$root/package/Samples~/Ruleset Presets/recommended.ruleset"
+ruleset="$root/package/Samples~/Ruleset Presets/unity.ruleset"
 
 for f in "$analyzer" "$stubs" "$ruleset"; do
   if [ ! -f "$f" ]; then

@@ -1,41 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- unity-performance-analyzers preset: strict
-     Copy this file to Assets/Default.ruleset (project-wide).
-     A Default.ruleset inside an asmdef folder overrides it for that assembly.
-     To add the WebGL rules: <Include Path="webgl-addon.ruleset" Action="Default" />
-
-     Error entries fail Unity's compile. An Editor launched on a project that
-     does not compile opens in Safe Mode, where the Unity CLI cannot reach it.
-     To gate at this level without that, keep recommended in Assets and pass
-     this file to upa-cli in CI as its ruleset, failing on error.
+<!-- unity-performance-analyzers profile: ci
+     CI gate profile. Do not use it as Assets/Default.ruleset when an agent needs a live Editor; Error entries can force Safe Mode.
+     Add WebGL rules with <Include Path="webgl.ruleset" Action="Default" /> when needed.
      GENERATED FILE - do not edit. Severities live in PresetTable.cs;
      regenerate via the RuleManifest presets mode (see that file's header). -->
-<RuleSet Name="UPA strict" ToolsVersion="10.0">
+<RuleSet Name="UPA ci" ToolsVersion="10.0">
   <Rules AnalyzerId="UnityPerformanceAnalyzers" RuleNamespace="UnityPerformanceAnalyzers">
     <Rule Id="UPA0001" Action="Error" />
     <Rule Id="UPA0002" Action="Error" />
     <Rule Id="UPA0003" Action="Error" />
     <Rule Id="UPA0004" Action="Error" />
-    <Rule Id="UPA0005" Action="Warning" />
+    <Rule Id="UPA0005" Action="Error" />
     <Rule Id="UPA0006" Action="Error" />
     <Rule Id="UPA0007" Action="Error" />
     <Rule Id="UPA0008" Action="Error" />
     <Rule Id="UPA0009" Action="Error" />
     <Rule Id="UPA0010" Action="Error" />
-    <Rule Id="UPA0011" Action="Warning" />
-    <Rule Id="UPA0012" Action="Warning" />
-    <Rule Id="UPA0013" Action="None" />
+    <Rule Id="UPA0011" Action="Error" />
+    <Rule Id="UPA0012" Action="Error" />
+    <Rule Id="UPA0013" Action="Error" />
     <Rule Id="UPA0014" Action="Error" />
     <Rule Id="UPA0015" Action="Warning" />
     <Rule Id="UPA0016" Action="Error" />
     <Rule Id="UPA0017" Action="Error" />
     <Rule Id="UPA0018" Action="Error" />
     <Rule Id="UPA0019" Action="Error" />
-    <Rule Id="UPA0020" Action="Warning" />
+    <Rule Id="UPA0020" Action="Error" />
     <Rule Id="UPA0021" Action="None" />
     <Rule Id="UPA0022" Action="None" />
-    <Rule Id="UPA0023" Action="Info" />
-    <Rule Id="UPA0024" Action="Warning" />
+    <Rule Id="UPA0023" Action="Warning" />
+    <Rule Id="UPA0024" Action="Error" />
     <Rule Id="UPA0025" Action="Error" />
     <Rule Id="UPA0026" Action="Error" />
     <Rule Id="UPA0027" Action="Error" />
@@ -45,10 +39,10 @@
     <Rule Id="UPA0031" Action="Info" />
     <Rule Id="UPA1000" Action="None" />
     <Rule Id="UPA2000" Action="Error" />
-    <Rule Id="UPA2010" Action="None" />
-    <Rule Id="UPA2011" Action="None" />
-    <Rule Id="UPA2012" Action="None" />
-    <Rule Id="UPA2021" Action="None" />
+    <Rule Id="UPA2010" Action="Error" />
+    <Rule Id="UPA2011" Action="Error" />
+    <Rule Id="UPA2012" Action="Error" />
+    <Rule Id="UPA2021" Action="Warning" />
     <Rule Id="UPA2030" Action="Error" />
     <Rule Id="UPA2031" Action="Error" />
     <Rule Id="UPA2032" Action="Info" />
