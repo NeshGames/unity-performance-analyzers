@@ -62,14 +62,12 @@ internal static class CompilationBuilder
             references.Add(FakeAssembly(reference));
         }
 
-        var editorConfig = EditorConfigOptionsProvider.Create(options.EditorConfigPath, trees);
-
-        // All severity resolution lives in the provider so that file-scoped .editorconfig
-        // entries stay file-scoped; nothing goes into the compilation-wide map.
+        // Diagnostic severity is a separate channel from analyzer options: rulesets control
+        // severity, while --all-warn is an explicit CLI override. Analyzer behavior is
+        // configured only through AdditionalFiles below, matching Unity compilation.
         var compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
             .WithAllowUnsafe(options.AllowUnsafe)
             .WithSyntaxTreeOptionsProvider(SeverityOptionsProvider.Create(
-                editorConfig.SeveritiesByFile,
                 LoadRuleset(options.RulesetPath),
                 options.AllWarn));
 
@@ -83,7 +81,7 @@ internal static class CompilationBuilder
             .Select(path => (AdditionalText)new AdditionalTextFile(path))
             .ToImmutableArray();
 
-        var analyzerOptions = new AnalyzerOptions(additionalFiles, editorConfig.Provider);
+        var analyzerOptions = new AnalyzerOptions(additionalFiles);
 
         return new AnalysisInput(compilation, analyzerOptions);
     }
