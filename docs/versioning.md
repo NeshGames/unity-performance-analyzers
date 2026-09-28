@@ -61,8 +61,9 @@ Retiring a rule therefore means:
 - evidence explaining a performance-rule retirement is preserved under `docs/evidence/retired/`,
 - old ruleset, pragma or baseline entries become inert; they never retarget to a new diagnostic.
 
-Five IDs are retired today: **UPA0009**, **UPA0021**, **UPA0022**, **UPA1000**, and
-**UPA2001**. UPA0009, UPA0021, UPA0022 and UPA1000 retain measurement evidence; UPA2001 was
+Seven IDs are retired today: **UPA0009**, **UPA0011**, **UPA0021**, **UPA0022**,
+**UPA1000**, **UPA2001**, and **UPA2032**. UPA0009, UPA0021, UPA0022 and UPA1000 retain
+measurement evidence; UPA0011 and UPA2032 retain the AF-06 retirement rationale; UPA2001 was
 replaced by UPA0013 when the hot-path LINQ rule moved out of the ecosystem group. None of the
 retired IDs are live diagnostics.
 
@@ -70,7 +71,7 @@ retired IDs are live diagnostics.
 
 ## Severity policy
 
-**No rule's own default is above Warning.** Of 42 rules, 38 default to Warning and 4 to
+**No rule's own default is above Warning.** Of 40 rules, 37 default to Warning and 3 to
 Info. Nothing in this package decides on its own that your build should fail.
 
 The live Unity profile intentionally contains no Error entries. Error promotion belongs to
@@ -157,8 +158,10 @@ including rules that have already shipped. Version 0.8.0 first disabled UPA0022 
 AF-05A later removed their dormant analyzer implementations and live rule pages while preserving
 their IDs and measurement evidence. AF-05B then retired UPA0009 and UPA0021 after Unity 6 IL2CPP
 showed that their real gains were too small for the maintenance and rewrite-risk surface they
-carried. UPA0006's enum-argument report was also withdrawn and UPA0026 was narrowed to the one
-call it could still justify.
+carried. AF-06 retired UPA0011 because its suggested UI rewrite did not preserve activation
+semantics, and UPA2032 because it was an unmeasured supported-API style trade-off rather than an
+actionable player-build guardrail. UPA0006's enum-argument report was also withdrawn and UPA0026
+was narrowed to the one call it could still justify.
 
 If you find a rule whose advice does not hold on IL2CPP, that is the most useful bug report
 this project can receive.
