@@ -20,12 +20,13 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- Roslyn is pinned to 3.8.0 deliberately. An analyzer built against a Roslyn newer
-       than the host compiler fails with CS8032 and silently stops running (a warning,
-       not an error). 3.8.0 is a conservative floor verified to load on Unity 2022.3
-       (Roslyn 4.3.1) and Unity 6 (4.10). Do not upgrade just because NuGet offers one. -->
+  <!-- Unity 6 is the minimum supported editor. Its analyzer/source-generator compatibility
+       guidance allows Microsoft.CodeAnalysis.CSharp 4.3, so 4.3.1 is the dependency floor.
+       The load smoke also exercises the newer 4.10 compiler used by the current Unity 6
+       sandbox. Do not raise this just because NuGet offers one: a newer analyzer dependency
+       than the host compiler produces CS8032 and silently disables the analyzer. -->
   <PropertyGroup>
-    <RoslynVersion>3.8.0</RoslynVersion>
+    <RoslynVersion>4.3.1</RoslynVersion>
     <RoslynAnalyzersVersion>3.3.4</RoslynAnalyzersVersion>
     <CodeAnalysisTestingVersion>1.1.2</CodeAnalysisTestingVersion>
   </PropertyGroup>

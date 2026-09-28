@@ -98,12 +98,12 @@ if [ "$blocked" -eq 1 ]; then
   if [ -n "$local_verdict" ]; then
     # Every version must be named AND said to have passed, in one exact spelling:
     #
-    #     2022.3.62f2=pass 6000.5.3f1=pass
+    #     6000.5.3f1=pass
     #
     # The value is parsed against that, not searched for a pass inside it. Searching was
-    # wrong four times running - "2022.3.62f2 failed" holds the version, "NOT PASS [Unity
-    # 2022.3.62f2]" holds the pass line, "2022.3.62f2=pass=false" holds the token and then
-    # takes it back, "PASS [Unity 2022.3.62f2] PACKAGE FAILED, no loader failures" holds
+    # wrong four times running - "6000.5.3f1 failed" holds the version, "NOT PASS [Unity
+    # 6000.5.3f1]" holds the pass line, "6000.5.3f1=pass=false" holds the token and then
+    # takes it back, "PASS [Unity 6000.5.3f1] PACKAGE FAILED, no loader failures" holds
     # both ends - because free text can always be arranged to carry a pass inside a report
     # of failure.
     #

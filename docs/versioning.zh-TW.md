@@ -113,17 +113,19 @@ upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --write-baseline upa-baseline.
 - **preset 檔名**——`minimal`、`recommended`、`strict`、`cysharp-stack`、
   `webgl-addon`、`editor-relaxed`
 
-### Roslyn 3.8,以及它為什麼不動
+### Roslyn 4.3.1 與 Unity 6 下限
 
-本 analyzer 以 Roslyn 3.8.0 編譯,並將持續以「所有支援編輯器中最舊的那個編譯器」為準。
-**這是相容性決定,不是待清的技術債。**
+本專案只支援 Unity 6。analyzer 以 Roslyn 4.3.1 編譯,對齊 Unity 6 官方的
+analyzer/source-generator 相容下限;load smoke 另外也會在目前 sandbox 使用的
+4.10 編譯器上執行。
 
 以比宿主更新的 Roslyn 建置的 analyzer **不會讓建置失敗**。它會噴一個 `CS8032`,
 然後**什麼都不做**——沒有診斷、沒有錯誤、沒有任何跡象顯示一整包規則停止執行了。
-安靜和乾淨的專案長得一模一樣。因此,要等到沒有任何支援中的編輯器低於那條線,才會拉高下限。
+安靜和乾淨的專案長得一模一樣。因此,只有在我們真正使用的最舊 Unity 6 專案也能載入時,
+才會再拉高依賴。
 
-**支援的編輯器:Unity 2022.3 LTS 與 Unity 6。**
-每次發佈都會對兩者做 smoke test;兩邊都回報「analyzer 已載入且會觸發」才放行。
+**支援的編輯器:Unity 6。** 發佈 smoke 使用 `.github/smoke/unity-versions.json`
+列出的 Editor;compiler-load smoke 則分別守住 4.3.1 下限與目前的 4.10 宿主。
 
 ---
 

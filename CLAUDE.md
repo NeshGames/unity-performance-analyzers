@@ -1,9 +1,9 @@
 # CLAUDE.md
 
-Guidance for coding agents working **on this repository** — the analyzers, `upa-cli` and the
-UPM package. Guidance for agents working on a Unity game that *uses* the package is the skill in
-`skills/unity-performance-analyzers/`, not this file. Read CONTRIBUTING.md for the full contributor
-rules; this is the short version plus what is easy to get wrong.
+Read `AGENTS.md` first. It is the canonical repository-wide contract for coding agents.
+
+This file only adds Claude-specific context. Guidance for a Claude agent working in a Unity game
+that *uses* this package lives in `skills/unity-performance-analyzers/SKILL.md`, not here.
 
 ## Commands
 
@@ -14,7 +14,7 @@ dotnet test  UnityPerformanceAnalyzers.sln -c Release --no-build
 # Regenerate presets, README rule tables and package/Editor/rules.json; CI fails on any drift
 dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- --all .
 
-# Load the built analyzer into the exact compilers Unity ships (Roslyn 4.3.1 / 4.10)
+# Load the built analyzer into the Unity 6 compiler range we support (Roslyn 4.3.1 / 4.10)
 bash .github/smoke/analyzer-load.sh
 ```
 
@@ -25,7 +25,7 @@ its scripts are for a maintainer with editors installed.
 
 | Path | What |
 |---|---|
-| `src/UnityPerformanceAnalyzers/` | The analyzers (netstandard2.0, **Roslyn 3.8 — never upgrade**: a newer Roslyn than Unity's compiler makes the DLL silently fail to load) |
+| `src/UnityPerformanceAnalyzers/` | The analyzers (netstandard2.0, **Roslyn 4.3.1 floor for Unity 6**: a newer dependency than the host compiler can silently stop the DLL loading) |
 | `src/UnityPerformanceAnalyzers.Cli/` | `upa-cli`. Exit codes 0/1/2 and the JSON `schemaVersion` are published contracts |
 | `src/UnityPerformanceAnalyzers.RuleManifest/` | Generators. `PresetTable.cs` is the source of truth for every preset |
 | `src/UnityPerformanceAnalyzers.Tests/` | xUnit. Rule tests go through `RuleVerifier`; repository-reading tests use `TestRepository.Root` |

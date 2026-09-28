@@ -5,7 +5,7 @@
 <!-- badges -->
 [![Release](https://img.shields.io/github/v/release/NeshGames/unity-performance-analyzers?sort=semver&label=release)](https://github.com/NeshGames/unity-performance-analyzers/releases/latest)
 [![Build](https://github.com/NeshGames/unity-performance-analyzers/actions/workflows/pr.yml/badge.svg?branch=main)](https://github.com/NeshGames/unity-performance-analyzers/actions/workflows/pr.yml)
-![Unity 2022.3 LTS – Unity 6](https://img.shields.io/badge/Unity-2022.3%20LTS%20%E2%80%93%20Unity%206-black)
+![Unity 6](https://img.shields.io/badge/Unity-6-black)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE.md)
 <!-- /badges -->
 
@@ -13,14 +13,14 @@
 assembly 引用的套件(UniTask、ZString、R3、DOTween)以及專案是否以 WebGL 為目標
 **自動調整**。
 
-以 UPM package 形式發佈。支援 **Unity 2022.3 LTS ~ Unity 6**。
+以 UPM package 形式發佈。僅支援 **Unity 6**;舊版 Editor 刻意不再納入相容範圍。
 
 ![Unity Console 列出兩個腳本的效能警告](.github/images/console-warnings.png)
 
 規則跑在 Unity 自己的編譯裡,所以 Console 會報;CI(或 coding agent)用 `upa-cli`
 不需要 Editor 也不需要授權。哪些規則能讓建置失敗,由 ruleset 決定。
 
-> **狀態:pre-1.0。** 全部 <!-- generated:rule-count -->46<!-- /generated:rule-count --> 條規則已實作,並在 Unity 2022.3 與 Unity 6 的
+> **狀態:pre-1.0。** 全部 <!-- generated:rule-count -->46<!-- /generated:rule-count --> 條規則已實作,並在 Unity 6
 > sandbox 建置實測通過。其中兩條——UPA0022 與 UPA1000——已廢止,除非專案自行開啟否則
 > 不回報任何東西,理由寫在各自的規則頁。rule ID 一經發佈即穩定,永不重用。
 
@@ -72,7 +72,7 @@ Codex:`codex plugin marketplace add NeshGames/unity-performance-analyzers`,再
   再把 coexist 那個改名為 `Default.ruleset`),因為包含者的條目會贏——
   反過來寫的檔案外觀正確但什麼都靜不掉。見[與其他工具的規則重疊](docs/overlap.zh-TW.md)
 
-Unity 只讀 ruleset——它不會把 `.editorconfig` 傳給編譯器(已於 2022.3 與 Unity 6
+Unity 只讀 ruleset——它不會把 `.editorconfig` 傳給編譯器(已於 Unity 6
 實測確認)。asmdef 資料夾內的 `Default.ruleset` 會覆寫全專案那份,只影響該 assembly。
 
 > **Error 等級的條目會讓 Unity 編譯失敗。** 這正是 `strict` 與 `cysharp-stack` 在建置中的用途,
@@ -133,22 +133,21 @@ upa_enum_switch_allow_default = true
 
 發現某條規則對正確的程式碼觸發?那是這個專案最想收到的回報——見[參與貢獻](CONTRIBUTING.zh-TW.md)。
 
-**這些規則會讓你的編譯多花多少。** 以編譯器自己的 `-reportanalyzer`,在兩個支援的編輯器上
-對 sandbox 專案量測:
+**這些規則會讓你的編譯多花多少。** 以編譯器自己的 `-reportanalyzer`,在
+Unity 6 sandbox(6000.5.3f1)量測:
 
-| | Unity 6(6000.5.3f1) | Unity 2022.3 LTS |
-|---|---|---|
-| 該次執行的組件編譯數 | 31 | 16 |
-| 全部 analyzer 的 CPU 時間 | 4.09 s | 1.33 s |
-| **其中這 46 條規則** | **0.95 s(23%)** | **1.33 s(100%)** |
-| Unity 自己內建的 analyzer | 2.60 s | 該版本沒有 |
-| 規則中位數 | 17 ms | 12 ms |
+| | Unity 6 |
+|---|---|
+| 該次執行的組件編譯數 | 31 |
+| 全部 analyzer 的 CPU 時間 | 4.09 s |
+| **其中這 46 條規則** | **0.95 s(23%)** |
+| Unity 自己內建的 analyzer | 2.60 s |
+| 規則中位數 | 17 ms |
 
-在 Unity 6 上,**Unity 本來就會跑的那些 analyzer,成本是本套件全部規則的 2.7 倍**。
-2022.3 沒有內建 analyzer 可比,所以那個數字就是全部的 analyzer 帳單。
+**Unity 本來就會跑的那些 analyzer,成本是本套件全部規則的 2.7 倍**。
 
 這些是「整次重編譯、跨所有組件的 CPU 時間總和」,不是你等待的時間:analyzer 會並行執行,
-同樣兩次執行,編譯器自己回報的總時間是 2.19 s 與 1.12 s。
+同一次執行,編譯器自己回報的總時間是 2.19 s。
 **語料是 sandbox 專案,它很小**——大型正式專案的數字本專案還沒量過,量到之前不會公布。
 以 `sandbox/measure-analyzer-cost.sh` 重現。
 
@@ -260,15 +259,14 @@ preset 也為 `UNT####` 規則分級;這些條目只在專案裡有 Microsoft.Un
 (例如 Visual Studio Tools for Unity 內建的那份)。若你自行安裝到專案,它的 Roslyn
 需求不得超過 Unity 內建編譯器,否則會以**無聲的** `CS8032` 警告失效:
 
-| Unity | 內建 Roslyn | 可安全使用的 Microsoft.Unity.Analyzers |
+| Unity | Analyzer 相容下限 / 已驗證編譯器 | 可安全使用的 Microsoft.Unity.Analyzers |
 |---|---|---|
-| 2022.3 LTS / Unity 6 | 4.3.1(6000.5:4.10) | 最新(1.27.0)——**唯 1.23.0 除外** |
-| 2021.3 LTS *(本 package 不支援)* | 3.9 | ≤ 1.22.0 |
+| Unity 6 | Roslyn 4.3.1 下限;6000.5 以 4.10 smoke test | 最新(1.27.0)——**唯 1.23.0 除外** |
 
 ⚠️ **絕對不要安裝 Microsoft.Unity.Analyzers 1.23.0**:它引用 Roslyn 4.14,
 目前沒有任何 Unity 版本內建到這個版本——裝了在所有 Unity 上都無聲失效。
 
-本 package 自身以 Roslyn 3.8 為目標,在所有支援的 Unity 版本都能載入。
+本 package 自身以 Roslyn 4.3.1 為目標,並對上述 Unity 6 編譯器範圍做 load smoke。
 
 ## 命令列驗證工具(`upa-cli`)
 
@@ -517,12 +515,12 @@ upa-cli @upa-args.rsp --format sarif > upa.sarif
 
 | 路徑 | 用途 |
 |---|---|
-| `src/UnityPerformanceAnalyzers/` | analyzer 組件(netstandard2.0,Roslyn 3.8) |
+| `src/UnityPerformanceAnalyzers/` | analyzer 組件(netstandard2.0,Roslyn 4.3.1) |
 | `src/UnityPerformanceAnalyzers.Cli/` | `upa-cli`——不透過 Unity 執行規則 |
 | `src/UnityPerformanceAnalyzers.Tests/` | xUnit analyzer 測試(net8.0) |
 | `src/UnityStubs/` | 測試用的最小 UnityEngine 手寫替身 |
 | `package/` | UPM 發佈根目錄 |
-| `sandbox/UnityProject/` | 消費端驗證專案(Unity 2022.3) |
+| `sandbox/UnityProject/` | 消費端驗證專案(Unity 6) |
 | `docs/rules/` | 各規則文件 |
 
 ## 建置

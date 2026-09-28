@@ -121,19 +121,20 @@ entry that says so.
 - **Preset file names** — `minimal`, `recommended`, `strict`, `cysharp-stack`,
   `webgl-addon`, `editor-relaxed`
 
-### Roslyn 3.8, and why it stays
+### Roslyn 4.3.1 and the Unity 6 floor
 
-The analyzer is compiled against Roslyn 3.8.0 and will keep being compiled against the
-oldest compiler any supported editor ships. This is a compatibility decision, not a
-maintenance backlog.
+Unity 6 is the only supported editor line. The analyzer is compiled against Roslyn 4.3.1,
+matching Unity 6's documented analyzer/source-generator compatibility floor, and the load
+smoke also runs it under the newer 4.10 compiler used by the current sandbox.
 
 An analyzer built against a newer Roslyn than the host does not fail the build. It emits
 `CS8032` and then *does nothing* — no diagnostics, no error, no indication that a whole
-package of rules stopped running. Silence looks exactly like a clean project. Raising the
-floor therefore waits until no supported editor is below it.
+package of rules stopped running. Silence looks exactly like a clean project. The dependency
+therefore moves only when the oldest Unity 6 project we care about can load it.
 
-**Supported editors: Unity 2022.3 LTS and Unity 6.** Both are smoke-tested on every
-release; a release does not go out unless both report the analyzer loaded and firing.
+**Supported editors: Unity 6.** The current release smoke uses the editor versions listed in
+`.github/smoke/unity-versions.json`; compiler-load smoke separately covers the 4.3.1 floor
+and the current 4.10 host.
 
 ---
 

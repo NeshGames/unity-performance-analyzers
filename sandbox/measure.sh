@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the allocation measurements in a real editor, on every supported version, and keep
+# Run the allocation measurements in the supported Unity 6 editor baseline and keep
 # the reports.
 #
 #   usage: sandbox/measure.sh [<unity-version> ...]
@@ -7,12 +7,8 @@
 # With no arguments it runs every version in .github/smoke/unity-versions.json, which is
 # the one place the supported editors are listed.
 #
-# This exists because the measurements are the one thing here that has to be run against
-# more than one editor to mean anything, and running two editors against one project
-# upgrades it out from under the older one. verify.sh has always pinned the project per
-# run; the measurement path did not, so invoking the editor directly with -executeMethod
-# left the project resolvable by exactly one version - and the next run reported that the
-# editor was broken.
+# The project is pinned before each run so a caller can explicitly test another Unity 6
+# patch without leaving Package Manager state from the previous editor behind.
 #
 # IL2CPP is not covered here: it needs a player build, which is minutes rather than
 # seconds and needs the build module installed. Use AllocationPlayerBuild.BuildIl2Cpp for

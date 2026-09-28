@@ -3,7 +3,7 @@
   "version": "0.9.0",
   "displayName": "Unity Performance Analyzers",
   "description": "Roslyn analyzers that enforce Unity performance and correctness conventions at compile time. Rules adapt automatically to the packages your assembly references (UniTask, ZString, R3) and to whether your project targets WebGL.",
-  "unity": "2022.3",
+  "unity": "6000.0",
   "documentationUrl": "https://github.com/NeshGames/unity-performance-analyzers",
   "changelogUrl": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/package/CHANGELOG.md",
   "licensesUrl": "https://github.com/NeshGames/unity-performance-analyzers/blob/main/LICENSE.md",
