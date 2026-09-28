@@ -262,15 +262,10 @@ namespace Game.Tooling
 
     static class Tools
     {
-        static Vector3 a;
-        static Vector3 b;
-
         [" + className + @"(""Tools/Measure"")]
         static void Measure()
         {
-            if ({|UPA0021:Vector3.Distance(a, b) > 2f|})
-            {
-            }
+            {|UPA0010:Physics.Raycast(new Vector3(), new Vector3())|};
         }
     }
 }");
