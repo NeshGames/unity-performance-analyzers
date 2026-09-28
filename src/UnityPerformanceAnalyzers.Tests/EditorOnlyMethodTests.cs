@@ -214,7 +214,7 @@ static class Tools
     " + attribute + @"
     static void Measure()
     {
-        Physics.Raycast(Vector3.zero, Vector3.forward);
+        Physics.Raycast(new Vector3(), new Vector3());
     }
 }");
         }
@@ -233,7 +233,7 @@ static class Tools
 {
     static void Measure()
     {
-        {|UPA0010:Physics.Raycast(Vector3.zero, Vector3.forward)|};
+        {|UPA0010:Physics.Raycast(new Vector3(), new Vector3())|};
     }
 }");
         }
@@ -294,7 +294,7 @@ static partial class Tools
 
     static partial void Measure()
     {
-        Physics.Raycast(Vector3.zero, Vector3.forward);
+        Physics.Raycast(new Vector3(), new Vector3());
     }
 }");
         }
