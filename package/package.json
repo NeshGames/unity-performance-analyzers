@@ -21,7 +21,7 @@
   "samples": [
     {
       "displayName": "Ruleset Presets",
-      "description": "minimal / recommended / strict / cysharp-stack / webgl-addon severity presets. Copy the one you want to Assets/Default.ruleset.",
+      "description": "unity / ci / webgl agent-oriented severity profiles. Use unity.ruleset in the Editor and ci.ruleset with upa-cli.",
       "path": "Samples~/Ruleset Presets"
     },
     {

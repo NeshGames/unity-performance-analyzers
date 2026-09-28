@@ -1,71 +1,43 @@
-# Severity Presets
+# Agent 嚴重度設定檔
 
 > [English](README.md) | 繁體中文
 
-Ruleset 才是 Unity 真正讀取的通道:Unity 會把 `Assets/Default.ruleset`
-(以及各 asmdef 資料夾的 ruleset)傳給 C# 編譯器,而 `.editorconfig` 檔案
-**完全不會**被傳入(已在 Unity 6 上驗證)。`upa-cli --ruleset` 讀的是同一批檔案,
-所以 CI 閘門與 Unity 建置的判定一致。
+設定檔刻意只保留少數幾份，因為主要使用者是 coding agent。
 
-## 挑選 preset
-
-| Preset | 用途 |
+| 檔案 | 用途 |
 |---|---|
-| `minimal` | Unity 正確性規則(`UNT` 群組)設為 error;預設啟用的正確性規則維持其 warning。其餘全部關閉——安全的首次安裝選擇。 |
-| `recommended` | 另加 UPA 效能規則設為 warning。日常使用的預設選擇。 |
-| `strict` | 效能規則升為 error;那些因為對專案有所要求而預設關閉的規則——例如需要 logging 包裝類別、需要葉端類別 sealed——開始回報。 |
-| `cysharp-stack` | 另加生態規則設為 error(UniTask/ZString/R3 採用)。適用於決心採用 Cysharp 技術棧的程式碼庫。 |
+| `unity.ruleset` | 複製成 `Assets/Default.ruleset`。不包含 Error，避免 analyzer finding 把 Editor 推進 Safe Mode。 |
+| `ci.ruleset` | 給 `upa-cli` / CI gate 使用；需要強制的規則可提升成 Error。不要當成 Unity 日常 ruleset。 |
+| `webgl.ruleset` | UPA3000–UPA3004 的選用 overlay。定義 `UPA_TARGET_WEBGL` 後 include。 |
 
-`strict` 與 `cysharp-stack` 會把規則設為 Error,而 Error 條目會讓 Unity 編譯失敗。
-專案無法編譯時啟動的 Editor 會進入 Safe Mode,Unity CLI 的 `unity command` 連不上——
-透過 Unity CLI 工作的 coding agent 會因為一個效能發現而失去對 Editor 的控制。
-這種工作流程請在 `Assets/Default.ruleset` 維持 `recommended`,只在 CI 套用較嚴格的檔案:
-`upa-cli @upa-args.rsp --ruleset strict.ruleset --fail-on error`。
+`unitask-coexist.ruleset` 只是 AF-04 前的過渡檔。它 include `ci.ruleset` 並關閉
+UPA2012，避免與 `UniTask.Analyzer` 對同一個 discarded UniTask 重複診斷。
 
-## 安裝
+## Unity
 
-1. 從 Package Manager 視窗匯入本 sample。
-2. 把選定的 preset 複製到專案中,命名為 `Assets/Default.ruleset`。
-3. 選用的 per-assembly 覆寫:在任一 asmdef 資料夾內放置 `Default.ruleset`——
-   它只會針對該 assembly 取代專案層級的檔案。
-
-## WebGL 規則
-
-`webgl-addon.ruleset` 將平台規則——threading、sockets、同步檔案 IO、
-`Process`、阻塞等待——設為 warning。要疊加在任何基礎 preset 上,將它複製到你的
-`Assets/Default.ruleset` 旁,並在 `<RuleSet>` 元素內加入:
-
-```xml
-<Include Path="webgl-addon.ruleset" Action="Default" />
+```text
+unity.ruleset -> Assets/Default.ruleset
 ```
 
-接著在 **Project Settings > Player > Scripting Define Symbols** 為每個建置目標
-加入 `UPA_TARGET_WEBGL`——如此規則在日常開發中就會保持啟用,而不是只在
-Active Build Target 為 WebGL 時才生效。
+asmdef 資料夾內的 `Default.ruleset` 會覆寫全專案設定。若 Editor tooling 或 generated
+code 需要不同政策，直接在該 asmdef 資料夾放一份小型自訂 ruleset，不再維護另一套 shipped preset。
 
-## 讓渡給其他工具
+## CI
 
-如果你的專案已經在跑 Microsoft.Unity.Analyzers 或 UniTask 自帶的 analyzer,
-這裡有些規則會與它們報同一件事。`*-coexist` 這組檔案負責讓渡。
+```bash
+upa-cli @upa-args.rsp --ruleset ci.ruleset --format json --fail-on error
+```
 
-| 檔案 | 讓渡給 | include 的基礎 |
-|---|---|---|
-| `vs-coexist` | Microsoft.Unity.Analyzers | `recommended` |
-| `unitask-coexist` | `UniTask.Analyzer` | `cysharp-stack` |
+CI profile 與 Unity live ruleset 刻意分開。Unity 裡的 Error analyzer diagnostic 會讓腳本
+編譯失敗，啟動時可能進 Safe Mode，automation agent 會因此失去 Editor 控制。
 
-把 coexist 檔案**與它的基礎 preset 一起**複製到 `Assets/`,再把 coexist 那個改名為 `Default.ruleset`。
-它是去 include 基礎,而不是被基礎 include——因為包含者的規則條目會贏:
-反過來寫的話,那個檔案外觀完全正確,卻什麼都靜不掉。
+## WebGL
 
-## Editor 工具程式碼
+```xml
+<Include Path="webgl.ruleset" Action="Default" />
+```
 
-Ruleset 無法以路徑限定範圍。把 `editor-relaxed.ruleset` 複製到每個 Editor asmdef
-資料夾並改名為 `Default.ruleset`:效能規則在那裡會安靜下來,而 `UNT`
-正確性規則維持 error。
+同時定義 `UPA_TARGET_WEBGL`。overlay 保持 Warning；CI 是否讓 Warning 失敗由
+`upa-cli --fail-on` 決定。
 
-## 備註
-
-- `UNT####` 嚴重度只在 Microsoft.Unity.Analyzers 存在之處生效
-  (例如 Visual Studio Tools for Unity 隨附的版本);否則這些條目為惰性設定。
-- 生態規則只在引用了對應套件(UniTask / ZString / R3 / DOTween)的 assembly 中執行;未引用時這些 preset 條目
-  為惰性設定。其他條件式生態規則(UniTask / R3)亦同。
+規則行為以 `docs/rules/` 為準；live catalog 使用 `upa-cli --list-rules`。

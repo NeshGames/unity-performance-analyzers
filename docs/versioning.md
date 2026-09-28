@@ -70,9 +70,9 @@ Both still resolve. A suppression you wrote for either keeps meaning what it mea
 **No rule's own default is above Warning.** Of 46 rules, 42 default to Warning and 4 to
 Info. Nothing in this package decides on its own that your build should fail.
 
-Errors come from a preset *you* chose — `minimal`, `recommended`, `strict` or
-`cysharp-stack`. That is the only channel through which a rule reaches error level, and it
-is a file in your project that you can read and edit.
+The live Unity profile intentionally contains no Error entries. Error promotion belongs to
+`ci.ruleset`, which is passed to `upa-cli` rather than Unity so analyzer policy cannot force
+the Editor into Safe Mode.
 
 Ecosystem rules (`UPA2000`+) and platform rules (`UPA3000`+) ship off by default. They turn
 on when the assembly being compiled references the package in question, or when you define
@@ -118,8 +118,7 @@ entry that says so.
   threshold, `2` usage or execution error
 - **`--format json` document shape**, versioned by its own `schemaVersion` field
 - **Baseline file format**, likewise versioned in the file
-- **Preset file names** — `minimal`, `recommended`, `strict`, `cysharp-stack`,
-  `webgl-addon`, `editor-relaxed`
+- **Profile file names** — `unity`, `ci`, and `webgl`
 
 ### Roslyn 4.3.1 and the Unity 6 floor
 

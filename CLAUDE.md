@@ -73,8 +73,7 @@ intended reason, and prefer extending an existing case. Two traps specific to th
 
 Keep that in mind for anything user-facing: an Error-severity finding fails Unity's compile, and an
 Editor launched on a project that does not compile opens in Safe Mode, where `unity command` cannot
-connect. That is why the docs steer agent workflows to `recommended` in Unity and the stricter
-presets in `upa-cli` gates.
+connect. That is why agent workflows use `unity.ruleset` in the Editor and `ci.ruleset` only in `upa-cli` gates.
 
 ## Commits
 

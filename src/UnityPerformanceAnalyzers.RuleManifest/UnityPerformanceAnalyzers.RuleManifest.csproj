@@ -9,14 +9,4 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- Same pinned Roslyn as the analyzer project; the analyzer's own reference is
-         PrivateAssets and does not flow through the project reference. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(RoslynVersion)" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\UnityPerformanceAnalyzers\UnityPerformanceAnalyzers.csproj" />
-  </ItemGroup>
-
 </Project>

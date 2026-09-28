@@ -32,6 +32,10 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Changed
 
+- **Severity presets collapse to agent-oriented profiles.** `unity.ruleset` is the non-fatal
+  Editor profile, `ci.ruleset` is the strict upa-cli gate, and `webgl.ruleset` is the
+  platform overlay. The old minimal/recommended/strict/cysharp/editor-relaxed/vs-coexist
+  files are removed. `unitask-coexist.ruleset` remains only as an AF-04 transition.
 - **The root README is now an AI-first repository index, not a product page or rule database.**
   The duplicate Traditional Chinese root README, generated rule tables, README generator and its
   drift/badge tests were removed. Rule details stay canonical in `docs/rules/` and agents discover

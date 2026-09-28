@@ -7,7 +7,7 @@
 # committed snapshots. That is the regression test: a change that adds four hundred
 # findings to real code shows up as a diff here and nowhere else in this repository.
 #
-# Runs through the `recommended` preset, because the question this corpus exists to answer is
+# Runs through the `unity` profile, because the question this corpus exists to answer is
 # what a user sees - and a user has a preset. Forcing every rule to warning measured something
 # nobody is configured for: it turned on the rules that ship disabled. --all-warn restores that
 # for surveying what the disabled rules would say; the snapshot records which mode produced it,
@@ -34,7 +34,7 @@ snapshots=$root/sandbox/corpus-snapshots
 unity_dll_dir=""
 check=no
 all_warn=no
-preset="$root/package/Samples~/Ruleset Presets/recommended.ruleset"
+preset="$root/package/Samples~/Ruleset Presets/unity.ruleset"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -46,7 +46,7 @@ while [ $# -gt 0 ]; do
 done
 
 python=$(command -v python3 || command -v python) || { echo "python3 not found" >&2; exit 2; }
-mode=preset-recommended
+mode=profile-unity
 [ "$all_warn" = yes ] && mode=all-warn
 if [ "$all_warn" = no ]; then
   [ -f "$preset" ] || { echo "preset not found: $preset" >&2; exit 2; }

@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sandbox verification profile: the recommended preset with several rules that
-     default to Info or off forced to Warning, so every hit is visible in the
-     compiler output during sandbox verification runs.
+<!-- Sandbox verification profile: unity.ruleset plus selected off/Info rules forced to Warning.
      GENERATED FILE - do not edit. Severities live in PresetTable.cs;
      regenerate via the RuleManifest presets mode (see that file's header). -->
 <RuleSet Name="UPA sandbox-verification" ToolsVersion="10.0">
@@ -48,17 +46,17 @@
     <Rule Id="UPA2032" Action="Warning" />
   </Rules>
   <Rules AnalyzerId="Microsoft.Unity.Analyzers" RuleNamespace="Microsoft.Unity.Analyzers">
-    <Rule Id="UNT0006" Action="Error" />
-    <Rule Id="UNT0007" Action="Error" />
-    <Rule Id="UNT0008" Action="Error" />
-    <Rule Id="UNT0010" Action="Error" />
-    <Rule Id="UNT0011" Action="Error" />
-    <Rule Id="UNT0015" Action="Error" />
-    <Rule Id="UNT0023" Action="Error" />
-    <Rule Id="UNT0029" Action="Error" />
-    <Rule Id="UNT0030" Action="Error" />
-    <Rule Id="UNT0033" Action="Error" />
-    <Rule Id="UNT0043" Action="Error" />
+    <Rule Id="UNT0006" Action="Warning" />
+    <Rule Id="UNT0007" Action="Warning" />
+    <Rule Id="UNT0008" Action="Warning" />
+    <Rule Id="UNT0010" Action="Warning" />
+    <Rule Id="UNT0011" Action="Warning" />
+    <Rule Id="UNT0015" Action="Warning" />
+    <Rule Id="UNT0023" Action="Warning" />
+    <Rule Id="UNT0029" Action="Warning" />
+    <Rule Id="UNT0030" Action="Warning" />
+    <Rule Id="UNT0033" Action="Warning" />
+    <Rule Id="UNT0043" Action="Warning" />
     <Rule Id="UNT0001" Action="Warning" />
     <Rule Id="UNT0002" Action="Warning" />
     <Rule Id="UNT0017" Action="Warning" />
@@ -74,5 +72,5 @@
     <Rule Id="UNT0041" Action="Warning" />
     <Rule Id="UNT0042" Action="Warning" />
   </Rules>
-  <Include Path="webgl-addon.ruleset" Action="Default" />
+  <Include Path="webgl.ruleset" Action="Default" />
 </RuleSet>
