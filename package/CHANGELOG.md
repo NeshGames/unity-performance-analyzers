@@ -32,6 +32,10 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Changed
 
+- **Rule policy is now explicit and machine-readable.** Live and retired UPA IDs are classified as
+  Core, Optional, House, Platform or Retired in `RulePolicyTable.cs`. The CI preset only promotes
+  Core rules to Error; Optional and House rules stay Warning/Info so architecture preferences and
+  heuristic advice do not become hard failures.
 - **Analyzer options now have one Unity-effective configuration channel.**
   Put `upa_*` values in `Assets/Rules.UnityPerformanceAnalyzers.additionalfile`; Unity and
   `upa-cli --additionalfile` now consume the same file with the same built-in fallbacks.
@@ -86,6 +90,11 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Removed
 
+- **UPA0011 and UPA2032 are retired by the optional-rule audit.** UPA0011's suggested UI
+  visibility rewrites do not preserve GameObject activation semantics, so an agent cannot assume a
+  finding should be fixed. UPA2032 reported a supported DOTween string-ID choice without
+  Unity/IL2CPP evidence that the difference is actionable. Both IDs remain permanently reserved;
+  the retirement rationale is preserved under `docs/evidence/retired/`.
 - **UPA0009 and UPA0021 are retired after Unity 6 IL2CPP measurement.** Hoisting
   `List<T>.Count` saved about 5.5 ns across an entire 64-item loop while requiring a ~26 KB
   alias/call/accessor safety analyzer that still could not see pre-existing aliases.

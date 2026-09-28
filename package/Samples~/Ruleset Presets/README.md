@@ -7,7 +7,7 @@ These files are deliberately small in number because coding agents are the prima
 | File | Use |
 |---|---|
 | `unity.ruleset` | Copy to `Assets/Default.ruleset`. It contains no Error entries, so analyzer findings cannot push the Editor into Safe Mode. |
-| `ci.ruleset` | Use with `upa-cli` in CI. It promotes the rules worth gating to Error. Do not use it as the live Unity ruleset. |
+| `ci.ruleset` | Use with `upa-cli` in CI. Core rules are promoted to Error; Optional / House policy rules stay Warning or Info. Do not use it as the live Unity ruleset. |
 | `webgl.ruleset` | Optional overlay for UPA3000–UPA3004. Define `UPA_TARGET_WEBGL` and include it from the active ruleset. |
 
 ## Unity

@@ -112,9 +112,7 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 | **UPA0006** | 逐幀方法內的參考型別配置 / boxing | ○ | ○ | ● PAC 的 boxing / 物件配置診斷 | ○ | **保留。** Project Auditor 這塊做得好,但只在批次 Editor 執行時。這是逐 PR 的版本 |
 | **UPA0007** | 逐幀方法內的捕捉型 lambda | ○ | ○ | ◐ | ○ | **保留。** ReSharper 的 Heap Allocations Viewer 是另外的選配外掛,不屬於 Unity 支援 |
 | **UPA0008** | 迴圈內的 `stackalloc` | ○ | ○ | ○ | ○ | **保留。** 任何地方都沒有對等物 |
-| **UPA0009** | `List<T>.Count` 未外提(預設關閉) | ○ | ○ | ○ | ○ | 維持現狀(預設關閉) |
 | **UPA0010** | 未給 `maxDistance` / `layerMask` 的 raycast | ◐ *Avoid using allocating versions of Physics Raycast functions*——不同關切點(配置) | ◐ UNT0028 *Use non-allocating physics APIs*——不同關切點 | ? PAC | ○ | **保留。** 沒有別的東西在檢查引數形狀;規則頁註記 UNT0028 涵蓋相鄰的配置問題 |
-| **UPA0011** | 以 `SetActive` 切換 UI 顯示(預設關閉) | ○ | ○ | ○ | ○ | 維持現狀 |
 | **UPA0012** | TMP 指派 `text` 而非 `SetText`(預設關閉) | ○ | ○ | ○ | ○ | 維持現狀 |
 | **UPA0013** | 逐幀方法內的 `System.Linq`(預設關閉) | ○ | ○ | ◐ | ○ | 維持現狀。UnityEngineAnalyzer 沒有 LINQ 規則——`UEA0009` 是 InvokeFunctionMissing,本頁在 2026-08-10 真的去讀它的規則清單之前寫錯了 |
 | **UPA0014** | 逐幀方法內的場景搜尋 API | ● *Avoid usage of Find methods in performance critical context*——同一組 API,還附快速修正 | ○ | ? PAC | ○ | **保留。** 就資訊而言 Rider 更強,但它的檢查永遠不會擋下建置;CI 的關卡是這條 |
@@ -124,8 +122,6 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 | **UPA0018** | 會配置的、回傳陣列的 Unity API | ○ | ◐ UNT0042(`Mesh` 陣列屬性在迴圈內)——單一 API、限迴圈 | ● PAC API 資料庫 | ○ | **保留。** UNT0042 是本規則的其中一例;規則頁補交叉引用 |
 | **UPA0019** | 協程 yield 出實質型別 | ○ | ○ | ○ | ○ | **保留——旗艦規則。** 沒有別的東西抓得到,而且失敗形式(Unity 把裝箱值當成 `null`)是正確性 bug,不只是配置 |
 | **UPA0020** | `WaitUntil` / `WaitWhile` 內的 lambda(預設關閉) | ○ | ◐ UNT0038 *Cache `WaitForSeconds`*——兄弟關切點、不同 API | ○ | ○ | 維持現狀。規則頁交叉引用 UNT0038 |
-| **UPA0021** | 可用 `sqrMagnitude` 的 `magnitude` / `Distance` 比較 | ○ | ◐ UNT0024 *Prefer scalar over vector calculations* | ○ | ○ | **保留。** UNT0024 是不同的改寫 |
-| **UPA0022** | `Enum.HasFlag`(已廢止) | — | — | — | — | 已廢止;不納入任何 coexistence ruleset |
 | **UPA0023** | player 程式碼中的 `OnGUI`(Info,預設關閉) | ◐ *base.OnGUI() will print "no GUI implemented"*——不同問題 | ○ | ○ | ○ | 維持現狀 |
 | **UPA0024** | 逐幀方法內的 `Resources.Load`(預設關閉) | ○ | ○ | ? PAC | ○ | 維持現狀 |
 | **UPA0025** | 執行期程式碼中的完成項 | ○ | ○ | ○ | ◐ 一般 C# analyzer(CA1821 只涵蓋*空的*完成項) | **保留。** CA1821 是更窄的情況 |
@@ -138,16 +134,13 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 
 ---
 
-## 正確性規則(UPA1000–UPA1001)
 
 | UPA | 回報什麼 | Rider | UNT | 其他 | 建議 |
 |---|---|---|---|---|---|
-| **UPA1000** | 葉類別未 sealed(已廢止) | — | — | UnityEngineAnalyzer 有 `UnsealedDerivedClass` | 量測後廢止;不納入 coexistence ruleset |
 | **UPA1001** | enum switch 缺少已宣告成員 | ○ | ○ | ● Roslyn 內建的 **IDE0010** / **IDE0072**(*Add missing cases*) | **真的重疊,而且對手不是 Unity 工具。** 若你的專案已評級 IDE0010/IDE0072,設 `UPA1001 = none`。差異:我們這條吃 `upa_enum_switch_allow_default`,而且不像 IDE0010 只在 IDE 出現——它經由 Unity 的編譯器回報 |
 
 ---
 
-## 生態規則(UPA2000–UPA2032)
 
 全部預設關閉且依套件條件啟用,所以重疊只在「你同時引用了該套件**並且**啟用了規則」時才成立。
 
@@ -160,7 +153,6 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 | **UPA2021** | 以公開 `Action` 事件表達可觀察狀態(已引用 R3) | ○ | **保留。** 架構性的,不是機械性的 |
 | **UPA2030** | 逐幀方法內建立 tween(DOTween) | ○ | **保留** |
 | **UPA2031** | 丟棄無限 tween 而未 `SetLink` | ○ | **保留——旗艦規則。** 這是生命週期 bug,不是風格偏好,而且 DOTween 沒有出貨 analyzer |
-| **UPA2032** | 字串型 tween ID(Info) | ○ | **保留** |
 
 ---
 
