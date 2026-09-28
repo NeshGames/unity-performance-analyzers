@@ -156,7 +156,7 @@ Unity 的文件兩邊都沒說,本專案也沒有實測過。若結果是「會�
 | **UPA2000** | 逐幀方法內的字串組建(知道 ZString) | ○ | **保留。** 沒有套件原生的對應 |
 | **UPA2010** | `async Task` 方法(已引用 UniTask) | ○ | **保留。** 設計上就是有主張的 |
 | **UPA2011** | MonoBehaviour 上的協程 `IEnumerator`(已引用 UniTask) | ○ | **保留。** 設計上就是有主張的 |
-| **UPA2012** | `async void` / 被丟棄的 task 呼叫 | ● **`UniTask.Analyzer`** 隨 UniTask 出貨,偵測未 await 的 `UniTask` 回傳呼叫。另有 ◐ **CS4014**、◐ UNT0012 | **全套規則裡最明確的真重複。** 引用 UniTask 就已經有它的 analyzer,同一個問題會得到兩份診斷。**discarded UniTask 建議讓 `UniTask.Analyzer` 負責。** AF-04 把這個判斷移入 UPA2012 前，先由 `unitask-coexist.ruleset` 過渡 |
+| **UPA2012** | `async void` / 被捨棄的 task 呼叫 | ○ 現行 `UniTask.Analyzer` 只有檢查省略/預設 `CancellationToken` 的 `UNITASK001`,不會偵測 discarded `UniTask` 結果 | **保留。** UPA2012 負責被捨棄的 `Task` 與 `UniTask` 結果。已於 2026-09-28 對 UniTask 2.5.11 與目前 master 驗證;讓渡會形成 coverage hole |
 | **UPA2021** | 以公開 `Action` 事件表達可觀察狀態(已引用 R3) | ○ | **保留。** 架構性的,不是機械性的 |
 | **UPA2030** | 逐幀方法內建立 tween(DOTween) | ○ | **保留** |
 | **UPA2031** | 丟棄無限 tween 而未 `SetLink` | ○ | **保留——旗艦規則。** 這是生命週期 bug,不是風格偏好,而且 DOTween 沒有出貨 analyzer |
@@ -218,35 +218,15 @@ Rider 與 Microsoft.Unity.Analyzers 都與平台無關。
 
 ---
 
-## Coexistence ruleset
+## Coexistence 政策
 
-以 `.ruleset` 檔隨 **Ruleset Presets** sample 出貨。
+目前不再出貨 coexistence ruleset。若其他 analyzer 真的負責同一個 finding,
+ownership 應直接放進 analyzer code(或移除重複規則),而不是靠 preset 靜音,
+以免順便關掉其他 coverage。
 
-**方向與直覺相反,而且這件事很重要。** 每個 coexistence ruleset 是**去 include 基礎 preset**,
-而不是被 preset include——因為**包含者的規則條目會蓋過被包含檔案裡同一條**,
-而每個基礎 preset 都對每條規則評級。一個被 preset include 的檔案什麼都靜不掉,
-外觀卻完全正確。這是出貨前用 `upa-cli` 量出來的:基礎把 UPA0001 評為 Warning
-並 include 一個把它設成 `None` 的覆蓋檔,UPA0001 仍然回報;把兩者對調就靜音了。
-
-所以做法是:把 coexistence 檔**與它的基礎 preset**一起複製到 `Assets/`,
-再把 coexistence 檔改名為 `Default.ruleset`。要換基礎,只需改一行 `Include`。
-
-### `vs-coexist.ruleset` —— 已移除
-
-不再把任何規則設為 `None`。原本把 UPA0003 讓渡給 UNT0041;在三個真實 Unity 遊戲上實測後,
-那個交換換到的是 1 則誤報、付出的是全部 3 則真陽性——因為 UNT0041 只看得到 `Animator`,
-而本規則真正抓到的都在 `Material` 與 `MaterialPropertyBlock`。
-Roslyn 的嚴重度無法只針對 Animator 多載,因此沒有「部分讓位」這個選項。
-檔案保留,以免已出貨版本公布過的路徑失效。
-
-刻意很小。Microsoft.Unity.Analyzers 主要是正確性規則與抑制器,真正的效能重疊只有一條。
-
-### `unitask-coexist.ruleset` —— include `ci`
-
-設為 `None`:**UPA2012**(讓渡給 `UniTask.Analyzer`)。
-
-這一個 include 的是 `ci`,因為那是唯一會把 UPA2012 打開的 preset
-——在其他任何基礎上,這個檔案都只是在靜音一件本來就靜著的事。
+AF-04 實際查證後取消原本的 UniTask 讓渡方案。官方 UniTask 2.5.11 與目前 master
+的 analyzer 都只有 `UNITASK001`,用途是檢查省略/預設的 `CancellationToken`;
+兩者都不會回報 discarded `UniTask` 結果,因此這部分仍由 UPA2012 負責。
 
 ---
 
@@ -263,11 +243,12 @@ Roslyn 的嚴重度無法只針對 Animator 多載,因此沒有「部分讓位�
 - [x] 「Project Auditor 自 Unity 6.4 起內建」以及「`com.unity.project-auditor-rules`
       是這個工具現在真的需要的套件」:已於 2026-08-10 對 Unity 的套件文件與 rules 套件
       changelog 查證。這兩句在有人去看之前就已經寫在本頁上了
-- [ ] 確認 `UniTask.Analyzer` 針對 UPA2012 的診斷編號與確切觸發條件
+- [x] 2026-09-28 已對 UniTask 2.5.11 與目前 master 驗證:
+      `UniTask.Analyzer` 只有 `UNITASK001`,檢查省略/預設的 `CancellationToken`;
+      不會回報 discarded `UniTask` 結果,因此 UPA2012 保留 ownership
 - [ ] 確認 IDE0010 / IDE0072 是否會在 Unity 的編譯器下觸發,或僅限 IDE
       ——這決定了「建議關掉 UPA1001」該說得多強
 - [ ] 每個 Rider 大版本重新核對其檢查清單——JetBrains 會定期新增
-- [x] coexistence ruleset 的 include 方向:已用本 repo 的 CLI 實測,並由測試守住
 
 **維護方式**
 

@@ -10,10 +10,6 @@ These files are deliberately small in number because coding agents are the prima
 | `ci.ruleset` | Use with `upa-cli` in CI. It promotes the rules worth gating to Error. Do not use it as the live Unity ruleset. |
 | `webgl.ruleset` | Optional overlay for UPA3000–UPA3004. Define `UPA_TARGET_WEBGL` and include it from the active ruleset. |
 
-The temporary `unitask-coexist.ruleset` exists only until AF-04 moves UniTask ownership into
-UPA2012 itself. It includes `ci.ruleset` and disables UPA2012 to avoid duplicate diagnostics from
-`UniTask.Analyzer`.
-
 ## Unity
 
 Copy:
