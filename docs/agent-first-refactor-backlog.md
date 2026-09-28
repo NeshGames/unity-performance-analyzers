@@ -36,6 +36,7 @@
 | AF-03 | DONE | Analyzer option channel simplification | Analyzer options 僅保留 `Rules.UnityPerformanceAnalyzers.additionalfile` + built-in defaults；移除 `upa-cli --editorconfig` 與 per-file option fallback。PR #7 / merge `dd4a3129e2caaadb847af6906e2e9ce199609f23` |
 | AF-04 | CANCELLED | UPA2012 self-coexistence proposal | 查證 UniTask.Analyzer v2.5.11 / current master 僅檢查 CancellationToken，並不接管 discarded UniTask。PR #8 改為移除錯誤的 `unitask-coexist` suppression，UPA2012 繼續負責 discarded Task / UniTask；merge `8b374919c051fd057eb01bebcef95bb6e338b2d0` |
 | AF-05A | DONE | Remove fully retired rules | 完整移除 UPA0022 / UPA1000 live analyzer、tests、resources、preset rows 與 live docs；新增 RetiredRuleIds 防止 ID reuse，保留 retired evidence，並更新 migration/versioning contract。PR #9 / merge `a34d41386646c8c5778cbeaea0b595d1cb21c479` |
+| AF-05B | DONE | Retire low-ROI active rules | 移除 UPA0009 / UPA0021，保留 Unity 6 IL2CPP evidence 與 retired IDs；UPA0023 保留到 AF-06 分類。PR #10 / merge `b8fa795c8f1fd1fc65ac8432218981de585e7c16` |
 
 ---
 
@@ -258,7 +259,7 @@ AF-04 的「把 discarded UniTask ownership 交給 UniTask.Analyzer」方案被�
 
 ## AF-05 — Remove retired and low-ROI rules
 
-**Status:** TODO  
+**Status:** DONE  
 **Priority:** P0  
 **Risk:** High  
 **Depends on:** AF-02  
@@ -298,7 +299,20 @@ UPA1000
 
 ### AF-05B — Remove low-ROI active rules
 
-優先評估並建議刪：
+**Status:** DONE  
+**PR:** #10  
+**Merge:** `b8fa795c8f1fd1fc65ac8432218981de585e7c16`  
+
+實際完成：
+
+- 移除 UPA0009 / UPA0021 analyzer implementations、tests、resources、preset rows 與 live rule docs。
+- UPA0009 Unity 6 IL2CPP：64-item loop hoist `List<T>.Count` 約只省 5.54 ns/loop；相對 analyzer/alias-analysis 維護成本過高。
+- UPA0021 Unity 6 IL2CPP：`Distance`/`magnitude` 改 `sqrMagnitude` 約只省 0.72 ns/op，且一般化 rewrite 對負的 runtime threshold 並非語義等價。
+- UPA0009 / UPA0021 加入 `RetiredRuleIds`，保留 retired evidence 與 release-tracking。
+- UPA0023 不因 optional 身分直接退役；保留到 AF-06 做 Core / Optional / House / Platform 分類。
+- PR CI：build、656 tests、analyzer-load smoke、CLI pack、generated drift 全綠。
+
+原評估候選：
 
 - **UPA0009** — 約 26 KB analyzer，為安全 hoist `List.Count` 需要大量 alias/call/accessor analysis；實測收益約數 ns。
 - **UPA0021** — `Distance/magnitude` → `sqrMagnitude` 的 Unity 6 IL2CPP 實測差異很小，且 rewrite 降低可讀性。
