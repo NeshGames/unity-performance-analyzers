@@ -39,6 +39,7 @@
 | AF-05B | DONE | Retire low-ROI active rules | 移除 UPA0009 / UPA0021，保留 Unity 6 IL2CPP evidence 與 retired IDs；UPA0023 保留到 AF-06 分類。PR #10 / merge `b8fa795c8f1fd1fc65ac8432218981de585e7c16` |
 | AF-06 | DONE | Audit optional / opinionated rules | 退役 UPA0011 / UPA2032；新增 Core / Optional / House / Platform / Retired machine-readable policy；Optional / House 不再於 CI 強制升 Error。PR #11 / merge `0dce2632b63c09a5b377111661ad14e78e4ff8dd` |
 | AF-07 | DONE | Simplify upa-cli surface | 移除 SARIF / GitHub-specific output；CLI 僅保留 text / JSON，JSON 作為 agent / CI machine interface；保留 exit 0/1/2、whole-assembly、changed-file narrowing 與 baseline 入口。PR #12 / merge `33ccd9adcf25cddb5c19ffd8764a52712b3f8296` |
+| AF-08 | DONE | Simplify baseline subsystem | baseline lifecycle 收斂為 `--baseline` / `--update-baseline`；移除 stale/prune UX 與 `BaselinePruneTests.cs`，保留 occurrence-count matching、whole-assembly safety 與 deterministic baseline format。PR #13 / merge `7f1c65a081a10fe3541163ff9b48a0eec0c79a20` |
 
 ---
 
@@ -394,33 +395,24 @@ UPA1000
 
 ## AF-08 — Simplify baseline subsystem
 
-**Status:** TODO  
+**Status:** DONE  
 **Priority:** P1  
 **Risk:** Medium  
-**Depends on:** AF-07
+**Depends on:** AF-07  
+**PR:** #13  
+**Merge:** `7f1c65a081a10fe3541163ff9b48a0eec0c79a20`
 
-### 核心需求只保留
+實際完成：
 
-```bash
-upa-cli ... --baseline upa-baseline.json
-upa-cli ... --update-baseline upa-baseline.json
-```
-
-### 建議移除
-
-- `--prune-baseline`
-- `--report-stale-baseline`
-- `--fail-on-stale`
-- quota/stale UX 若不是核心必要
-
-Agent 可以直接 review baseline JSON diff。
-
-### Definition of Done
-
-- 既有專案仍能 freeze existing findings。
-- 新 violation 仍能被 gate。
-- baseline classes / tests 顯著減少。
-- baseline format 保持 deterministic。
+- baseline 公開 lifecycle 收斂為 `--baseline <path>` 與 `--update-baseline <path>`。
+- `--write-baseline` 由 `--update-baseline` 取代；移除 `--prune-baseline`、`--report-stale-baseline`、`--fail-on-stale`。
+- 刪除 stale-entry 計算、stale JSON/text output、prune implementation 與整個 `BaselinePruneTests.cs`。
+- 保留 occurrence-count / quota matching，因為同一 member 中相同 snippet 的多個 finding 必須能精確 suppress 已記錄數量，新增 occurrence 仍會 report。
+- 保留 baseline path normalization、existing-file coverage check、symlink refusal、atomic write 與 deterministic ordering / bytes。
+- `--update-baseline` 仍要求 `--whole-assembly`，且 analyzer failure / compile error 時拒絕更新；partial compilation 不會成為 authoritative baseline。
+- baseline file schema 保持 v1，不需要 migration；CLI JSON schema 升至 v2，移除 stale-only `baselineStaleCount` / `baselineStale`，保留 `baselineSuppressedCount`。
+- Agent workflow 改為直接更新 baseline 並 review JSON diff，不再維護第二套 stale/prune UX。
+- PR CI：build、618 tests、analyzer-load smoke、CLI pack、generated drift 全綠。
 
 ---
 
