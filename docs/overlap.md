@@ -143,6 +143,7 @@ rule list is not a description of what ships today.
 
 ---
 
+## Correctness rules (UPA1001)
 
 | UPA | Reports | Rider | UNT | Other | Recommendation |
 |---|---|---|---|---|---|
@@ -150,6 +151,7 @@ rule list is not a description of what ships today.
 
 ---
 
+## Ecosystem rules (UPA2000–UPA2031)
 
 All off by default and package-conditional, so overlap only materialises once you both
 reference the package *and* enable the rule.
