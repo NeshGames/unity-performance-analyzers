@@ -61,7 +61,7 @@ For the Unity layer, build first, copy the analyzer DLL into `package/Analyzers/
 the script at an editor:
 
 ```bash
-bash .github/smoke/unity-load.sh "/path/to/Unity" 2022.3.62f2
+bash .github/smoke/unity-load.sh "/path/to/Unity" 6000.5.3f1
 ```
 
 Run it once per version in `unity-versions.json` before releasing, and state every one of
@@ -77,17 +77,17 @@ needs one of two statements, kept apart because they are not the same claim:
   *and reported as passing*, in exactly this shape and nothing else:
 
   ```
-  2022.3.62f2=pass 6000.5.3f1=pass
+  6000.5.3f1=pass
   ```
 
   Whitespace, commas and semicolons separate; spaces around the `=` are fine; case is not
   significant. Anything that is not a `<version>=pass` token rejects the whole value.
 
   The value is parsed against that, not searched for a pass inside it, and pasting the
-  script's own output is not accepted. Searching kept almost working: `2022.3.62f2 failed`
-  holds the version, `NOT PASS [Unity 2022.3.62f2]` holds the pass line,
-  `2022.3.62f2=pass=false` holds the token and then takes it back, and
-  `PASS [Unity 2022.3.62f2] UPA9999 reported, PACKAGE_FAILED silent, no loader failures`
+  script's own output is not accepted. Searching kept almost working: `6000.5.3f1 failed`
+  holds the version, `NOT PASS [Unity 6000.5.3f1]` holds the pass line,
+  `6000.5.3f1=pass=false` holds the token and then takes it back, and
+  `PASS [Unity 6000.5.3f1] UPA9999 reported, PACKAGE_FAILED silent, no loader failures`
   holds every part the pattern asked for. Free text can always be arranged to carry a pass
   inside a report of failure, and any field left open is somewhere to write one. This form
   leaves none open: a token either equals a supported version followed by `=pass`, or the

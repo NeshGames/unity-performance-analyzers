@@ -32,6 +32,11 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Changed
 
+- **Minimum supported editor is now Unity 6.** The analyzer dependency floor moves from
+  Roslyn 3.8 to 4.3.1; compiler-load smoke still exercises both 4.3.1 and the current 4.10
+  host. The UPM manifest now declares Unity 6000.0 and release smoke no longer carries a
+  Unity 2022.3 matrix.
+
 - **UPA0001 no longer reports the array-returning `GetComponents*` overloads**, which UPA0017
   reports on the same span. A `GetComponents<T>()` in `Update` now gets one warning, not two.
   The `List<T>` overloads stay with UPA0001, and so do the array overloads wherever UPA0017 is

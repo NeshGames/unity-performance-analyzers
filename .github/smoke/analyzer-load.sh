@@ -105,7 +105,7 @@ fi
 compile() {   # $1 = csc.dll, $2 = log, remaining = extra csc arguments
   local csc=$1 log=$2
   shift 2
-  # Roll forward: the 2022.3 compiler targets .NET 6, which CI does not install.
+  # Roll forward: the older pinned compiler targets .NET 6, which CI does not install.
   DOTNET_ROLL_FORWARD=LatestMajor dotnet exec "$csc" \
     -nologo -nostdlib+ -preferreduilang:en-US \
     -nowarn:1701 \

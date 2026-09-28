@@ -15,7 +15,7 @@ on:
       local_smoke:
         description: >
           Result of running .github/smoke/unity-load.sh outside CI, as
-          "2022.3.62f2=pass 6000.5.3f1=pass" and nothing else. This is the normal path: the
+          "6000.5.3f1=pass" and nothing else. This is the normal path: the
           editor licence is deliberately not held by this repository, so the Unity layer
           runs on a developer machine. Every supported version must be stated as passing;
           anything else in the field, including pasted script output, is refused.

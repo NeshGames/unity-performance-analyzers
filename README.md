@@ -5,7 +5,7 @@
 <!-- badges -->
 [![Release](https://img.shields.io/github/v/release/NeshGames/unity-performance-analyzers?sort=semver&label=release)](https://github.com/NeshGames/unity-performance-analyzers/releases/latest)
 [![Build](https://github.com/NeshGames/unity-performance-analyzers/actions/workflows/pr.yml/badge.svg?branch=main)](https://github.com/NeshGames/unity-performance-analyzers/actions/workflows/pr.yml)
-![Unity 2022.3 LTS – Unity 6](https://img.shields.io/badge/Unity-2022.3%20LTS%20%E2%80%93%20Unity%206-black)
+![Unity 6](https://img.shields.io/badge/Unity-6-black)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE.md)
 <!-- /badges -->
 
@@ -13,7 +13,7 @@ Roslyn analyzers that turn Unity performance and correctness conventions into
 compile-time checks. Rules adapt automatically to the packages each assembly references
 (UniTask, ZString, R3, DOTween) and to whether the project targets WebGL.
 
-Distributed as a UPM package. Supports **Unity 2022.3 LTS through Unity 6**.
+Distributed as a UPM package. Supports **Unity 6**; older editor lines are intentionally out of scope.
 
 ![Unity's Console listing performance warnings across two scripts](.github/images/console-warnings.png)
 
@@ -22,7 +22,7 @@ for a coding agent) through `upa-cli` with no Editor and no licence. A ruleset d
 which of them can fail a build.
 
 > **Status: pre-1.0.** All <!-- generated:rule-count -->46<!-- /generated:rule-count --> rules are implemented and verified against
-> Unity 2022.3 and Unity 6 sandbox builds. Two of them — UPA0022 and UPA1000 — are
+> the Unity 6 sandbox. Two of them — UPA0022 and UPA1000 — are
 > deprecated and report nothing unless a project asks them to; their pages say why.
 > Rule IDs are stable — once released, an ID is never reused.
 
@@ -79,7 +79,7 @@ Extras in the same sample:
   [rule overlap with other tools](docs/overlap.md)
 
 Unity reads rulesets only — it does not pass `.editorconfig` to the compiler (verified
-on 2022.3 and Unity 6). A `Default.ruleset` inside an asmdef folder overrides the
+on Unity 6). A `Default.ruleset` inside an asmdef folder overrides the
 project-wide one for that assembly.
 
 > **Error entries fail Unity's compile.** That is what `strict` and `cysharp-stack` are for
@@ -146,23 +146,21 @@ Found a rule firing on correct code? That is the most useful report this project
 receive — see [contributing](CONTRIBUTING.md).
 
 **What the rules cost your compile.** Measured with the compiler's own
-`-reportanalyzer` on the sandbox project, on both supported editors:
+`-reportanalyzer` on the Unity 6 sandbox (6000.5.3f1):
 
-| | Unity 6 (6000.5.3f1) | Unity 2022.3 LTS |
-|---|---|---|
-| Assembly compiles in the run | 31 | 16 |
-| Analyzer CPU time, all vendors | 4.09 s | 1.33 s |
-| **Of which these 46 rules** | **0.95 s (23%)** | **1.33 s (100%)** |
-| Unity's own bundled analyzers | 2.60 s | none present |
-| Median rule | 17 ms | 12 ms |
+| | Unity 6 |
+|---|---|
+| Assembly compiles in the run | 31 |
+| Analyzer CPU time, all vendors | 4.09 s |
+| **Of which these 46 rules** | **0.95 s (23%)** |
+| Unity's own bundled analyzers | 2.60 s |
+| Median rule | 17 ms |
 
-On Unity 6, the analyzers Unity already ships cost **2.7× what this whole rule set costs**
-in the same compile. On 2022.3 there are no bundled analyzers to compare against, so the
-figure is the whole analyzer bill.
+Unity's bundled analyzers cost **2.7× what this whole rule set costs** in the same compile.
 
 Read those as CPU time summed over every assembly in a full recompile, not as time you
-wait: analyzers run concurrently, and the compiler's own wall-clock total for the same runs
-is 2.19 s and 1.12 s. **The corpus is the sandbox project, which is small** — a figure for
+wait: analyzers run concurrently, and the compiler's own wall-clock total for the same run
+is 2.19 s. **The corpus is the sandbox project, which is small** — a figure for
 a large production assembly is not something this project has measured yet, and it will not
 be published until it has been. Reproduce with `sandbox/measure-analyzer-cost.sh`.
 
@@ -279,15 +277,14 @@ Microsoft.Unity.Analyzers is present (e.g. bundled with Visual Studio Tools for 
 If you install it into the project yourself, its Roslyn requirement must not exceed the
 compiler Unity bundles, or it fails with a **silent** `CS8032` warning:
 
-| Unity | Bundled Roslyn | Safe Microsoft.Unity.Analyzers |
+| Unity | Analyzer compatibility floor / verified compiler | Safe Microsoft.Unity.Analyzers |
 |---|---|---|
-| 2022.3 LTS / Unity 6 | 4.3.1 (6000.5: 4.10) | Latest (1.27.0) — **except 1.23.0** |
-| 2021.3 LTS *(not supported by this package)* | 3.9 | ≤ 1.22.0 |
+| Unity 6 | Roslyn 4.3.1 floor; 6000.5 smoke-tested with 4.10 | Latest (1.27.0) — **except 1.23.0** |
 
 ⚠️ **Never install Microsoft.Unity.Analyzers 1.23.0**: it references Roslyn 4.14, which
 no current Unity bundles — it silently does nothing on every Unity version.
 
-This package itself targets Roslyn 3.8 and loads on every supported Unity version.
+This package targets Roslyn 4.3.1 and smoke-tests that assembly against the Unity 6 compiler range above.
 
 ## Command-line runner (`upa-cli`)
 
@@ -555,12 +552,12 @@ truth:
 
 | Path | Purpose |
 |---|---|
-| `src/UnityPerformanceAnalyzers/` | Analyzer assembly (netstandard2.0, Roslyn 3.8) |
+| `src/UnityPerformanceAnalyzers/` | Analyzer assembly (netstandard2.0, Roslyn 4.3.1) |
 | `src/UnityPerformanceAnalyzers.Cli/` | `upa-cli` — run the rules without Unity |
 | `src/UnityPerformanceAnalyzers.Tests/` | xUnit analyzer tests (net8.0) |
 | `src/UnityStubs/` | Minimal hand-written UnityEngine stand-ins for tests |
 | `package/` | UPM publishing root |
-| `sandbox/UnityProject/` | Consumer-side verification project (Unity 2022.3) |
+| `sandbox/UnityProject/` | Consumer-side verification project (Unity 6) |
 | `docs/rules/` | Per-rule documentation |
 
 ## Building

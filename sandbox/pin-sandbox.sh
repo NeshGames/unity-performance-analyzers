@@ -1,21 +1,10 @@
 #!/usr/bin/env bash
-# Pins sandbox/UnityProject to one editor and adds the dependencies that differ between
-# editors.
+# Pins sandbox/UnityProject to a Unity 6 editor and adds the measurement dependencies.
 #
 #   usage: pin-sandbox.sh <project-dir> <editor-version>
 #
-# pin-editor.sh writes the manifest from one template, which is what the smoke probe
-# wants: the same dependencies whichever editor opens it. The measurement
-# project cannot do that, because TextMeshPro is not the same package on both:
-#
-#   2022.3  com.unity.textmeshpro 3.0.7   shipped as a tarball inside the editor
-#   Unity 6 com.unity.textmeshpro 5.0.0   a shim whose description says it is no longer
-#                                         supported and whose only dependency is
-#                                         com.unity.ugui 2.0.0, where TMP now lives
-#
-# Both resolve from the editor installation, so neither needs the network. Asking for 3.0.7
-# on Unity 6 fails; asking for ugui 2.0.0 on 2022.3 fails. Hence a wrapper rather than a
-# second template: the version-dependent part is one line, and it belongs next to the reason.
+# Unity 6 carries TextMeshPro through com.unity.ugui 2.0.0. Older editor branches are
+# intentionally unsupported, so there is no version-dependent package branch here anymore.
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -26,10 +15,7 @@ version=${2:?editor version}
 
 bash "$root/.github/smoke/pin-editor.sh" "$project" "$version"
 
-case "$version" in
-  2022.*) text_package='"com.unity.textmeshpro": "3.0.7"' ;;
-  *)      text_package='"com.unity.ugui": "2.0.0"' ;;
-esac
+text_package='"com.unity.ugui": "2.0.0"'
 
 manifest=$project/Packages/manifest.json
 

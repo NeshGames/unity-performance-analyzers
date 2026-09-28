@@ -6,12 +6,12 @@
        An analyzer built against a newer Roslyn than the host compiler does not fail the
        build - the host reports CS8032 and then compiles as if no analyzer were present.
        Nothing in a normal .NET build catches that, because a normal .NET build uses the
-       compiler from the SDK, not the one inside Unity. These are the ones inside Unity:
+       compiler from the SDK, not the one inside Unity. Unity 6 is the only supported
+       editor line. We exercise both the 4.3.1 compatibility floor and the 4.10 compiler
+       used by the current Unity 6 sandbox so an accidental dependency bump cannot silently
+       disable the analyzer on an older Unity 6 project.
 
-         4.3.1   Unity 2022.3 LTS
-         4.10.0  Unity 6
-
-       Keep this list in step with the Unity versions the package claims to support. -->
+       Keep this list in step with the Unity 6 compiler range we actually support. -->
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
