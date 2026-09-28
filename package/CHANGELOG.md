@@ -11,8 +11,8 @@ Everything that only ever surfaced inside an IDE is gone. The project is now mai
 assumption that code is written by coding agents, which read diagnostics from the Unity
 compile or from `upa-cli` rather than from an editor's lightbulb or squiggle.
 
-Three rules also changed what they report — UPA0001 and UPA0009 report less, UPA2012 reports
-more — and performance rules now behave as documented in `[MenuItem]` methods and in `Reset()`.
+Two rules also changed what they report — UPA0001 reports less and UPA2012 reports more —
+and performance rules now behave as documented in `[MenuItem]` methods and in `Reset()`.
 Read **Changed** and **Fixed** before upgrading.
 
 ### Added
@@ -55,13 +55,6 @@ Read **Changed** and **Fixed** before upgrading.
   The `List<T>` overloads stay with UPA0001, and so do the array overloads wherever UPA0017 is
   switched off by ruleset, `/nowarn` or `.editorconfig` (not by `#pragma`, which UPA0001
   cannot see).
-- **UPA0009 no longer suggests hoisting `Count` where that changes behaviour**: the list is a
-  field and the loop calls one of the class's own methods (`Kill(_enemies[i])` removing from
-  `_enemies`), sets or reads one of its non-auto properties or indexers
-  (`CurrentTarget = _targets[i]`), writes an engine property such as `enabled`, or constructs
-  something handed `this`; the loop reassigns the list; or it calls a local function or any
-  delegate (`OnHit?.Invoke(x)`, `callback.Invoke(x)`) that may have captured it. Expect fewer
-  UPA0009 reports. A `nameof(...)` in the loop no longer silences it.
 - **UPA2012 also reports** `async void` local functions, async lambdas and anonymous methods
   passed where the delegate returns void — `button.onClick.AddListener(async () => …)` — with a
   message naming the delegate type and UniTask-aware advice, and discarded task-returning calls
@@ -92,6 +85,13 @@ Read **Changed** and **Fixed** before upgrading.
 - `upa-cli` compiles once per run instead of twice — about a third faster, same output.
 
 ### Removed
+
+- **UPA0009 and UPA0021 are retired after Unity 6 IL2CPP measurement.** Hoisting
+  `List<T>.Count` saved about 5.5 ns across an entire 64-item loop while requiring a ~26 KB
+  alias/call/accessor safety analyzer that still could not see pre-existing aliases.
+  `Vector3.Distance` to `sqrMagnitude` saved about 0.72 ns per comparison, while the general
+  rewrite is not semantics-preserving for negative runtime thresholds. Their IDs stay reserved
+  and the measurements are preserved under `docs/evidence/retired/`.
 
 - **UPA0022 and UPA1000 are fully retired.** Their dormant analyzer implementations, tests,
   resources, preset rows and live rule pages are removed instead of shipping permanently disabled

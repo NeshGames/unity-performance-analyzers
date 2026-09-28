@@ -8,6 +8,8 @@ namespace UnityPerformanceAnalyzers
     {
         internal static readonly string[] All =
         {
+            "UPA0009",
+            "UPA0021",
             "UPA0022",
             "UPA1000",
             "UPA2001",

@@ -32,10 +32,10 @@ commit**。該 repo **並未封存**。這就是不用猜也能說的全部:以�
 | `UEA0013` UseNonAllocMethods | 非配置版本的 physics 多載 | **沒有。** 由 `UNT0028` 負責;[UPA0010](rules/UPA0010.zh-TW.md) 對同一批呼叫檢查的是另一件事——查詢範圍有沒有被限縮 |
 | `UEA0014` AudioSourceMuteUsesCPU | `AudioSource.mute` | **沒有** |
 | `UEA0015` InstantiateTakeParent | `Instantiate` 未指定 parent | **沒有。** Rider 有對應的檢查。[UPA0031](rules/UPA0031.zh-TW.md) 報的是逐幀路徑上的 `Instantiate`,關切點不同 |
-| `UEA0016` VectorMagnitudeIsSlow | 只需比較平方卻用了 `magnitude` | [UPA0021](rules/UPA0021.zh-TW.md) |
+| `UEA0016` VectorMagnitudeIsSlow | 只需比較平方卻用了 `magnitude` | **曾經有,後來退役。** UPA0021 在 Unity 6 IL2CPP 實測有真實但僅約 0.72 ns/次比較的收益,不足以支撐一條仍有負閾值改寫語意例外的一般診斷。見 [UPA0021 退役證據](evidence/retired/UPA0021.md) |
 
-**十六條裡有八條有直接對應。** 三條由值得並存的其他工具負責、三條在任何地方都沒有對應、
-一條是刻意不做,還有一條曾經存在於此、被量測拿掉。
+**十六條裡有七條有直接對應。** 三條由值得並存的其他工具負責、三條在任何地方都沒有對應、
+一條是刻意不做,還有兩條曾經存在於此、被量測拿掉。
 
 ---
 
@@ -57,7 +57,7 @@ UPA2011 不是被停用,而是**根本不存在**。沒有東西要設定,也沒
 
 ## 搬過來的步驟
 
-1. 移除 UnityEngineAnalyzer 的套件或 DLL。兩者並存,那八條重疊的規則會給你兩份報告。
+1. 移除 UnityEngineAnalyzer 的套件或 DLL。兩者並存,那七條重疊的規則會給你兩份報告。
 2. 安裝本套件並選一個 preset——沒有 preset 的話,只有預設開啟的規則會以 Warning 回報。
 3. 若還沒裝,請裝
    [Microsoft.Unity.Analyzers](https://github.com/microsoft/Microsoft.Unity.Analyzers)。

@@ -34,11 +34,11 @@ finished.
 | `UEA0013` UseNonAllocMethods | Non-allocating physics overloads | **Not here.** `UNT0028` covers it; [UPA0010](rules/UPA0010.md) checks a different thing about the same calls — whether the query is bounded |
 | `UEA0014` AudioSourceMuteUsesCPU | `AudioSource.mute` | **Not here** |
 | `UEA0015` InstantiateTakeParent | `Instantiate` without a parent | **Not here.** Rider has an inspection for it. [UPA0031](rules/UPA0031.md) reports `Instantiate` on a per-frame path, which is a different concern |
-| `UEA0016` VectorMagnitudeIsSlow | `magnitude` where the square would do | [UPA0021](rules/UPA0021.md) |
+| `UEA0016` VectorMagnitudeIsSlow | `magnitude` where the square would do | **Was here, and was retired.** UPA0021 measured a real but ~0.72 ns/comparison Unity 6 IL2CPP gain, too small for a general diagnostic with a negative-threshold rewrite caveat. See the [UPA0021 retirement evidence](evidence/retired/UPA0021.md) |
 
-**Eight of sixteen have a direct equivalent.** Three are covered by tools worth running
-alongside this one, three have no equivalent anywhere, one is deliberately absent, and one
-existed here until measurement took it away.
+**Seven of sixteen have a direct equivalent.** Three are covered by tools worth running
+alongside this one, three have no equivalent anywhere, one is deliberately absent, and two
+existed here until measurement took them away.
 
 ---
 
@@ -63,7 +63,7 @@ in. [Versioning and rule governance](versioning.md) sets out when that happens.
 ## Moving over
 
 1. Remove the UnityEngineAnalyzer package or DLL. Running both means duplicate reports for
-   the eight overlapping rules.
+   the seven overlapping rules.
 2. Install this package and pick a preset — without one, only the rules that are on by
    default report, at Warning.
 3. Install [Microsoft.Unity.Analyzers](https://github.com/microsoft/Microsoft.Unity.Analyzers)

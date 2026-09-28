@@ -57,15 +57,15 @@ baseline 條目——全部以編號指稱規則,而它們全都住在**你的**
 - 效能規則的退役量測證據保留在 `docs/evidence/retired/`,
 - 舊 ruleset、pragma、baseline 條目變成無作用的歷史設定,不會改指向新規則。
 
-目前有三個 retired ID:**UPA0022**、**UPA1000**、**UPA2001**。UPA0022 與 UPA1000
-保留量測證據;UPA2001 則是在 hot-path LINQ rule 從 ecosystem group 移到 UPA0013 時退役。
-這些 retired ID 都不再是 live diagnostic。
+目前有五個 retired ID:**UPA0009**、**UPA0021**、**UPA0022**、**UPA1000**、**UPA2001**。
+UPA0009、UPA0021、UPA0022、UPA1000 保留量測證據;UPA2001 則是在 hot-path LINQ rule
+從 ecosystem group 移到 UPA0013 時退役。這些 retired ID 都不再是 live diagnostic。
 
 ---
 
 ## 嚴重度政策
 
-**沒有任何規則的自身預設高於 Warning。** 44 條規則中,40 條預設 Warning、4 條 Info。
+**沒有任何規則的自身預設高於 Warning。** 42 條規則中,38 條預設 Warning、4 條 Info。
 本套件不會自己決定你的建置該失敗。
 
 Unity 日常 profile 刻意不含 Error。需要 Error gate 時使用 `ci.ruleset`,並只交給
@@ -142,8 +142,9 @@ Mono 的數字也不算:Mono 只作對照,**判準是 IL2CPP**。
 
 所以規則會被重新量測,被實測推翻的就退役或收窄——**包含已經出貨的規則**。
 0.8.0 先停用 UPA0022 與 UPA1000;AF-05A 再移除兩者 dormant analyzer 與 live rule page,
-但永久保留 ID 與量測證據。UPA0006 的 enum 引數回報也被撤回,UPA0026 則收窄到唯一
-還站得住的呼叫。
+但永久保留 ID 與量測證據。AF-05B 接著在 Unity 6 IL2CPP 實測後退役 UPA0009 與 UPA0021:
+兩者收益確實存在,但相對其維護面與改寫風險過小。UPA0006 的 enum 引數回報也被撤回,
+UPA0026 則收窄到唯一還站得住的呼叫。
 
 如果你發現某條規則的建議在 IL2CPP 上並不成立,那是這個專案最想收到的 bug report。
 

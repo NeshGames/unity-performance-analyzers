@@ -14,7 +14,6 @@
     <Rule Id="UPA0006" Action="Warning" />
     <Rule Id="UPA0007" Action="Warning" />
     <Rule Id="UPA0008" Action="Warning" />
-    <Rule Id="UPA0009" Action="Warning" />
     <Rule Id="UPA0010" Action="Warning" />
     <Rule Id="UPA0011" Action="None" />
     <Rule Id="UPA0012" Action="None" />
@@ -26,7 +25,6 @@
     <Rule Id="UPA0018" Action="Warning" />
     <Rule Id="UPA0019" Action="Warning" />
     <Rule Id="UPA0020" Action="None" />
-    <Rule Id="UPA0021" Action="None" />
     <Rule Id="UPA0023" Action="None" />
     <Rule Id="UPA0024" Action="None" />
     <Rule Id="UPA0025" Action="Warning" />

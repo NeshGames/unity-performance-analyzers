@@ -75,15 +75,6 @@
   <data name="UPA0008Description" xml:space="preserve">
     <value>Memory reserved with stackalloc is released when the enclosing method returns, not when the current loop iteration or block ends. A stackalloc inside a loop therefore reserves a new region on every iteration while all previous regions stay live, which can overflow the stack. Hoist the buffer out of the loop and reuse it across iterations. A stackalloc at the top of a local function or lambda called from a loop is fine: that memory is reclaimed when the local function returns.</value>
   </data>
-  <data name="UPA0009Title" xml:space="preserve">
-    <value>List Count not hoisted out of for loop</value>
-  </data>
-  <data name="UPA0009MessageFormat" xml:space="preserve">
-    <value>'{0}.Count' is re-read on every iteration of this loop. Hoist it into a local before the loop when the size does not change while iterating.</value>
-  </data>
-  <data name="UPA0009Description" xml:space="preserve">
-    <value>Reading List&lt;T&gt;.Count in a for-loop condition performs a property access on every iteration. When the list size does not change inside the loop, hoisting the count into a local before the loop removes that repeated read. Arrays are different: keep comparing against array.Length directly, because the JIT recognizes that form and eliminates bounds checks.</value>
-  </data>
   <data name="UPA0010Title" xml:space="preserve">
     <value>Raycast without explicit maxDistance or layerMask</value>
   </data>
@@ -275,15 +266,6 @@
   </data>
   <data name="UPA0020Description" xml:space="preserve">
     <value>Constructing WaitUntil or WaitWhile with a lambda allocates the delegate and any captured closure on every construction; Unity's coroutine guidance recommends caching commonly reused yield instructions and avoiding lambdas in WaitUntil and WaitWhile. The rule performs no flow analysis, so a construction that provably runs once (for example in a field initializer) still reports — suppress locally or cache the predicate in a field. Disabled by default.</value>
-  </data>
-  <data name="UPA0021Title" xml:space="preserve">
-    <value>magnitude or Distance compared where sqrMagnitude suffices</value>
-  </data>
-  <data name="UPA0021MessageFormat" xml:space="preserve">
-    <value>Comparing '{0}' computes a square root. Compare sqrMagnitude against the squared threshold instead.</value>
-  </data>
-  <data name="UPA0021Description" xml:space="preserve">
-    <value>The magnitude property and the Vector Distance methods compute a square root. When the result is only compared against a threshold, comparing sqrMagnitude against the squared threshold is equivalent and much faster. Comparisons with a magnitude or Distance expression on both sides are not reported — rewriting those brings no gain. Square a plain numeric literal threshold directly; any other threshold must be squared by hand, e.g. multiplied by itself.</value>
   </data>
   <data name="UPA0023Title" xml:space="preserve">
     <value>OnGUI declared in player code</value>
