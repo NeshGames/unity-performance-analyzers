@@ -4,13 +4,12 @@
 
 Rulesets are the channel Unity actually reads: Unity passes `Assets/Default.ruleset`
 (and per-asmdef-folder rulesets) to the C# compiler, while `.editorconfig` files are
-**not** passed at all (verified on 2022.3 and Unity 6). `upa-cli --ruleset` reads the same
+**not** passed at all (verified on Unity 6). `upa-cli --ruleset` reads the same
 files, so a CI gate and the Unity build agree.
 
 ## Picking a preset
 
-Which rule ids each preset sets, and to what, is in the preset files themselves; the rule
-tables in the repository README and `upa-cli --list-rules` describe what each one reports.
+Which rule ids each preset sets, and to what, is in the preset files themselves; `docs/rules/` and `upa-cli --list-rules` describe what each one reports.
 Listing ids here as well only produced a third copy to keep in step, and it had already
 fallen behind.
 

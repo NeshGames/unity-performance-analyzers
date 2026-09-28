@@ -11,6 +11,9 @@ reconstructing intent from history.
 These instructions are for agents editing this repository. Agents using the package from a Unity
 game should follow `skills/unity-performance-analyzers/SKILL.md` instead.
 
+The root `README.md` is an AI-first repository index. It is intentionally not generated and must
+not become a second rule catalog or compatibility contract.
+
 ## Required checks
 
 Run, in order:
@@ -20,7 +23,7 @@ dotnet build UnityPerformanceAnalyzers.sln -c Release
 dotnet test UnityPerformanceAnalyzers.sln -c Release --no-build
 
 dotnet run --project src/UnityPerformanceAnalyzers.RuleManifest -c Release --no-build -- --all .
-git status --short -- README.md README.zh-TW.md package/Editor/rules.json \
+git status --short -- package/Editor/rules.json \
   "package/Samples~/Ruleset Presets" sandbox/UnityProject/Assets/Default.ruleset
 
 bash .github/smoke/analyzer-load.sh
@@ -57,9 +60,10 @@ This is a single-maintainer, agent-first tool. Backward compatibility with Unity
 than Unity 6 is not a goal. Prefer deleting obsolete compatibility branches and duplicate
 configuration surfaces over preserving them for hypothetical users.
 
-Before adding a new abstraction, option, preset, output format, release step, or document, ask
-whether it removes more maintenance than it adds. A generated artifact is preferable to a second
-hand-maintained source of truth.
+Before adding a new abstraction, option, preset, output format, release step, README section, or
+document, ask whether it removes more maintenance than it adds. A generated artifact is preferable
+to a second hand-maintained source of truth; a source-of-truth file is preferable to duplicating
+the same data in README prose.
 
 ## Tests
 

@@ -32,6 +32,10 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Changed
 
+- **The root README is now an AI-first repository index, not a product page or rule database.**
+  The duplicate Traditional Chinese root README, generated rule tables, README generator and its
+  drift/badge tests were removed. Rule details stay canonical in `docs/rules/` and agents discover
+  the live catalog through `upa-cli --list-rules`.
 - **Minimum supported editor is now Unity 6.** The analyzer dependency floor moves from
   Roslyn 3.8 to 4.3.1; compiler-load smoke still exercises both 4.3.1 and the current 4.10
   host. The UPM manifest now declares Unity 6000.0 and release smoke no longer carries a

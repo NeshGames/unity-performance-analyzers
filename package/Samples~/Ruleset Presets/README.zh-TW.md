@@ -4,7 +4,7 @@
 
 Ruleset 才是 Unity 真正讀取的通道:Unity 會把 `Assets/Default.ruleset`
 (以及各 asmdef 資料夾的 ruleset)傳給 C# 編譯器,而 `.editorconfig` 檔案
-**完全不會**被傳入(已在 2022.3 與 Unity 6 上驗證)。`upa-cli --ruleset` 讀的是同一批檔案,
+**完全不會**被傳入(已在 Unity 6 上驗證)。`upa-cli --ruleset` 讀的是同一批檔案,
 所以 CI 閘門與 Unity 建置的判定一致。
 
 ## 挑選 preset
