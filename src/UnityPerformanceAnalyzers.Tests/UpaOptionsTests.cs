@@ -4,11 +4,9 @@ using Xunit;
 namespace UnityPerformanceAnalyzers.Tests
 {
     /// <summary>
-    /// Layered option resolution through the universal options file
-    /// (Rules.UnityPerformanceAnalyzers.additionalfile): file wins over .editorconfig,
-    /// invalid or missing values fall through per key, parsing tolerates junk. Exercised
-    /// end to end through the hot-path probe and UPA1001 rather than unit-testing the
-    /// parser, so the wiring inside the analyzers is covered too.
+    /// Option resolution through Rules.UnityPerformanceAnalyzers.additionalfile. Missing or
+    /// invalid values use built-in defaults, junk is ignored, and duplicate keys keep their
+    /// last value. Exercised end to end so analyzer wiring is covered with the parser.
     /// </summary>
     public class UpaOptionsTests
     {
@@ -19,11 +17,10 @@ static class Marker
 }
 ";
 
-        private static Task VerifyHotPathAsync(string source, string? optionsFile = null, string? editorConfig = null) =>
+        private static Task VerifyHotPathAsync(string source, string? optionsFile = null) =>
             RuleVerifier.VerifyAsync<HotPathProbeAnalyzer>(source + Prelude, new RuleHarness
             {
                 OptionsFile = optionsFile,
-                EditorConfig = editorConfig,
             });
 
         private const string StartAndUpdateSource = @"
@@ -42,7 +39,6 @@ class C : MonoBehaviour
     }
 }";
 
-        // Options-file test case 1 — the file alone redefines the hot message set
         [Fact]
         public Task OptionsFile_RedefinesHotMessages()
         {
@@ -51,29 +47,8 @@ class C : MonoBehaviour
                 optionsFile: "upa_hot_path_messages = Start");
         }
 
-        // Options-file test case 2 — the file wins over a conflicting .editorconfig value
         [Fact]
-        public Task OptionsFile_WinsOverEditorConfig()
-        {
-            return VerifyHotPathAsync(
-                StartAndUpdateSource,
-                optionsFile: "upa_hot_path_messages = Start",
-                editorConfig: "upa_hot_path_messages = LateUpdate");
-        }
-
-        // Options-file test case 3 — a key the file does not set falls to .editorconfig
-        [Fact]
-        public Task MissingKey_FallsToEditorConfig()
-        {
-            return VerifyHotPathAsync(
-                StartAndUpdateSource,
-                optionsFile: "upa_hot_path_include_lambdas = true",
-                editorConfig: "upa_hot_path_messages = Start");
-        }
-
-        // Options-file test case 4 — neither channel set: built-in defaults apply
-        [Fact]
-        public Task NoChannelSet_UsesDefaults()
+        public Task NoOptionSet_UsesDefaults()
         {
             return VerifyHotPathAsync(@"
 using UnityEngine;
@@ -88,7 +63,6 @@ class C : MonoBehaviour
                 optionsFile: "# only a comment\n");
         }
 
-        // Options-file test case 5 — junk lines are ignored without errors
         [Fact]
         public Task MalformedLines_AreIgnored()
         {
@@ -103,12 +77,9 @@ class C : MonoBehaviour
                     "upa_hot_path_messages = Start"));
         }
 
-        // Options-file test case 6 — an invalid value counts as unset and falls through
         [Fact]
-        public Task InvalidBool_FallsToEditorConfig()
+        public Task InvalidBool_UsesBuiltInDefault()
         {
-            // include_lambdas resolves to false (editorconfig layer): the direct call in
-            // Update stays hot, the call inside the lambda does not.
             return VerifyHotPathAsync(@"
 using UnityEngine;
 using System;
@@ -117,15 +88,13 @@ class C : MonoBehaviour
 {
     void Update()
     {
-        Action a = () => Marker.Mark();
+        Action a = () => {|UPATEST01:Marker.Mark()|};
         {|UPATEST01:a()|};
     }
 }",
-                optionsFile: "upa_hot_path_include_lambdas = ja",
-                editorConfig: "upa_hot_path_include_lambdas = false");
+                optionsFile: "upa_hot_path_include_lambdas = ja");
         }
 
-        // Options-file test case 7 — a duplicated key keeps its last value
         [Fact]
         public Task DuplicateKey_LastValueWins()
         {
@@ -136,7 +105,6 @@ class C : MonoBehaviour
                     "upa_hot_path_messages = Start"));
         }
 
-        // Options-file test case 8 — UPA1001 reads its option through the same channel
         [Fact]
         public Task EnumSwitchAllowDefault_ViaOptionsFile()
         {

@@ -592,89 +592,8 @@ public class Many : MonoBehaviour
             Assert.Equal(lines.OrderBy(p => p.Item1).ThenBy(p => p.Item2), lines);
         }
 
-        // Severities from .editorconfig travel Roslyn's tree-options channel, which
-        // analyzers never see — so these two cases prove the CLI lifts them onto the
-        // compilation rather than silently dropping the file's configuration.
         [Fact]
-        public void EditorConfig_CanSilenceAnEnabledRule()
-        {
-            var file = Write("Probe.cs", HotPathViolation);
-            var config = Write(".editorconfig", @"root = true
-
-[*.cs]
-dotnet_diagnostic.UPA0001.severity = none
-");
-
-            var (exitCode, stdout, _) = Run(file, "--editorconfig", config, "--format", "json");
-
-            Assert.Equal(0, exitCode);
-            Assert.DoesNotContain(
-                "UPA0001",
-                ParseJson(stdout).GetProperty("diagnostics").EnumerateArray()
-                    .Select(d => d.GetProperty("id").GetString()));
-        }
-
-        [Fact]
-        public void EditorConfig_CanEnableAnOffByDefaultRule()
-        {
-            var file = Write("Logging.cs", @"
-using UnityEngine;
-
-public class Logging : MonoBehaviour
-{
-    void Start() { Debug.Log(""hello""); }
-}");
-            var config = Write(".editorconfig", @"root = true
-
-[*.cs]
-dotnet_diagnostic.UPA0005.severity = warning
-");
-
-            var (withoutCode, withoutStdout, _) = Run(file, "--format", "json");
-            var (withCode, withStdout, _) = Run(file, "--editorconfig", config, "--format", "json");
-
-            Assert.Equal(0, withoutCode);
-            Assert.DoesNotContain(
-                "UPA0005",
-                ParseJson(withoutStdout).GetProperty("diagnostics").EnumerateArray()
-                    .Select(d => d.GetProperty("id").GetString()));
-
-            Assert.Equal(1, withCode);
-            Assert.Contains(
-                "UPA0005",
-                ParseJson(withStdout).GetProperty("diagnostics").EnumerateArray()
-                    .Select(d => d.GetProperty("id").GetString()));
-        }
-
-        // A section can scope a rule to one file pattern, so severities must stay per file:
-        // the result must not depend on which order the files were passed.
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void EditorConfig_ScopesSeveritiesPerFile_RegardlessOfInputOrder(bool reversed)
-        {
-            var loud = Write("Loud.cs", HotPathViolation.Replace("Probe", "Loud"));
-            var quiet = Write("Quiet.cs", HotPathViolation.Replace("Probe", "Quiet"));
-            var config = Write(".editorconfig", @"root = true
-
-[Quiet.cs]
-dotnet_diagnostic.UPA0001.severity = none
-");
-
-            var files = reversed ? new[] { quiet, loud } : new[] { loud, quiet };
-            var (_, stdout, _) = Run(files[0], files[1], "--editorconfig", config, "--format", "json");
-
-            var reported = ParseJson(stdout).GetProperty("diagnostics").EnumerateArray()
-                .Where(d => d.GetProperty("id").GetString() == "UPA0001")
-                .Select(d => Path.GetFileName(d.GetProperty("file").GetString()!))
-                .ToArray();
-
-            Assert.Equal(new[] { "Loud.cs" }, reported);
-        }
-
-        // Analyzer options (not severities) also come from the file, through the other channel.
-        [Fact]
-        public void EditorConfig_CarriesAnalyzerOptions()
+        public void AdditionalFile_CarriesAnalyzerOptions()
         {
             var file = Write("Custom.cs", @"
 using System.Collections.Generic;
@@ -687,14 +606,13 @@ public class Custom : MonoBehaviour
         var junk = new List<int>();
     }
 }");
-            var config = Write(".editorconfig", @"root = true
-
-[*.cs]
-upa_hot_path_messages = Tick
-");
+            var optionsFile = Write(
+                "Rules.UnityPerformanceAnalyzers.additionalfile",
+                "upa_hot_path_messages = Tick");
 
             var (_, defaultStdout, _) = Run(file, "--format", "json");
-            var (_, configuredStdout, _) = Run(file, "--editorconfig", config, "--format", "json");
+            var (_, configuredStdout, _) = Run(
+                file, "--additionalfile", optionsFile, "--format", "json");
 
             Assert.DoesNotContain(
                 "UPA0006",
@@ -704,6 +622,19 @@ upa_hot_path_messages = Tick
                 "UPA0006",
                 ParseJson(configuredStdout).GetProperty("diagnostics").EnumerateArray()
                     .Select(d => d.GetProperty("id").GetString()));
+        }
+
+        [Fact]
+        public void EditorConfigOption_IsNoLongerAccepted()
+        {
+            var file = Write("Probe.cs", HotPathViolation);
+            var config = Write(".editorconfig", "root = true");
+
+            var (exitCode, stdout, stderr) = Run(file, "--editorconfig", config);
+
+            Assert.Equal(2, exitCode);
+            Assert.Empty(stdout);
+            Assert.Contains("Unknown option '--editorconfig'", stderr);
         }
 
         // <IncludeAll> sets the policy for every rule the ruleset did not name, so
@@ -933,7 +864,6 @@ public class Mixed
         [InlineData("--define")]
         [InlineData("--assembly-name")]
         [InlineData("--ruleset")]
-        [InlineData("--editorconfig")]
         [InlineData("--additionalfile")]
         [InlineData("--unity-dll-dir")]
         [InlineData("--all-warn")]

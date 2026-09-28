@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Threading;
 using Microsoft.CodeAnalysis;
@@ -55,27 +54,14 @@ namespace UnityPerformanceAnalyzers
         internal static ImmutableHashSet<string> DefaultHotAttributes => s_defaultHotAttributes;
 
         private readonly INamedTypeSymbol? _monoBehaviourType;
-        private readonly UpaOptions _options;
-        private readonly AnalyzerConfigOptionsProvider _provider;
-
-        // Per tree because an .editorconfig section applies to the files it globs. Resolving
-        // once from the first syntax tree gave every file whatever that one was configured
-        // with, so the answer depended on the order the host listed the files in. The
-        // dictionary lives on this instance, which lives exactly as long as one compilation.
-        private readonly ConcurrentDictionary<SyntaxTree, Settings> _settingsByTree =
-            new ConcurrentDictionary<SyntaxTree, Settings>();
-
-        private readonly Func<SyntaxTree, Settings> _resolveSettings;
+        private readonly Settings _settings;
 
         private HotPathDetector(
             INamedTypeSymbol? monoBehaviourType,
-            UpaOptions options,
-            AnalyzerConfigOptionsProvider provider)
+            UpaOptions options)
         {
             _monoBehaviourType = monoBehaviourType;
-            _options = options;
-            _provider = provider;
-            _resolveSettings = ResolveSettings;
+            _settings = ResolveSettings(options);
         }
 
         /// <summary>
@@ -84,22 +70,19 @@ namespace UnityPerformanceAnalyzers
         /// which reuses the parse the rest of the compilation context already did.
         /// </summary>
         public static HotPathDetector Create(Compilation compilation, AnalyzerOptions analyzerOptions)
-            => Create(compilation, UpaOptions.Resolve(analyzerOptions), analyzerOptions.AnalyzerConfigOptionsProvider);
+            => Create(compilation, UpaOptions.Resolve(analyzerOptions));
 
         /// <summary>
-        /// One detector per compilation. Options come from the universal options file first,
-        /// then the .editorconfig section that applies to the file being asked about, then the
+        /// One detector per compilation. Options come from the universal options file, then the
         /// built-in defaults (see UpaOptions); missing or unreadable values fall back and
         /// resolution never throws.
         /// </summary>
         public static HotPathDetector Create(
             Compilation compilation,
-            UpaOptions options,
-            AnalyzerConfigOptionsProvider provider)
+            UpaOptions options)
             => new HotPathDetector(
                 compilation.GetTypeByMetadataName("UnityEngine.MonoBehaviour"),
-                options,
-                provider);
+                options);
 
         /// <summary>
         /// The standard per-operation guard: true when the operation should not report
@@ -146,7 +129,7 @@ namespace UnityPerformanceAnalyzers
                 return false;
             }
 
-            var settings = _settingsByTree.GetOrAdd(method.SyntaxTree, _resolveSettings);
+            var settings = _settings;
 
             if (sawNestedFunction && !settings.IncludeLambdas)
             {
@@ -167,17 +150,17 @@ namespace UnityPerformanceAnalyzers
             return methodSymbol is object && TypeHierarchy.DerivesFrom(methodSymbol.ContainingType, _monoBehaviourType);
         }
 
-        private Settings ResolveSettings(SyntaxTree tree)
+        private static Settings ResolveSettings(UpaOptions options)
         {
             var hotMessages = ToNameSet(
-                _options.GetList(MessagesOptionKey, tree, _provider, ImmutableArray<string>.Empty),
+                options.GetList(MessagesOptionKey, ImmutableArray<string>.Empty),
                 s_defaultHotMessages,
                 stripAttributeSuffix: false);
             var hotAttributes = ToNameSet(
-                _options.GetList(AttributesOptionKey, tree, _provider, ImmutableArray<string>.Empty),
+                options.GetList(AttributesOptionKey, ImmutableArray<string>.Empty),
                 s_defaultHotAttributes,
                 stripAttributeSuffix: true);
-            var includeLambdas = _options.GetBool(IncludeLambdasOptionKey, tree, _provider, fallback: true);
+            var includeLambdas = options.GetBool(IncludeLambdasOptionKey, fallback: true);
 
             return new Settings(hotMessages, hotAttributes, includeLambdas);
         }

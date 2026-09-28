@@ -5,10 +5,10 @@ namespace UnityPerformanceAnalyzers.Tests
 {
     public class UPA0005DirectDebugLoggingAnalyzerTests
     {
-        private static Task VerifyAsync(string source, string? extraConfig = null) =>
+        private static Task VerifyAsync(string source, string? optionsFile = null) =>
             RuleVerifier.VerifyAsync<UPA0005DirectDebugLoggingAnalyzer>(source, new RuleHarness
             {
-                EditorConfig = extraConfig,
+                OptionsFile = optionsFile,
             });
 
         // UPA0005 test case 1
@@ -89,7 +89,7 @@ static class GameLog
         Debug.Log(message);
     }
 }",
-                extraConfig: "upa_log_wrapper_types = Log,GameLog");
+                optionsFile: "upa_log_wrapper_types = Log,GameLog");
         }
 
         // Companion to case 5: without the option the same wrapper type is reported.
@@ -182,71 +182,6 @@ class C
         a();
     }
 }");
-        }
-
-        // UPA0005 test case 9 — wrapper types through the options file
-        [Fact]
-        public Task WrapperTypes_ViaOptionsFile_DoesNotTrigger()
-        {
-            return RuleVerifier.VerifyAsync<UPA0005DirectDebugLoggingAnalyzer>(@"
-using UnityEngine;
-
-static class GameLog
-{
-    public static void Info(string m)
-    {
-        Debug.Log(m);
-    }
-}",
-                new RuleHarness
-                {
-                    OptionsFile = "upa_log_wrapper_types = GameLog",
-                });
-        }
-
-        // UPA0005 test case 10 — per-file sections, both input orders
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public Task PerFileSections_ApplyToTheirOwnFile_RegardlessOfOrder(bool reversed)
-        {
-            var reported = ("/Reported.cs", @"
-using UnityEngine;
-
-static class Reported
-{
-    public static void Info(string m)
-    {
-        {|UPA0005:Debug.Log(m)|};
-    }
-}");
-            var wrapped = ("/Wrapped.cs", @"
-using UnityEngine;
-
-static class Wrapped
-{
-    public static void Info(string m)
-    {
-        Debug.Log(m);
-    }
-}");
-
-            var harness = new RuleHarness
-            {
-                RawEditorConfig = @"
-root = true
-
-[*.cs]
-dotnet_diagnostic.UPA0005.severity = warning
-
-[*Wrapped.cs]
-upa_log_wrapper_types = Wrapped
-",
-            };
-            harness.NamedSources.Add(reversed ? wrapped : reported);
-            harness.NamedSources.Add(reversed ? reported : wrapped);
-
-            return RuleVerifier.VerifyAsync<UPA0005DirectDebugLoggingAnalyzer>("class Empty { }", harness);
         }
 
     }

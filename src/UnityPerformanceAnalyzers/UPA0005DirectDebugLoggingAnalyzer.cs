@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -57,17 +56,12 @@ namespace UnityPerformanceAnalyzers
             var conditionalAttributeType =
                 ctx.Type("System.Diagnostics.ConditionalAttribute");
 
-            // The wrapper list as it applies to each file, split once per file rather than once
-            // per Debug call - in a logging-heavy project that is thousands of splits of the
-            // same string. Per file because an .editorconfig section applies to the files it
-            // globs; the dictionary lives in this compilation's callbacks and dies with them.
-            var wrapperTypesByTree = new ConcurrentDictionary<SyntaxTree, ImmutableArray<string>>();
-            Func<SyntaxTree, ImmutableArray<string>> readWrapperTypes =
-                tree => ctx.GetList(WrapperTypesOptionKey, tree, ImmutableArray<string>.Empty);
+            // The wrapper list is compilation-wide and parsed once from the universal options
+            // file instead of being split again for every Debug call.
+            var wrapperTypes = ctx.GetList(WrapperTypesOptionKey, ImmutableArray<string>.Empty);
 
             ctx.RegisterOperationAction(
-                opCtx => AnalyzeInvocation(
-                    opCtx, debugType, conditionalAttributeType, wrapperTypesByTree, readWrapperTypes),
+                opCtx => AnalyzeInvocation(opCtx, debugType, conditionalAttributeType, wrapperTypes),
                 OperationKind.Invocation);
         }
 
@@ -75,8 +69,7 @@ namespace UnityPerformanceAnalyzers
             OperationAnalysisContext context,
             INamedTypeSymbol debugType,
             INamedTypeSymbol? conditionalAttributeType,
-            ConcurrentDictionary<SyntaxTree, ImmutableArray<string>> wrapperTypesByTree,
-            Func<SyntaxTree, ImmutableArray<string>> readWrapperTypes)
+            ImmutableArray<string> wrapperTypes)
         {
             var invocation = (IInvocationOperation)context.Operation;
             var method = invocation.TargetMethod;
@@ -92,8 +85,7 @@ namespace UnityPerformanceAnalyzers
                 return;
             }
 
-            if (IsInsideWrapperType(
-                context, wrapperTypesByTree.GetOrAdd(invocation.Syntax.SyntaxTree, readWrapperTypes)))
+            if (IsInsideWrapperType(context, wrapperTypes))
             {
                 return;
             }
@@ -127,9 +119,7 @@ namespace UnityPerformanceAnalyzers
             return false;
         }
 
-        // Through UpaOptions, so the options file works here too. Unity does not pass
-        // .editorconfig to the compiler, so a value set only there did nothing in an actual
-        // build.
+        // Through UpaOptions, so the same universal additional file controls Unity and upa-cli.
         private static bool IsInsideWrapperType(
             OperationAnalysisContext context,
             ImmutableArray<string> wrapperTypeNames)

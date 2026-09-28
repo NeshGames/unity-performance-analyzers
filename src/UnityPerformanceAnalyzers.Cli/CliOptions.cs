@@ -25,7 +25,6 @@ internal sealed class CliOptions
     public List<string> AdditionalFiles { get; } = new();
     public string AssemblyName { get; private set; } = "Assembly-CSharp";
     public string? RulesetPath { get; private set; }
-    public string? EditorConfigPath { get; private set; }
     public string? UnityDllDir { get; private set; }
     public bool AllWarn { get; private set; }
     public bool WholeAssembly { get; private set; }
@@ -193,10 +192,6 @@ internal sealed class CliOptions
                 case "--ruleset":
                     if (TakeValue() is not { } ruleset) return (null, error);
                     options.RulesetPath = ruleset;
-                    break;
-                case "--editorconfig":
-                    if (TakeValue() is not { } editorConfig) return (null, error);
-                    options.EditorConfigPath = editorConfig;
                     break;
                 case "--baseline":
                     if (TakeValue() is not { } baseline) return (null, error);
@@ -526,7 +521,6 @@ internal sealed class CliOptions
     private static IEnumerable<(string? Path, string Label)> EnumeratePathOptions(CliOptions options)
     {
         yield return (options.RulesetPath, "--ruleset");
-        yield return (options.EditorConfigPath, "--editorconfig");
         foreach (var additionalFile in options.AdditionalFiles)
         {
             yield return (additionalFile, "--additionalfile");

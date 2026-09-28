@@ -61,8 +61,7 @@ namespace UnityPerformanceAnalyzers
                 () => UpaProfile.Resolve(start.Compilation, start.Options),
                 LazyThreadSafetyMode.ExecutionAndPublication);
             _hotPath = new Lazy<HotPathDetector>(
-                () => HotPathDetector.Create(
-                    start.Compilation, _settings.Value, start.Options.AnalyzerConfigOptionsProvider),
+                () => HotPathDetector.Create(start.Compilation, _settings.Value),
                 LazyThreadSafetyMode.ExecutionAndPublication);
         }
 
@@ -72,24 +71,17 @@ namespace UnityPerformanceAnalyzers
 
         public CancellationToken CancellationToken => _start.CancellationToken;
 
-        /// <summary>The options file, found and parsed at most once for this analyzer and
-        /// compilation. Look keys up through <see cref="GetBool"/> and <see cref="GetList"/>,
-        /// which add the .editorconfig layer for the file being asked about.</summary>
+        /// <summary>The universal options file, found and parsed at most once for this analyzer
+        /// and compilation.</summary>
         public UpaOptions Settings => _settings.Value;
 
-        /// <summary>
-        /// An option as it applies to <paramref name="tree"/>. Always per file: an
-        /// .editorconfig section applies to the files it globs, and an answer read once from
-        /// the compilation's first syntax tree gave every file whatever that one was
-        /// configured with, depending on the order the host listed them in.
-        /// </summary>
-        public bool GetBool(string key, SyntaxTree tree, bool fallback)
-            => Settings.GetBool(key, tree, _start.Options.AnalyzerConfigOptionsProvider, fallback);
+        /// <summary>A boolean option from the universal options file, or its built-in default.</summary>
+        public bool GetBool(string key, bool fallback)
+            => Settings.GetBool(key, fallback);
 
-        /// <summary>A comma-separated option as it applies to <paramref name="tree"/>; see
-        /// <see cref="GetBool"/> for why per file.</summary>
-        public ImmutableArray<string> GetList(string key, SyntaxTree tree, ImmutableArray<string> fallback)
-            => Settings.GetList(key, tree, _start.Options.AnalyzerConfigOptionsProvider, fallback);
+        /// <summary>A comma-separated option from the universal options file, or its built-in default.</summary>
+        public ImmutableArray<string> GetList(string key, ImmutableArray<string> fallback)
+            => Settings.GetList(key, fallback);
 
         /// <summary>Which of the supported packages this assembly references, and whether it
         /// is built for WebGL.</summary>
