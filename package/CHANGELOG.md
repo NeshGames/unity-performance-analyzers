@@ -39,7 +39,8 @@ Read **Changed** and **Fixed** before upgrading.
 - **Severity presets collapse to agent-oriented profiles.** `unity.ruleset` is the non-fatal
   Editor profile, `ci.ruleset` is the strict upa-cli gate, and `webgl.ruleset` is the
   platform overlay. The old minimal/recommended/strict/cysharp/editor-relaxed/vs-coexist
-  files are removed. `unitask-coexist.ruleset` remains only as an AF-04 transition.
+  files are removed. The temporary UniTask coexist overlay was also removed after verification
+  showed that `UniTask.Analyzer` does not own discarded-UniTask diagnostics.
 - **The root README is now an AI-first repository index, not a product page or rule database.**
   The duplicate Traditional Chinese root README, generated rule tables, README generator and its
   drift/badge tests were removed. Rule details stay canonical in `docs/rules/` and agents discover
@@ -73,6 +74,10 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Fixed
 
+- **UPA2012 no longer has a coexistence preset that incorrectly silences its UniTask coverage.**
+  UniTask 2.5.11 and current master expose only `UNITASK001` for omitted/default
+  `CancellationToken`; they do not diagnose discarded `UniTask` results. UPA2012 therefore
+  keeps `Task`, `UniTask`, async-void and async-lambda coverage instead of deferring it.
 - **Performance rules now stay quiet in `[MenuItem]` and `[DidReloadScripts]` methods**, as
   documented. The check looked for `MenuItemAttribute` and `DidReloadScriptsAttribute`; Unity
   names both without the suffix, so it never matched. Attributes are now matched as resolved
@@ -102,8 +107,9 @@ Read **Changed** and **Fixed** before upgrading.
 - **The `.editorconfig` preset variants and `upa-cli --editorconfig`.** Analyzer behavior
   options now come only from `Rules.UnityPerformanceAnalyzers.additionalfile`; use
   `--additionalfile` in `upa-cli`. Diagnostic severity remains in `.ruleset` files.
-- **`rider-coexist.ruleset`.** It silenced rules because Rider's IDE inspections covered them,
-  and those inspections never gate a build. `vs-coexist` and `unitask-coexist` remain.
+- **All coexistence rulesets and their generator.** Rider/VS overlays were already unnecessary
+  in the agent-first model; the remaining UniTask overlay was based on an incorrect overlap
+  assumption and could hide real UPA2012 findings.
 - **The Rule Manager's "Also sync values to .editorconfig" toggle.** The options file it
   writes is the one Unity and `upa-cli` read.
 

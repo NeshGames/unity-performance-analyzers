@@ -166,7 +166,7 @@ reference the package *and* enable the rule.
 | **UPA2000** | String building in per-frame (ZString-aware) | ○ | **Keep.** No package-native equivalent |
 | **UPA2010** | `async Task` methods (UniTask referenced) | ○ | **Keep.** Opinionated by design |
 | **UPA2011** | Coroutine `IEnumerator` on MonoBehaviours (UniTask referenced) | ○ | **Keep.** Opinionated by design |
-| **UPA2012** | `async void` / discarded task calls | ● **`UniTask.Analyzer`** ships with UniTask and detects unawaited `UniTask`-returning calls. Also ◐ **CS4014** (unawaited `Task`) and ◐ UNT0012 (unused coroutine return value) | **The clearest genuine duplicate in the whole set.** If you reference UniTask you already have its analyzer, so you get two diagnostics for one problem. **Recommend deferring discarded UniTask calls to `UniTask.Analyzer`.** The temporary `unitask-coexist.ruleset` does that until AF-04 moves the decision into UPA2012 itself |
+| **UPA2012** | `async void` / discarded task calls | ○ Current `UniTask.Analyzer` only exposes `UNITASK001` for omitted/default `CancellationToken`; it does not detect discarded `UniTask` results | **Keep.** UPA2012 owns discarded `Task` and `UniTask` results. Verified against UniTask 2.5.11 and current master on 2026-09-28; deferring this finding would create a coverage hole |
 | **UPA2021** | Public `Action` events modelling observable state (R3 referenced) | ○ | **Keep.** Architectural, not mechanical |
 | **UPA2030** | Tweens created in per-frame (DOTween) | ○ | **Keep** |
 | **UPA2031** | Discarded infinite tweens without `SetLink` | ○ | **Keep — flagship.** This is a lifetime bug, not a style preference, and DOTween ships no analyzer |
@@ -225,39 +225,16 @@ Install all of them. This package is designed to sit alongside, not instead.
 
 ---
 
-## Coexistence rulesets
+## Coexistence policy
 
-Shipped in the **Ruleset Presets** sample as `.ruleset` files.
+No coexistence rulesets are shipped. If another analyzer genuinely owns the same finding,
+the ownership decision should live in analyzer code (or the duplicate rule should be removed),
+not in a preset that can silently disable unrelated coverage.
 
-**The direction is the opposite of what you would expect, and it matters.** Each coexistence
-ruleset **includes** the base preset rather than being included by it, because a rule entry in
-the including file beats the same entry in an included file — and every base preset grades
-every rule. A file written to be included by a preset silences nothing, while looking
-completely correct. That was measured with `upa-cli` before these shipped: a base grading
-UPA0001 as Warning and including an overlay that set it to `None` still reported UPA0001;
-inverting the two silenced it.
-
-So you copy the coexistence file **and** its base preset into `Assets/`, and rename the
-coexistence file to `Default.ruleset`. To defer from a different base, change one `Include`
-line.
-
-### `vs-coexist.ruleset` — removed
-
-Sets nothing to `None`. It used to defer UPA0003 to UNT0041; measurement on three real Unity
-games showed that trade buys one false positive and gives up every true one, because UNT0041
-only sees `Animator` and this rule's real finds are on `Material` and `MaterialPropertyBlock`.
-Severities cannot be scoped to the Animator overloads, so there is no partial deferral to make.
-The file is kept so paths published in earlier releases keep resolving.
-
-Small on purpose. Microsoft.Unity.Analyzers is mostly correctness and suppressors; the actual
-performance overlap is one rule.
-
-### `unitask-coexist.ruleset` — includes `ci`
-
-Sets to `None`: **UPA2012** (defers to `UniTask.Analyzer`).
-
-This one includes `ci`, because that is the only preset
-that turns UPA2012 on — over any other base the file would silence something already silent.
+AF-04 investigated the proposed UniTask handoff and cancelled it. The official UniTask 2.5.11
+analyzer and current master contain only `UNITASK001`, which checks omitted/default
+`CancellationToken`; neither reports discarded `UniTask` results. UPA2012 therefore keeps
+that responsibility.
 
 ---
 
@@ -277,7 +254,9 @@ claim in this repository.
       is a real package the tool now needs: checked against Unity's package documentation and
       the rules package changelog on 2026-08-10. Both were written on this page before anyone
       had looked
-- [ ] Confirm `UniTask.Analyzer`'s diagnostic id and exact trigger conditions for UPA2012
+- [x] UniTask overlap verified 2026-09-28 against release 2.5.11 and current master:
+      `UniTask.Analyzer` exposes `UNITASK001` for omitted/default `CancellationToken` only;
+      it does not report discarded `UniTask` results, so UPA2012 keeps that ownership
 - [ ] Confirm whether IDE0010 / IDE0072 fire under Unity's compiler or IDE-only, which decides
       how strongly to recommend disabling UPA1001
 - [ ] Re-check Rider's inspection list per major release — JetBrains adds inspections regularly

@@ -2,8 +2,7 @@ namespace UnityPerformanceAnalyzers.RuleManifest;
 
 /// <summary>
 /// Single source of truth for the agent-oriented severity profiles. Consumer configuration has
-/// three concepts only: Unity, CI and the WebGL overlay. The temporary UniTask coexist overlay
-/// remains until AF-04 moves that policy into UPA2012 itself.
+/// three concepts only: Unity, CI and the WebGL overlay.
 /// </summary>
 public static class PresetTable
 {
@@ -76,29 +75,6 @@ public static class PresetTable
         ["UPA0023"] = "warning",
         ["UPA0024"] = "warning",
         ["UPA2032"] = "warning",
-    };
-
-    // Transitional only. AF-04 removes this record, table and generated overlay by making
-    // UPA2012 defer discarded UniTask calls to UniTask.Analyzer in code.
-    public sealed record Coexist(
-        string Name,
-        string Defers,
-        string Base,
-        (string Id, string Why)[] Rules,
-        string Caveat);
-
-    public static readonly Coexist[] Coexists =
-    {
-        new(
-            "unitask",
-            "UniTask.Analyzer",
-            "ci",
-            new[]
-            {
-                ("UPA2012", "UniTask ships an analyzer that detects unawaited UniTask-returning calls"),
-            },
-            "Temporary compatibility overlay. AF-04 moves this ownership decision into UPA2012 "
-            + "and deletes this file."),
     };
 
     public static string ToRulesetAction(string severity) => severity switch

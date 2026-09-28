@@ -10,9 +10,6 @@
 | `ci.ruleset` | 給 `upa-cli` / CI gate 使用；需要強制的規則可提升成 Error。不要當成 Unity 日常 ruleset。 |
 | `webgl.ruleset` | UPA3000–UPA3004 的選用 overlay。定義 `UPA_TARGET_WEBGL` 後 include。 |
 
-`unitask-coexist.ruleset` 只是 AF-04 前的過渡檔。它 include `ci.ruleset` 並關閉
-UPA2012，避免與 `UniTask.Analyzer` 對同一個 discarded UniTask 重複診斷。
-
 ## Unity
 
 ```text
