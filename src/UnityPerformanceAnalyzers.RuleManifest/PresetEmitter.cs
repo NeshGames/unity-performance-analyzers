@@ -112,7 +112,7 @@ public static class PresetEmitter
         sb.Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
         sb.Append("<!-- unity-performance-analyzers WebGL overlay.\n");
         sb.Append("     Include next to unity.ruleset or ci.ruleset and define UPA_TARGET_WEBGL.\n");
-        sb.Append("     Rules stay Warning here; CI chooses whether warnings fail through upa-cli --fail-on.\n");
+        sb.Append("     Rules stay Warning here; CI chooses whether warnings fail through the upa-cli fail threshold.\n");
         sb.Append(GeneratedNotice("     "));
         sb.Append("<RuleSet Name=\"UPA webgl\" ToolsVersion=\"10.0\">\n");
         sb.Append("  <Rules AnalyzerId=\"UnityPerformanceAnalyzers\" RuleNamespace=\"UnityPerformanceAnalyzers\">\n");
