@@ -37,7 +37,7 @@ namespace UnityPerformanceAnalyzers.Tests
                 "UPA0012TmpTextAssignmentAnalyzer", "UPA0013LinqUsageAnalyzer",
                 "UPA0014SceneSearchAnalyzer", "UPA0015CameraMainAnalyzer",
                 "UPA0017GetComponentsArrayAnalyzer", "UPA0018AllocatingArrayApiAnalyzer",
-                "UPA0022HasFlagAnalyzer", "UPA0024ResourcesLoadAnalyzer",
+                "UPA0024ResourcesLoadAnalyzer",
                 "UPA0026BoxedReceiverCallAnalyzer", "UPA0027ParamsArrayAllocationAnalyzer",
                 "UPA0030KnownAllocatingBclApiAnalyzer", "UPA0031HotPathLifecycleAnalyzer",
                 "UPA2000StringConcatenationAnalyzer",
