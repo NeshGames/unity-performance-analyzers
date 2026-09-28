@@ -38,6 +38,7 @@
 | AF-05A | DONE | Remove fully retired rules | 完整移除 UPA0022 / UPA1000 live analyzer、tests、resources、preset rows 與 live docs；新增 RetiredRuleIds 防止 ID reuse，保留 retired evidence，並更新 migration/versioning contract。PR #9 / merge `a34d41386646c8c5778cbeaea0b595d1cb21c479` |
 | AF-05B | DONE | Retire low-ROI active rules | 移除 UPA0009 / UPA0021，保留 Unity 6 IL2CPP evidence 與 retired IDs；UPA0023 保留到 AF-06 分類。PR #10 / merge `b8fa795c8f1fd1fc65ac8432218981de585e7c16` |
 | AF-06 | DONE | Audit optional / opinionated rules | 退役 UPA0011 / UPA2032；新增 Core / Optional / House / Platform / Retired machine-readable policy；Optional / House 不再於 CI 強制升 Error。PR #11 / merge `0dce2632b63c09a5b377111661ad14e78e4ff8dd` |
+| AF-07 | DONE | Simplify upa-cli surface | 移除 SARIF / GitHub-specific output；CLI 僅保留 text / JSON，JSON 作為 agent / CI machine interface；保留 exit 0/1/2、whole-assembly、changed-file narrowing 與 baseline 入口。PR #12 / merge `33ccd9adcf25cddb5c19ffd8764a52712b3f8296` |
 
 ---
 
@@ -371,37 +372,23 @@ UPA1000
 
 ## AF-07 — Simplify upa-cli surface
 
-**Status:** TODO  
+**Status:** DONE  
 **Priority:** P1  
 **Risk:** Medium  
-**Depends on:** AF-03
+**Depends on:** AF-03  
+**PR:** #12  
+**Merge:** `33ccd9adcf25cddb5c19ffd8764a52712b3f8296`
 
-### 建議保留
+實際完成：
 
-- `--init-args`
-- response file
-- whole assembly
-- changed-files narrowing：`--only` / `--only-from`
-- `--fail-on`
-- `--list-rules`
-- text
-- json
-- baseline（但由 AF-08 瘦身）
-
-### 建議評估移除
-
-- SARIF
-- GitHub-specific output
-- 只為公開 distribution 存在的 format / flags
-
-如果你的實際 CI 需要 GitLab annotation，可在確認需求後加 **單一 GitLab-friendly format**，不要保留多平台 UI output。
-
-### Definition of Done
-
-- Agent 的標準路徑是 JSON。
-- CLI help 明顯縮短。
-- `CliOptions.cs` / `OutputWriter.cs` 複雜度下降。
-- exit 0/1/2 contract 不變，除非同一 PR 明確宣布 breaking change。
+- 移除 `--format sarif` 與完整 SARIF serializer / URI / severity 維護面。
+- 移除 `--format github`、workflow-command escaping、`GITHUB_WORKSPACE` path handling 與對應 tests。
+- `--format` 僅保留 `text|json`；text 仍為人類可讀輸出，JSON 是 agent / CI 的 provider-neutral machine interface。
+- consumer skill 的 CI 範例改用 JSON；repo 沒有實際 GitLab formatter consumer，因此沒有新增 GitLab-specific output。
+- 保留 `--init-args`、response file、`--whole-assembly`、`--only` / `--only-from`、`--fail-on`、`--list-rules`。
+- baseline 入口與 subsystem 行為完全不動，留給 AF-08。
+- JSON schema 不變；partial compilation / whole-assembly correctness contract 不變；exit 0 / 1 / 2 contract 不變。
+- PR CI：build、640 tests、analyzer-load smoke、CLI pack、generated drift 全綠。
 
 ---
 
