@@ -32,6 +32,12 @@ Read **Changed** and **Fixed** before upgrading.
 
 ### Changed
 
+- **Baseline lifecycle is reduced to two commands:** `--baseline <path>` reads the committed
+  contract and `--update-baseline <path>` replaces it from a complete whole-assembly run.
+  The baseline file format and occurrence-count matching stay unchanged and deterministic.
+  CLI JSON schema moves to version 2 because the stale-only `baselineStaleCount` and
+  `baselineStale` fields are removed; `baselineSuppressedCount` remains.
+
 - **Rule policy is now explicit and machine-readable.** Live and retired UPA IDs are classified as
   Core, Optional, House, Platform or Retired in `RulePolicyTable.cs`. The CI preset only promotes
   Core rules to Error; Optional and House rules stay Warning/Info so architecture preferences and
@@ -87,6 +93,11 @@ Read **Changed** and **Fixed** before upgrading.
 - `upa-cli` compiles once per run instead of twice — about a third faster, same output.
 
 ### Removed
+
+- **Baseline stale/prune management is removed.** `--write-baseline` is replaced by
+  `--update-baseline`, and `--prune-baseline`, `--report-stale-baseline` and
+  `--fail-on-stale` are gone. Agents refresh the deterministic baseline and review its JSON
+  diff instead of maintaining a second stale-quota UX.
 
 - **Provider-specific `upa-cli` output formats are removed.** `--format` now accepts only
   `text` and `json`; the SARIF and GitHub workflow-command formatters, their parser branches,

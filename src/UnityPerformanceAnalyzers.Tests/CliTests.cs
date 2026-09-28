@@ -89,7 +89,7 @@ public sealed class Quiet : MonoBehaviour
             var (_, stdout, _) = Run(file, "--format", "json");
             var root = ParseJson(stdout);
 
-            Assert.Equal(1, root.GetProperty("schemaVersion").GetInt32());
+            Assert.Equal(2, root.GetProperty("schemaVersion").GetInt32());
             Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("toolVersion").GetString()));
 
             var diagnostic = root.GetProperty("diagnostics")[0];
@@ -631,10 +631,7 @@ public class Mixed
         [InlineData("--only")]
         [InlineData("--only-from")]
         [InlineData("--baseline")]
-        [InlineData("--write-baseline")]
-        [InlineData("--prune-baseline")]
-        [InlineData("--report-stale-baseline")]
-        [InlineData("--fail-on-stale")]
+        [InlineData("--update-baseline")]
         [InlineData("--init-args")]
         [InlineData("--project")]
         [InlineData("--fail-on")]
@@ -726,15 +723,15 @@ public class Mixed
         }
 
         [Fact]
-        public void Only_RefusesToWriteABaseline()
+        public void Only_RefusesToUpdateABaseline()
         {
             var file = WriteViolation("Changed.cs", "Changed");
 
             var (exitCode, _, stderr) = Run(
-                file, "--whole-assembly", "--only", file, "--write-baseline", Path.Combine(_dir, "b.json"));
+                file, "--whole-assembly", "--only", file, "--update-baseline", Path.Combine(_dir, "b.json"));
 
             Assert.Equal(2, exitCode);
-            Assert.Contains("--write-baseline", stderr);
+            Assert.Contains("--update-baseline", stderr);
         }
 
         [Fact]

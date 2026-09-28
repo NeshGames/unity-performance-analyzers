@@ -17,7 +17,7 @@ namespace UnityPerformanceAnalyzers.Cli;
 internal static class OutputWriter
 {
     /// <summary>Bumped only when an existing field changes meaning or disappears.</summary>
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
 
     // JsonNode.ToJsonString needs an explicit resolver on .NET 8 once the options
     // instance is reused, so the default reflection resolver is set here.
@@ -29,13 +29,6 @@ internal static class OutputWriter
     };
 
     public static void WriteAnalysis(TextWriter stdout, AnalysisResult result, OutputFormat format)
-        => WriteAnalysis(stdout, result, format, listStale: false);
-
-    public static void WriteAnalysis(
-        TextWriter stdout,
-        AnalysisResult result,
-        OutputFormat format,
-        bool listStale)
     {
         switch (format)
         {
@@ -43,7 +36,7 @@ internal static class OutputWriter
                 WriteAnalysisJson(stdout, result);
                 break;
             default:
-                WriteAnalysisText(stdout, result, listStale);
+                WriteAnalysisText(stdout, result);
                 break;
         }
     }
@@ -88,20 +81,6 @@ internal static class OutputWriter
             });
         }
 
-        var stale = new JsonArray();
-        foreach (var entry in result.BaselineStale)
-        {
-            stale.Add(new JsonObject
-            {
-                ["file"] = entry.Key.File,
-                ["id"] = entry.Key.Rule,
-                ["type"] = entry.Key.Type,
-                ["member"] = entry.Key.Member,
-                ["recorded"] = entry.Recorded,
-                ["observed"] = entry.Observed,
-            });
-        }
-
         var document = new JsonObject
         {
             ["schemaVersion"] = SchemaVersion,
@@ -115,14 +94,7 @@ internal static class OutputWriter
                 ["compileErrorCount"] = result.CompileErrorCount,
                 ["analyzerFailureCount"] = result.AnalyzerFailures.Length,
                 ["baselineSuppressedCount"] = result.BaselineSuppressedCount,
-                // null rather than 0 when the run could not tell: 0 means checked and none
-                // stale, and a consumer acting on a false 0 deletes quota that is still valid.
-                ["baselineStaleCount"] = result.BaselineStaleCount,
             },
-            // Always present, and empty whenever the count is null. Which of the two a null
-            // means is the count field's job to say; encoding it twice invites the two
-            // disagreeing.
-            ["baselineStale"] = stale,
             ["excludedRules"] = ToJsonArray(result.ExcludedRules),
             ["analyzerFailures"] = ToJsonArray(result.AnalyzerFailures),
             // Every compile error, not a sample: this channel is read by tools, which have no
@@ -135,7 +107,7 @@ internal static class OutputWriter
         stdout.WriteLine(document.ToJsonString(s_json));
     }
 
-    private static void WriteAnalysisText(TextWriter stdout, AnalysisResult result, bool listStale)
+    private static void WriteAnalysisText(TextWriter stdout, AnalysisResult result)
     {
         foreach (var d in result.Diagnostics)
         {
@@ -175,25 +147,6 @@ internal static class OutputWriter
 
         stdout.WriteLine(summary);
 
-        // Withheld when the analysis was incomplete: a depressed diagnostic count inflates
-        // staleness, and following the advice would delete quota that is still doing its job.
-        if (result.BaselineStaleCount is > 0L and { } stale)
-        {
-            stdout.WriteLine(
-                $"{stale} baseline entr{(stale == 1 ? "y no longer matches" : "ies no longer match")}"
-                + " - remove the unused quota with --prune-baseline.");
-
-            if (listStale)
-            {
-                foreach (var entry in result.BaselineStale)
-                {
-                    var member = string.IsNullOrEmpty(entry.Key.Member) ? "(file)" : entry.Key.Member;
-                    stdout.WriteLine(
-                        $"  {entry.Key.File}({entry.Key.Rule}, {member}): "
-                        + $"{entry.Recorded} -> {entry.Observed}");
-                }
-            }
-        }
     }
 
     /// <summary>
@@ -347,7 +300,7 @@ internal static class OutputWriter
         .AppendLine("                          when Unity compiled the assembly with it.")
         .AppendLine("  --only <path|glob>      Report findings for these files only (repeatable). Every input")
         .AppendLine("                          is still compiled, so symbols resolve as in a full run. Not")
-        .AppendLine("                          with baseline writing, pruning or stale checks.")
+        .AppendLine("                          with --update-baseline.")
         .AppendLine("                            @upa-args.rsp --only Assets/Scripts/Player.cs")
         .AppendLine("  --only-from <file>      Like --only, one path per line, read from the working")
         .AppendLine("                          directory - e.g. git diff --name-only --relative. Missing and")
@@ -358,18 +311,11 @@ internal static class OutputWriter
         .AppendLine("                          new ones are reported. Paths inside it are relative to the")
         .AppendLine("                          baseline's own directory, so it works from anywhere.")
         .AppendLine("                            --baseline upa-baseline.json")
-        .AppendLine("  --write-baseline <path> Record the current violations as the baseline. Requires")
+        .AppendLine("  --update-baseline <path> Replace the baseline with the current violations. Requires")
         .AppendLine("                          --whole-assembly, and refuses when the analysis was")
         .AppendLine("                          incomplete or when the existing file covers files this run")
-        .AppendLine("                          did not analyze. Exits 0 on success.")
-        .AppendLine("                            --write-baseline upa-baseline.json --whole-assembly")
-        .AppendLine("  --prune-baseline        With --baseline: remove quota this run did not use, then")
-        .AppendLine("                          exit 0. Only ever subtracts, so violations introduced")
-        .AppendLine("                          since keep reporting instead of being frozen in. Same")
-        .AppendLine("                          preconditions as --write-baseline.")
-        .AppendLine("  --report-stale-baseline List the unused entries rather than only counting them.")
-        .AppendLine("  --fail-on-stale         Exit 1 when the baseline holds unused quota; exit 2 when")
-        .AppendLine("                          the run was too incomplete to tell.")
+        .AppendLine("                          did not analyze. Review the JSON diff before committing.")
+        .AppendLine("                            --update-baseline upa-baseline.json --whole-assembly")
         .AppendLine("  --fail-on <level>       Threshold for exit code 1: none|info|warning|error.")
         .AppendLine("                          Default: warning. Use none to report without failing.")
         .AppendLine("  --format <format>       text|json. Default: text. Use json for agents and CI;")

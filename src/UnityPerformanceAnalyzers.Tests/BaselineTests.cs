@@ -99,7 +99,7 @@ public sealed class Probe : MonoBehaviour
         /// <summary>Writes a baseline over the given files and asserts it succeeded.</summary>
         private string Freeze(string baseline, params string[] files)
         {
-            var args = files.Concat(new[] { "--whole-assembly", "--write-baseline", baseline }).ToArray();
+            var args = files.Concat(new[] { "--whole-assembly", "--update-baseline", baseline }).ToArray();
             var (exitCode, _, stderr) = Run(args);
             Assert.Equal(0, exitCode);
             Assert.Contains("baseline entries", stderr);
@@ -288,7 +288,7 @@ public sealed class Probe : MonoBehaviour
                 File.WriteAllText(file, OneViolation);
 
                 var (exitCode, _, stderr) = Run(
-                    file, "--whole-assembly", "--write-baseline", BaselinePathIn());
+                    file, "--whole-assembly", "--update-baseline", BaselinePathIn());
 
                 Assert.Equal(2, exitCode);
                 Assert.Contains("outside the baseline directory", stderr);
@@ -436,7 +436,7 @@ void Local() { var x = new GameObject().GetComponent<Rigidbody>(); }
 ");
 
             var options = CliOptions.Parse(
-                new[] { file, "--whole-assembly", "--write-baseline", BaselinePathIn() }, out _)!;
+                new[] { file, "--whole-assembly", "--update-baseline", BaselinePathIn() }, out _)!;
             var result = AnalysisRunner.Run(options);
 
             Assert.All(result.Diagnostics, d =>
@@ -486,7 +486,7 @@ public sealed class C<T>
 }");
 
             var options = CliOptions.Parse(
-                new[] { file, "--all-warn", "--whole-assembly", "--write-baseline", BaselinePathIn() },
+                new[] { file, "--all-warn", "--whole-assembly", "--update-baseline", BaselinePathIn() },
                 out _)!;
             var keys = AnalysisRunner.Run(options).Diagnostics
                 .Where(d => d.Id == "UPA0005")
@@ -518,7 +518,7 @@ public sealed class Holder
 }");
 
             var options = CliOptions.Parse(
-                new[] { file, "--all-warn", "--whole-assembly", "--write-baseline", BaselinePathIn() },
+                new[] { file, "--all-warn", "--whole-assembly", "--update-baseline", BaselinePathIn() },
                 out _)!;
             var members = AnalysisRunner.Run(options).Diagnostics
                 .Where(d => d.Id == "UPA0005")
@@ -565,7 +565,7 @@ public sealed class Holder
 }");
 
             var options = CliOptions.Parse(
-                new[] { file, "--all-warn", "--whole-assembly", "--write-baseline", BaselinePathIn() },
+                new[] { file, "--all-warn", "--whole-assembly", "--update-baseline", BaselinePathIn() },
                 out _)!;
             var members = AnalysisRunner.Run(options).Diagnostics
                 .Where(d => d.Id == "UPA0005")
@@ -599,7 +599,7 @@ public sealed class Probe
 }");
 
             var options = CliOptions.Parse(
-                new[] { file, "--all-warn", "--whole-assembly", "--write-baseline", BaselinePathIn() },
+                new[] { file, "--all-warn", "--whole-assembly", "--update-baseline", BaselinePathIn() },
                 out _)!;
             var work = AnalysisRunner.Run(options).Diagnostics
                 .Where(d => d.Member == "Work" && d.Id == "UPA0005")
@@ -632,7 +632,7 @@ public sealed class Probe : A.IFoo, B.IFoo
 }");
 
             var options = CliOptions.Parse(
-                new[] { file, "--all-warn", "--whole-assembly", "--write-baseline", BaselinePathIn() },
+                new[] { file, "--all-warn", "--whole-assembly", "--update-baseline", BaselinePathIn() },
                 out _)!;
             var members = AnalysisRunner.Run(options).Diagnostics
                 .Where(d => d.Member.EndsWith("IFoo.M", StringComparison.Ordinal))
@@ -643,109 +643,9 @@ public sealed class Probe : A.IFoo, B.IFoo
             Assert.Single(members.Distinct());
         }
 
-        // Case 42 / 42b - staleness counts occurrences, not vanished keys. Counting only keys
-        // that disappeared entirely leaves a reusable quota that swallows later violations.
+        // Case 42c - once updated, the quota has converged and later additions all report.
         [Fact]
-        public void StaleCount_IsPerOccurrence()
-        {
-            var file = Write("Probe.cs", OneViolation);
-            var baseline = BaselinePathIn();
-            WriteBaselineFile(baseline, Document(Entry("Probe.cs", count: 5)));
-
-            var (exitCode, stdout, _) = Run(file, "--whole-assembly", "--baseline", baseline, "--format", "json");
-
-            Assert.Equal(0, exitCode);
-            Assert.Equal(4, Summary(stdout).GetProperty("baselineStaleCount").GetInt32());
-        }
-
-        [Fact]
-        public void FixedViolation_IsStaleAndPrompted()
-        {
-            var file = Write("Probe.cs", OneViolation);
-            var baseline = Freeze(BaselinePathIn(), file);
-
-            File.WriteAllText(file, @"
-using UnityEngine;
-
-public sealed class Probe : MonoBehaviour
-{
-    private Rigidbody _body;
-
-    void Awake() { _body = GetComponent<Rigidbody>(); }
-
-    void Update() { }
-}");
-
-            var (exitCode, stdout, _) = Run(file, "--whole-assembly", "--baseline", baseline);
-
-            Assert.Equal(0, exitCode);
-            Assert.Contains("no longer match", stdout);
-        }
-
-        // Case 42e - analyzing one changed file is a normal invocation, and calling every other
-        // file's entries stale would advise replacing a repository-wide contract with one file.
-        [Fact]
-        public void FilesNotAnalyzed_AreNotCountedStale()
-        {
-            var probe = Write("Probe.cs", OneViolation);
-            var baseline = BaselinePathIn();
-            WriteBaselineFile(baseline, Document(
-                Entry("Probe.cs"),
-                Entry("Other.cs", type: "Other", member: "Update")));
-
-            var (_, stdout, _) = Run(probe, "--whole-assembly", "--baseline", baseline, "--format", "json");
-
-            Assert.Equal(0, Summary(stdout).GetProperty("baselineStaleCount").GetInt32());
-        }
-
-        // Case 42h / 42i - unresolved types depress the diagnostic count, which inflates
-        // staleness; acting on that number deletes quota that is still doing its job.
-        [Fact]
-        public void CompileErrors_MakeTheStaleCountUnavailable()
-        {
-            var file = Write("Probe.cs", @"
-using UnityEngine;
-
-public sealed class Probe : MonoBehaviour
-{
-    void Update()
-    {
-        MissingType thing = null;
-        GetComponent<Rigidbody>();
-    }
-}");
-
-            var baseline = BaselinePathIn();
-            WriteBaselineFile(baseline, Document(Entry("Probe.cs", count: 5)));
-
-            var (_, stdout, _) = Run(file, "--baseline", baseline, "--format", "json");
-
-            Assert.Equal(JsonValueKind.Null, Summary(stdout).GetProperty("baselineStaleCount").ValueKind);
-            Assert.DoesNotContain("no longer match", stdout);
-        }
-
-        [Fact]
-        public void AnalyzerFailure_MakesTheStaleCountUnavailable()
-        {
-            var file = Write("Probe.cs", OneViolation);
-            var options = CliOptions.Parse(new[] { file, "--baseline", BaselinePathIn() }, out _)!;
-
-            var result = AnalysisRunner.Run(
-                options, ImmutableArray.Create<DiagnosticAnalyzer>(new ThrowingAnalyzer()));
-
-            Assert.False(result.IsComplete);
-            var outcome = BaselineFilter.Apply(
-                result.Diagnostics,
-                new BaselineDocument(ImmutableArray<BaselineEntry>.Empty),
-                result.AnalyzedFiles,
-                result.IsComplete);
-
-            Assert.Null(outcome.StaleCount);
-        }
-
-        // Case 42c - once regenerated, the quota has converged and later additions all report.
-        [Fact]
-        public void AfterRegenerating_TheQuotaNoLongerAbsorbsNewViolations()
+        public void AfterUpdating_TheQuotaNoLongerAbsorbsNewViolations()
         {
             var file = Write("Probe.cs", TwoIdenticalInOneMember);
             var baseline = BaselinePathIn();
@@ -773,9 +673,9 @@ public sealed class Probe : MonoBehaviour
         }
 
         // Case 41n / 41p - a deleted or renamed file can never appear in a successful run
-        // again, so refusing on its behalf would lock the baseline out of regeneration for good.
+        // again, so refusing on its behalf would lock the baseline out of update for good.
         [Fact]
-        public void DeletedFile_IsDroppedOnRegeneration()
+        public void DeletedFile_IsDroppedOnUpdate()
         {
             var a = Write("A.cs", OneViolation);
             var b = Write("B.cs", OneViolation.Replace("Probe", "Second"));
@@ -821,7 +721,7 @@ public sealed class Probe : MonoBehaviour
             var baseline = Freeze(BaselinePathIn(), a, b);
             var before = File.ReadAllBytes(baseline);
 
-            var (exitCode, _, stderr) = Run(a, "--whole-assembly", "--write-baseline", baseline);
+            var (exitCode, _, stderr) = Run(a, "--whole-assembly", "--update-baseline", baseline);
 
             Assert.Equal(2, exitCode);
             Assert.Contains("B.cs", stderr);
@@ -834,7 +734,7 @@ public sealed class Probe : MonoBehaviour
         {
             var file = Write("Probe.cs", OneViolation);
 
-            var (exitCode, _, stderr) = Run(file, "--write-baseline", BaselinePathIn());
+            var (exitCode, _, stderr) = Run(file, "--update-baseline", BaselinePathIn());
 
             Assert.Equal(2, exitCode);
             Assert.Contains("--whole-assembly", stderr);
@@ -852,7 +752,7 @@ public sealed class Broken : MonoBehaviour
     void Update() { MissingType thing = null; }
 }");
 
-            var (exitCode, _, _) = Run(file, "--whole-assembly", "--write-baseline", BaselinePathIn());
+            var (exitCode, _, _) = Run(file, "--whole-assembly", "--update-baseline", BaselinePathIn());
 
             Assert.Equal(2, exitCode);
             Assert.False(File.Exists(BaselinePathIn()));
@@ -863,25 +763,25 @@ public sealed class Broken : MonoBehaviour
         {
             var file = Write("Probe.cs", OneViolation);
             var options = CliOptions.Parse(
-                new[] { file, "--whole-assembly", "--write-baseline", BaselinePathIn() }, out _)!;
+                new[] { file, "--whole-assembly", "--update-baseline", BaselinePathIn() }, out _)!;
 
             var result = AnalysisRunner.Run(
                 options, ImmutableArray.Create<DiagnosticAnalyzer>(new ThrowingAnalyzer()));
 
             var error = Assert.Throws<CliException>(
-                () => BaselineWriter.EnsureRunIsWritable(options, result));
+                () => BaselineWriter.EnsureRunIsUpdatable(options, result));
             Assert.Contains("failed to run", error.Message);
             Assert.False(File.Exists(BaselinePathIn()));
         }
 
         // Case 45
         [Fact]
-        public void BothBaselineOptions_IsAUsageError()
+        public void BaselineAndUpdateTogether_IsAUsageError()
         {
             var file = Write("Probe.cs", OneViolation);
 
             var (exitCode, _, stderr) = Run(
-                file, "--baseline", BaselinePathIn(), "--write-baseline", BaselinePathIn("other.json"));
+                file, "--baseline", BaselinePathIn(), "--update-baseline", BaselinePathIn("other.json"));
 
             Assert.Equal(2, exitCode);
             Assert.Contains("cannot be given together", stderr);
@@ -1001,25 +901,6 @@ public sealed class Broken : MonoBehaviour
             Assert.Contains("normalized relative path", stderr);
         }
 
-        // A baseline of hostile provenance must not overflow the aggregate into a negative
-        // number, which reads as "nothing stale" and silently drops the safeguard.
-        [Fact]
-        public void HugeStaleCounts_DoNotOverflow()
-        {
-            var file = Write("Probe.cs", OneViolation);
-            var baseline = BaselinePathIn();
-            var entries = Enumerable.Range(0, 2500)
-                .Select(i => Entry("Probe.cs", member: $"M{i}", count: 1_000_000))
-                .ToArray();
-            WriteBaselineFile(baseline, Document(entries));
-
-            var (_, stdout, _) = Run(file, "--whole-assembly", "--baseline", baseline, "--format", "json");
-
-            Assert.Equal(
-                2500L * 1_000_000L,
-                Summary(stdout).GetProperty("baselineStaleCount").GetInt64());
-        }
-
         // Case 46f - the one lenient rule, so a later version can add a field without
         // invalidating baselines already committed.
         [Fact]
@@ -1041,7 +922,7 @@ public sealed class Broken : MonoBehaviour
         // Case 47 - regenerating an unchanged baseline must produce an unchanged file, or it
         // cannot be reviewed in a diff.
         [Fact]
-        public void RegeneratingTwice_ProducesIdenticalBytes()
+        public void UpdatingTwice_ProducesIdenticalBytes()
         {
             var file = Write("Probe.cs", TwoMembers);
             var baseline = Freeze(BaselinePathIn(), file);
@@ -1082,7 +963,7 @@ public sealed class Broken : MonoBehaviour
             var file = Write("Probe.cs", OneViolation);
 
             var (exitCode, stdout, _) = Run(
-                file, "--whole-assembly", "--write-baseline", BaselinePathIn(), "--format", "json");
+                file, "--whole-assembly", "--update-baseline", BaselinePathIn(), "--format", "json");
 
             Assert.Equal(0, exitCode);
             Assert.True(DiagnosticCount(stdout) > 0, "diagnostics are still reported");
@@ -1096,7 +977,7 @@ public sealed class Broken : MonoBehaviour
             var target = Path.Combine(_dir, "occupied");
             Directory.CreateDirectory(target);
 
-            var (exitCode, _, stderr) = Run(file, "--whole-assembly", "--write-baseline", target);
+            var (exitCode, _, stderr) = Run(file, "--whole-assembly", "--update-baseline", target);
 
             Assert.Equal(2, exitCode);
             Assert.Contains("Failed to write", stderr);
@@ -1122,7 +1003,7 @@ public sealed class Broken : MonoBehaviour
             // here, so a failure now is a real one rather than a missing privilege.
             File.CreateSymbolicLink(target, destination);
 
-            var (exitCode, _, stderr) = Run(file, "--whole-assembly", "--write-baseline", target);
+            var (exitCode, _, stderr) = Run(file, "--whole-assembly", "--update-baseline", target);
 
             Assert.Equal(2, exitCode);
             Assert.Contains("symbolic link", stderr);
@@ -1153,9 +1034,8 @@ public sealed class Broken : MonoBehaviour
             }
         }
 
-        // --only narrows the run before the baseline sees it, so the baseline's numbers are
-        // about the same files as the findings. Another file's unused quota is not stale from
-        // a run that did not look at it, and its suppressions are not this run's.
+        // --only narrows reporting after the full compilation, so baseline suppression is
+        // counted for the named files while every input still participates in symbol resolution.
         [Fact]
         public void Only_WithABaseline_CountsTheNamedFilesAlone()
         {
@@ -1168,16 +1048,11 @@ public sealed class Broken : MonoBehaviour
             var baseline = Freeze(BaselinePathIn(), changed, other);
             File.WriteAllText(other, "public class Other { }");
 
-            var (_, whole, _) = Run(changed, other, "--whole-assembly", "--baseline", baseline, "--format", "json");
-            Assert.True(Summary(whole).GetProperty("baselineStaleCount").GetInt32() > 0,
-                "the fixture must leave the other file's quota unused");
-
             var (exitCode, stdout, stderr) = Run(
                 changed, other, "--whole-assembly", "--baseline", baseline, "--only", changed, "--format", "json");
 
             Assert.True(exitCode == 0, stderr);
             Assert.Equal(inChanged, Summary(stdout).GetProperty("baselineSuppressedCount").GetInt32());
-            Assert.Equal(0, Summary(stdout).GetProperty("baselineStaleCount").GetInt32());
         }
     }
 }

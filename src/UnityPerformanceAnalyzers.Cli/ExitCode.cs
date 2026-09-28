@@ -21,15 +21,15 @@ internal static class ExitCode
     /// The code for a completed run. The four rules are in precedence order, and each one
     /// outranks the threshold for a different reason.
     /// </summary>
-    public static int For(AnalysisResult result, CliOptions options, bool baselineWritten)
-        => For(result, options.FailOn, options.WholeAssembly, baselineWritten);
+    public static int For(AnalysisResult result, CliOptions options, bool baselineUpdated)
+        => For(result, options.FailOn, options.WholeAssembly, baselineUpdated);
 
     /// <summary>
     /// The same rules from the two values they actually depend on, for callers that do not
     /// have a parsed command line -- the options object cannot be constructed from outside
     /// its own parser, which is a property worth keeping.
     /// </summary>
-    public static int For(AnalysisResult result, string failOn, bool wholeAssembly, bool baselineWritten)
+    public static int For(AnalysisResult result, string failOn, bool wholeAssembly, bool baselineUpdated)
     {
         // An analyzer that threw did not analyze anything. There is no finding to weigh
         // against a severity threshold, only an analysis that did not happen.
@@ -51,7 +51,7 @@ internal static class ExitCode
         // Everything reported is part of the contract as of this moment, so --fail-on has
         // nothing left to weigh. Applying it would make freezing existing debt an operation
         // that always fails.
-        if (baselineWritten)
+        if (baselineUpdated)
         {
             return Clean;
         }

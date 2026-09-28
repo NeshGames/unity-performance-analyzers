@@ -83,13 +83,13 @@ Unity 日常 profile 刻意不含 Error。需要 Error gate 時使用 `ci.rulese
 | 改動 | 版本 | 你可能要做什麼 |
 |---|---|---|
 | 新規則、新編號 | Minor | 不用做什麼,除非某個 preset 把它評為 error。新規則會在出貨的**下一個**版本才進 preset |
-| 規則**報得更少**——收窄、修掉誤報 | Patch 或 minor | 不用。對應的 baseline 條目會變成過期並被回報 |
+| 規則**報得更少**——收窄、修掉誤報 | Patch 或 minor | 不用。若要讓已提交的 baseline 移除舊條目，執行 `--update-baseline` 並 review diff |
 | 規則**報得更多**——放寬 | **Minor,絕不 patch** | 這是最可能讓建置失敗的改動。CHANGELOG 會指名該規則與它新抓到什麼 |
-| 規則廢止 | Minor | 它停止回報;舊 suppress、ruleset 與 baseline 條目會變成無作用設定,可自行清理 |
+| 規則廢止 | Minor | 它停止回報;舊 suppress、ruleset 與 baseline 條目會變成無作用設定，需要時以 `--update-baseline` 清理 |
 | 規則自身的預設嚴重度改變 | Minor | 不用,除非你依賴的是預設值而非 preset |
 | preset 內容改變 | Minor | 若你是從 sample 複製的,請重新複製。你改過的那份不會被動到 |
 | CLI 引數、退出碼、JSON schema | 1.0 起為 Major | 見下方相容面 |
-| baseline 檔案格式 | 1.0 起為 Major | 以 `--write-baseline` 重生 |
+| baseline 檔案格式 | 1.0 起為 Major | 以 `--update-baseline` 重生 |
 | live 規則頁搬家 | 永不 | help 連結是 live diagnostic 的一部分 |
 
 真正要注意的是第三列。**一條規則開始報得更多,和你的程式碼變差長得一模一樣**,
@@ -97,7 +97,7 @@ Unity 日常 profile 刻意不含 Error。需要 Error gate 時使用 `ci.rulese
 而 baseline 是「先接受它、之後再修」的正規做法:
 
 ```bash
-upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --write-baseline upa-baseline.json
+upa-cli "Assets/Scripts/**/*.cs" --whole-assembly --update-baseline upa-baseline.json
 ```
 
 ---
