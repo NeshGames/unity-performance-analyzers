@@ -28,7 +28,7 @@ internal static class BaselineWriter
         if (result.CompileErrorCount > 0)
         {
             throw new CliException(
-                $"Refusing to write a baseline: {result.CompileErrorCount} compile error(s) "
+                $"Refusing to update the baseline: {result.CompileErrorCount} compile error(s) "
                 + "leave types unresolved, so rules that key off them did not fire.");
         }
     }
@@ -38,7 +38,7 @@ internal static class BaselineWriter
     /// still on disk.
     /// </summary>
     /// <remarks>
-    /// Without that qualifier a deleted or renamed file locks the baseline out of regeneration
+    /// Without that qualifier a deleted or renamed file locks the baseline out of updating
     /// for good, since its old path can never appear in a successful run again, leaving
     /// hand-editing the JSON as the only way out. Entries whose file is gone are simply
     /// dropped; a rename is a disappearance plus an appearance, which is why no rename
@@ -69,7 +69,7 @@ internal static class BaselineWriter
         var more = uncovered.Length > 5 ? $" (and {uncovered.Length - 5} more)" : string.Empty;
         throw new CliException(
             $"Refusing to update {path}: it covers files this run did not analyze - "
-            + $"{shown}{more}. Regenerating a baseline means analyzing the whole project; "
+            + $"{shown}{more}. Updating a baseline means analyzing the whole project; "
             + "a partial run would drop the rest of the contract.");
     }
 
